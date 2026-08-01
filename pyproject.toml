@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanroute"
+version = "0.1.0"
+description = "Independent submarine cable route planning and research simulation"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "numpy>=1.26,<3",
+  "scipy>=1.11,<2",
+  "pyproj>=3.6,<4",
+  "shapely>=2,<3",
+  "python-multipart>=0.0.9,<1",
+  "pyshp>=2.3,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "httpx>=0.27,<1"]
+terrain = ["rasterio>=1.3,<2", "contourpy>=1.3,<2"]
+
+[project.scripts]
+oceanroute = "oceanroute.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["oceanroute*"]
+
+[tool.setuptools.package-data]
+oceanroute = ["static/**/*", "static/*", "manual.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
