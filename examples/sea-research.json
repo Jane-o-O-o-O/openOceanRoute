@@ -1,0 +1,27 @@
+{
+  "simulation": {
+    "depth_m": 30,
+    "bottom_tension_n": 100,
+    "duration_s": 2,
+    "nodes": 8,
+    "dt_s": 0.25,
+    "internal_dt_s": 0.05,
+    "ship_speed_m_s": 0,
+    "payout_m_s": 0,
+    "wet_weight_n_m": 4,
+    "mass_kg_m": 1,
+    "diameter_m": 0.02,
+    "ea_n": 100000000
+  },
+  "sea_state": {
+    "spectrum": "regular",
+    "hs_m": 0.2,
+    "tp_s": 4,
+    "seed": 2026,
+    "wave_direction_deg": 90,
+    "heave_rao": [
+      {"frequency_hz": 0.25, "amplitude_m_m": 1, "phase_deg": 0}
+    ],
+    "include_fluid_kinematics": true
+  }
+}
