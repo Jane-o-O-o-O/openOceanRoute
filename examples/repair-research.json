@@ -1,0 +1,36 @@
+{
+  "recovery": {
+    "depth_m": 100,
+    "wet_weight_n_m": 4,
+    "suspended_length_m": 150,
+    "heading_deg": 90
+  },
+  "tow": {
+    "depth_m": 100,
+    "wet_weight_n_m": 4,
+    "diameter_m": 0.02,
+    "bottom_tension_n": 250,
+    "ship_speed_m_s": 1,
+    "current_y_m_s": 0.3,
+    "heading_deg": 90
+  },
+  "rope": {
+    "depth_m": 100,
+    "wet_weight_n_m": 4,
+    "diameter_m": 0.02,
+    "ship_speed_m_s": 1,
+    "heading_deg": 90,
+    "grapnel_wet_weight_n": 1000,
+    "grapnel_friction_coefficient": 0.5,
+    "grapnel_drag_area_m2": 0.2,
+    "grapnel_drag_coefficient": 1.2,
+    "extra_rope_m": 10
+  },
+  "buoy": {
+    "cable": {"depth_m": 100, "wet_weight_n_m": 4, "suspended_length_m": 150},
+    "buoy_mass_kg": 50,
+    "height_m": 2,
+    "freeboard_m": 0.5,
+    "reserve_pct": 20
+  }
+}

@@ -1,0 +1,4 @@
+id,longitude,latitude,depth_m,cable_kp_m,break_before
+synthetic-1,118.0,22.0001,35,0,false
+synthetic-2,118.02,22.0051,65,2200,false
+synthetic-3,118.04,22.0001,100,4700,false
