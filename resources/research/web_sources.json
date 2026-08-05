@@ -1,0 +1,98 @@
+[
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/",
+    "snapshot": "web_homepage.html",
+    "sha256": "b7c8b4e25352cacf38db91f10ad4873885eb5506baf15ca5c29d4ab474ebd0b2",
+    "recorded_at_utc": "2026-10-03T15:09:01.909998+00:00",
+    "page_metadata_dates": [
+      "2013-05-07T05:21:11-10:00",
+      "2025-10-16T05:29:19-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/sitemap_index.xml",
+    "snapshot": "web_sitemap.html",
+    "sha256": "da521249f2b281c36cbcb8888e9c276883df82c3e795579cb37d6fb63f368690",
+    "recorded_at_utc": "2026-10-03T15:09:01.910259+00:00",
+    "page_metadata_dates": []
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/",
+    "snapshot": "web_cable-software.html",
+    "sha256": "cafec9911aa32a9cb3cea269943d1fc5b6b8f53b3990e0f0c2612b079ee00640",
+    "recorded_at_utc": "2026-10-03T15:09:01.910741+00:00",
+    "page_metadata_dates": [
+      "2013-03-31T10:51:43-10:00",
+      "2026-03-19T09:26:39-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/makaiplan/",
+    "snapshot": "web_makaiplan.html",
+    "sha256": "c07385d0611201f146a37b8578c4084874961ed6da49f5b0de7c389222d86519",
+    "recorded_at_utc": "2026-10-03T15:09:01.911188+00:00",
+    "page_metadata_dates": [
+      "2022-08-24T08:16:44-10:00",
+      "2023-09-19T13:29:50-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/makaiplan-pro/",
+    "snapshot": "web_makaiplan-pro.html",
+    "sha256": "b344689c0a680798d2ce8dc812b1fb7653b6a30d193b69a260347c45c3de0a2a",
+    "recorded_at_utc": "2026-10-03T15:09:01.911628+00:00",
+    "page_metadata_dates": [
+      "2022-08-24T08:12:19-10:00",
+      "2023-09-19T13:32:09-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/makailay/",
+    "snapshot": "web_makailay.html",
+    "sha256": "84963b93be1408d726fadc87a59af611c70538fe6ec11800f9166f44af23f088",
+    "recorded_at_utc": "2026-10-03T15:09:01.912175+00:00",
+    "page_metadata_dates": [
+      "2022-08-24T08:14:34-10:00",
+      "2026-03-19T09:27:54-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/power-module/",
+    "snapshot": "web_power-module.html",
+    "sha256": "37bb93811f967b92e3820ee78005868c780c140f77884f4f6a68ab83d7186d2b",
+    "recorded_at_utc": "2026-10-03T15:09:01.912580+00:00",
+    "page_metadata_dates": [
+      "2013-04-09T09:24:28-10:00",
+      "2023-09-19T13:46:49-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/seismic-module/",
+    "snapshot": "web_seismic-module.html",
+    "sha256": "80aea9b166b146d48a35485457e210d03e4f4eea37cabb58953721885b47dfd2",
+    "recorded_at_utc": "2026-10-03T15:09:01.912928+00:00",
+    "page_metadata_dates": [
+      "2013-04-01T06:51:48-10:00",
+      "2023-09-19T13:51:08-10:00"
+    ]
+  },
+  {
+    "source": "public official website",
+    "url": "https://www.makai.com/cable-software/repair-module/",
+    "snapshot": "web_repair-module.html",
+    "sha256": "2dfd34209dada5467cd9f69a2421b9daeec0d185b4825842c9e2198daca2b66a",
+    "recorded_at_utc": "2026-10-03T15:09:01.913275+00:00",
+    "page_metadata_dates": [
+      "2013-04-17T05:33:02-10:00",
+      "2023-09-19T13:48:28-10:00"
+    ]
+  }
+]
