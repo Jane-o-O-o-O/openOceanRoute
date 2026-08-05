@@ -1,0 +1,7 @@
+import {useEffect,useState} from 'react';
+export function NumberField({value,onChange,nullable=false,min,max,step='any',disabled=false,'aria-label':ariaLabel}:{value:number|null|undefined;onChange:(value:number|null)=>void|Promise<boolean|void>;nullable?:boolean;min?:number;max?:number;step?:number|'any';disabled?:boolean;'aria-label'?:string}){
+  const [draft,setDraft]=useState(value==null?'':String(value));useEffect(()=>setDraft(value==null?'':String(value)),[value]);
+  async function commit(){const n=Number(draft);if(draft===''&&nullable){if(await onChange(null)===false)setDraft(value==null?'':String(value));return}if(draft!==''&&Number.isFinite(n)&&(min===undefined||n>=min)&&(max===undefined||n<=max)){if(n!==value&&await onChange(n)===false)setDraft(value==null?'':String(value))}else setDraft(value==null?'':String(value))}
+  return <input type="number" aria-label={ariaLabel} value={draft} step={step} min={min} max={max} disabled={disabled} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur()}}/>;
+}
+export function TextField({value,onChange}:{value:string;onChange:(v:string)=>void}){const [draft,setDraft]=useState(value);useEffect(()=>setDraft(value),[value]);return <input value={draft} onChange={e=>setDraft(e.target.value)} onBlur={()=>{if(draft!==value)onChange(draft)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur()}}/>;}
