@@ -1,0 +1,312 @@
+"""Open engineering exchange formats. No proprietary Makai format claims."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+import csv
+import html
+import io
+import json
+import math
+import re
+from xml.etree.ElementTree import Element, SubElement, tostring
+from uuid import uuid4
+
+
+def coordinate(value: str, *, latitude: bool) -> float:
+    value = str(value).strip().upper().replace("北", "N").replace("南", "S").replace("东", "E").replace("西", "W")
+    if re.search(r"[^NSEW0-9+\-.\s°º'\"′″:]", value) or re.search(r"\dE[-+]?\d", value):
+        raise ValueError("坐标包含无法识别的字符")
+    hemispheres = re.findall(r"[NSEW]", value)
+    if hemispheres and (len(set(hemispheres)) > 1 or any(h not in ("NS" if latitude else "EW") for h in hemispheres)):
+        raise ValueError("坐标半球与字段不一致")
+    nums = re.findall(r"[-+]?\d+(?:\.\d*)?|[-+]?\.\d+", value)
+    if not 1 <= len(nums) <= 3:
+        raise ValueError("坐标需为十进制度或度分秒")
+    parts = list(map(float, nums))
+    if any(not math.isfinite(x) for x in parts):
+        raise ValueError("坐标不是有限数值")
+    if any(x < 0 or x >= 60 for x in parts[1:]):
+        raise ValueError("分和秒应在 0 到 60 之间")
+    sign = -1 if parts[0] < 0 else 1
+    if hemispheres:
+        hemisphere_sign = -1 if hemispheres[0] in "SW" else 1
+        if parts[0] < 0 and hemisphere_sign > 0:
+            raise ValueError("负号与半球标识矛盾")
+        sign = hemisphere_sign
+    result = sign * (abs(parts[0]) + (parts[1] / 60 if len(parts) > 1 else 0) + (parts[2] / 3600 if len(parts) > 2 else 0))
+    limit = 90 if latitude else 180
+    if abs(result) > limit:
+        raise ValueError("坐标超出有效范围")
+    return result
+
+
+ALIASES = {
+    "longitude": ["longitude", "longitude_decimal", "lon", "long", "lng", "经度"],
+    "latitude": ["latitude", "latitude_decimal", "lat", "纬度"],
+    "label": ["label", "name", "point", "point_name", "名称", "标签", "点名"],
+    "depth_m": ["depth_m", "depth", "water_depth", "水深", "水深_m"],
+    "note": ["note", "notes", "comment", "说明", "备注"],
+    "kp_m": ["kp_m", "kp", "distance_m", "里程", "里程_m"],
+}
+
+
+def _table(text: str, delimiter: str | None = None) -> tuple[csv.DictReader, dict[str, str]]:
+    if len(text.encode("utf-8")) > 32 * 1024 * 1024:
+        raise ValueError("文本文件超过 32 MB，请分批导入")
+    text = text.lstrip("\ufeff")
+    text = "\n".join(line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#"))
+    if not text:
+        raise ValueError("文件为空")
+    if delimiter == "\\t":
+        delimiter = "\t"
+    if delimiter is None:
+        try:
+            delimiter = csv.Sniffer().sniff(text[:8192], delimiters=",;\t|").delimiter
+        except csv.Error:
+            delimiter = ","
+    if len(delimiter) != 1:
+        raise ValueError("分隔符必须为单个字符")
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+    headers = {str(c).strip().casefold(): c for c in reader.fieldnames or [] if c}
+    if not headers:
+        raise ValueError("缺少表头")
+    return reader, headers
+
+
+def _fields(headers: dict[str, str], mapping: dict | None) -> dict[str, str | None]:
+    result = {}
+    for field, aliases in ALIASES.items():
+        specified = (mapping or {}).get(field)
+        result[field] = headers.get(str(specified).strip().casefold()) if specified else next(
+            (headers[a.casefold()] for a in aliases if a.casefold() in headers), None
+        )
+    return result
+
+
+def import_rpl(text: str, delimiter: str | None = None, mapping: dict | None = None) -> dict:
+    reader, headers = _table(text, delimiter)
+    fields = _fields(headers, mapping)
+    if not fields["longitude"] or not fields["latitude"]:
+        raise ValueError("找不到经度和纬度列；请使用 longitude、latitude 或设置列映射")
+    points, warnings = [], []
+    for index, row in enumerate(reader, 2):
+        try:
+            if None in row:
+                raise ValueError("列数多于表头，请检查引号和分隔符")
+            longitude = coordinate(row[fields["longitude"]], latitude=False)
+            latitude = coordinate(row[fields["latitude"]], latitude=True)
+            depth_text = row.get(fields["depth_m"], "") if fields["depth_m"] else ""
+            depth = float(depth_text) if depth_text and depth_text.strip() else None
+            if depth is not None and (not math.isfinite(depth) or depth < 0):
+                raise ValueError("水深须为非负米制数值")
+            points.append({"id": str(uuid4()), "label": row.get(fields["label"], "") or f"P{len(points)+1:02d}",
+                           "longitude": longitude, "latitude": latitude, "depth_m": depth,
+                           "note": row.get(fields["note"], "") or "", "kind": "rigid"})
+        except (ValueError, TypeError, KeyError) as exc:
+            warnings.append({"row": index, "message": str(exc)})
+        if index > 100_001:
+            raise ValueError("路由点超过 100,000 个，请分段处理")
+    if len(points) < 2:
+        raise ValueError("至少需要两个有效路由点" + (f"；首个问题：{warnings[0]['message']}" if warnings else ""))
+    return {"points": points, "warnings": warnings, "accepted_rows": len(points), "rejected_rows": len(warnings)}
+
+
+def import_profile(text: str, delimiter: str | None = None) -> dict:
+    reader, headers = _table(text, delimiter)
+    fields = _fields(headers, None)
+    if not fields["kp_m"] or not fields["depth_m"]:
+        raise ValueError("剖面文本需包含 kp_m 和 depth_m 表头；两列单位均为米")
+    samples, warnings = [], []
+    previous = -math.inf
+    for index, row in enumerate(reader, 2):
+        try:
+            kp = float(row[fields["kp_m"]])
+            depth_raw = row.get(fields["depth_m"])
+            depth = float(depth_raw) if depth_raw and depth_raw.strip() else None
+            if not math.isfinite(kp) or kp < 0 or kp <= previous:
+                raise ValueError("KP 必须为严格递增的非负有限数值")
+            if depth is not None and (not math.isfinite(depth) or depth < 0):
+                raise ValueError("水深须为非负米制数值；缺测留空")
+            samples.append({"kp_m": kp, "depth_m": depth})
+            previous = kp
+        except (ValueError, TypeError, KeyError) as exc:
+            warnings.append({"row": index, "message": str(exc)})
+    if len(samples) < 2:
+        raise ValueError("至少需要两个有效剖面采样点")
+    return {"samples": samples, "warnings": warnings, "accepted_rows": len(samples), "rejected_rows": len(warnings)}
+
+
+def import_geojson(text: str, name: str = "导入图层", kind: str = "survey") -> dict:
+    if len(text.encode("utf-8")) > 32 * 1024 * 1024:
+        raise ValueError("GeoJSON 超过 32 MB")
+    try:
+        data = json.loads(text, parse_constant=lambda x: (_ for _ in ()).throw(ValueError(f"无效数值 {x}")))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"GeoJSON 语法错误：第 {exc.lineno} 行") from exc
+    if not isinstance(data, dict):
+        raise ValueError("GeoJSON顶层须为对象")
+    declared_crs = data.get("crs")
+    if declared_crs:
+        crs_name = str((declared_crs.get("properties", {}) if isinstance(declared_crs, dict) else {}).get("name", ""))
+        if crs_name.upper() not in {"EPSG:4326", "URN:OGC:DEF:CRS:OGC:1.3:CRS84", "OGC:CRS84", "CRS84"}:
+            raise ValueError("GeoJSON声明了非WGS84或无法识别坐标系，请先转换")
+    if data.get("type") == "Feature":
+        data = {"type": "FeatureCollection", "features": [data]}
+    elif data.get("type") in {"Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"}:
+        data = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {}, "geometry": data}]}
+    if data.get("type") != "FeatureCollection" or not isinstance(data.get("features"), list):
+        raise ValueError("需要 GeoJSON FeatureCollection、Feature 或 Geometry")
+    if len(data["features"]) > 100_000:
+        raise ValueError("图层要素超过 100,000 个")
+    from shapely.geometry import shape
+    from shapely.errors import GEOSException
+    for i, feature in enumerate(data["features"]):
+        if not isinstance(feature, dict) or feature.get("type") != "Feature":
+            raise ValueError(f"要素 {i+1} 不是有效Feature对象")
+        geometry = feature.get("geometry")
+        if not geometry:
+            continue
+        try:
+            geom = shape(geometry)
+        except (ValueError, TypeError, KeyError, IndexError, GEOSException) as exc:
+            raise ValueError(f"要素 {i+1} 几何结构无法解析") from exc
+        if geom.is_empty:
+            continue
+        minx, miny, maxx, maxy = geom.bounds
+        if not all(math.isfinite(x) for x in geom.bounds) or minx < -180 or maxx > 180 or miny < -90 or maxy > 90:
+            raise ValueError(f"要素 {i+1} 坐标超出经纬度范围；请先转换为 WGS84")
+        if not geom.is_valid:
+            raise ValueError(f"要素 {i+1} 几何无效，请修复后导入")
+    return {"id": str(uuid4()), "name": name, "kind": kind, "visible": True, "geojson": data, "crs": "EPSG:4326"}
+
+
+def _cell(value):
+    if value is None:
+        return ""
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def export_csv(project: dict, analysis: dict) -> str:
+    columns = ["index", "label", "longitude", "latitude", "depth_m", "kp_m", "bottom_kp_m", "cable_kp_m", "bearing_deg",
+               "cable_type_id", "surface_slack_pct", "bottom_slack_pct", "note"]
+    output = io.StringIO(newline="")
+    output.write("# OceanRoute RPL; WGS84; metres; depth positive down; slack percent\n")
+    writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for row in analysis["rpl"]:
+        writer.writerow({k: _cell(row.get(k)) for k in columns})
+    return "\ufeff" + output.getvalue()
+
+
+def export_geojson(project: dict, analysis: dict) -> str:
+    points = project["route"]["points"]
+    segments = analysis.get("route_geometry_segments", [])
+    route_geometry = ({"type":"MultiLineString", "coordinates":segments} if len(segments)>1 else
+                      {"type":"LineString", "coordinates":analysis.get("route_geometry", {}).get("coordinates") or [[p["longitude"],p["latitude"]] for p in points]})
+    features = [{"type": "Feature", "properties": {"name": project.get("name"), "curve": project["route"].get("curve", "rhumb"),
+                 "depth_units": "m", "distance_units": "m", "summary": analysis["summary"]},
+                 "geometry": route_geometry}]
+    for p, row in zip(points, analysis["rpl"]):
+        features.append({"type": "Feature", "properties": row, "geometry": {"type": "Point", "coordinates": [p["longitude"], p["latitude"]]}})
+    return json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False, allow_nan=False, indent=2)
+
+
+def export_kml(project: dict, analysis: dict) -> str:
+    root = Element("kml", {"xmlns": "http://www.opengis.net/kml/2.2"})
+    doc = SubElement(root, "Document")
+    SubElement(doc, "name").text = project.get("name", "OceanRoute")
+    SubElement(doc, "description").text = "WGS84 route surface geometry. Depth is metadata, not KML altitude; survey datum is not converted to ellipsoid height."
+    placemark = SubElement(doc, "Placemark")
+    SubElement(placemark, "name").text = project["route"].get("name", "Route")
+    geometry_points = analysis.get("route_geometry", {}).get("coordinates") or [[p["longitude"], p["latitude"]] for p in project["route"]["points"]]
+    segments = analysis.get("route_geometry_segments") or [geometry_points]
+    parent = SubElement(placemark,"MultiGeometry") if len(segments)>1 else placemark
+    for segment in segments:
+        line=SubElement(parent,"LineString")
+        SubElement(line,"tessellate").text="1"
+        SubElement(line,"altitudeMode").text="clampToGround"
+        SubElement(line,"coordinates").text=" ".join(f"{p[0]},{p[1]},0" for p in segment)
+    for row in analysis["rpl"]:
+        point = SubElement(doc, "Placemark")
+        SubElement(point, "name").text = str(row.get("label", ""))
+        fields = SubElement(point, "ExtendedData")
+        for key in ["kp_m", "depth_m", "cable_kp_m", "note"]:
+            field = SubElement(fields, "Data", {"name": key})
+            SubElement(field, "value").text = "" if row.get(key) is None else str(row[key])
+        geometry = SubElement(point, "Point")
+        SubElement(geometry, "coordinates").text = f"{row['longitude']},{row['latitude']},0"
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(root, encoding="unicode")
+
+
+def export_dxf(project: dict, analysis: dict) -> str:
+    from pyproj import CRS, Transformer
+    points = project["route"]["points"]
+    lon = points[0]["longitude"]
+    lat = points[0]["latitude"]
+    # Local azimuthal equidistant preserves metre units at the project origin.
+    local = CRS.from_proj4(f"+proj=aeqd +lat_0={lat} +lon_0={lon} +datum=WGS84 +units=m +no_defs")
+    transform = Transformer.from_crs("EPSG:4326", local, always_xy=True)
+    pairs = [(0, "SECTION"), (2, "HEADER"), (9, "$ACADVER"), (1, "AC1009"), (0, "ENDSEC"), (0, "SECTION"), (2, "ENTITIES")]
+    pairs.append((999, f"OceanRoute; local AEQD metres; origin lon={lon}, lat={lat}; geometry exchange only"))
+    geometry_points = analysis.get("route_geometry", {}).get("coordinates") or [[p["longitude"], p["latitude"]] for p in points]
+    xy = [transform.transform(p[0], p[1]) for p in geometry_points]
+    if not all(math.isfinite(v) for pair in xy for v in pair):
+        raise ValueError("路线超出当前 CAD 局部投影有效范围，请按海区分段导出")
+    for a, b in zip(xy, xy[1:]):
+        pairs += [(0, "LINE"), (8, "CABLE_ROUTE"), (10, a[0]), (20, a[1]), (30, 0), (11, b[0]), (21, b[1]), (31, 0)]
+    for p in points:
+        x, y = transform.transform(p["longitude"], p["latitude"])
+        label = re.sub(r"[^\x20-\x7e]", "?", str(p.get("label", "")))
+        pairs += [(0, "POINT"), (8, "ROUTE_POINTS"), (10, x), (20, y), (30, 0)]
+        pairs += [(0, "TEXT"), (8, "LABELS"), (10, x), (20, y), (30, 0), (40, 20), (1, label)]
+    pairs += [(0, "ENDSEC"), (0, "EOF")]
+    return "\n".join(f"{code}\n{value}" for code, value in pairs) + "\n"
+
+
+def export_sld(project: dict, analysis: dict) -> str:
+    items = analysis.get("sld", [])
+    total = max(float(analysis["summary"]["cable_length_m"]), 1)
+    palette = ["#06b6d4", "#f59e0b", "#8b5cf6", "#34d399"]
+    ids = [c["id"] for c in project.get("cable_types", [])]
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="260" viewBox="0 0 1200 260">',
+             '<rect width="1200" height="260" fill="#f3f7fa"/>',
+             f'<text x="50" y="35" font-family="sans-serif" font-size="20" fill="#153448">{html.escape(project.get("name", "OceanRoute"))} · SLD</text>',
+             '<line x1="50" y1="120" x2="1150" y2="120" stroke="#98b2c1" stroke-width="2"/>']
+    for i, item in enumerate(items):
+        start = float(item.get("start_m", item.get("cable_kp_m", 0)))
+        end = float(item.get("end_m", start))
+        x = 50 + 1100 * start / total
+        if item.get("kind") == "cable":
+            width = max(1100 * (end - start) / total, 1)
+            color = palette[(ids.index(item.get("cable_type_id")) if item.get("cable_type_id") in ids else i) % len(palette)]
+            parts.append(f'<rect x="{x:.2f}" y="103" width="{width:.2f}" height="34" rx="3" fill="{color}"/>')
+            parts.append(f'<text x="{x+4:.2f}" y="92" font-size="12" font-family="sans-serif">{html.escape(str(item.get("name", "Cable")))}</text>')
+        else:
+            parts.append(f'<circle cx="{x:.2f}" cy="120" r="8" fill="#e43a5c"/>')
+            parts.append(f'<text x="{x:.2f}" y="166" font-size="12" font-family="sans-serif">{html.escape(str(item.get("name", "Body")))}</text>')
+    parts.append(f'<text x="50" y="215" font-family="sans-serif" font-size="12">Cable distance: 0 — {total/1000:.3f} km. Diagram is a linear assembly schematic.</text></svg>')
+    return "\n".join(parts)
+
+
+def export_report(project: dict, analysis: dict) -> str:
+    escape = lambda x: html.escape(str(x))
+    rows = "".join("<tr>" + "".join(f"<td>{escape(row.get(key) if row.get(key) is not None else '—')}</td>"
+                     for key in ["index", "label", "longitude", "latitude", "depth_m", "kp_m", "cable_kp_m", "cable_type_id"])
+                   + "</tr>" for row in analysis["rpl"])
+    summary = "".join(f"<tr><th>{escape(k)}</th><td>{escape(v if v is not None else '未计算')}</td></tr>" for k, v in analysis["summary"].items())
+    warnings = "".join(f"<li>{escape(w.get('message',w))}</li>" for w in analysis.get("warnings", []))
+    return f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>{escape(project.get('name','工程'))}</title>
+<style>body{{font:14px sans-serif;margin:40px;color:#173247}}table{{border-collapse:collapse;width:100%;margin:20px 0}}th,td{{border:1px solid #cedce4;padding:8px;text-align:left}}th{{background:#eef4f8}}h1{{color:#007c85}}@media print{{body{{margin:10mm;font-size:10px}}}}</style>
+<h1>{escape(project.get('name','OceanRoute'))} · 路由规划报告</h1><p>OceanRoute 0.1 · WGS84 · 长度 m / 水深正向下 / 余缆 % · 路线模型 {escape(project['route'].get('curve','rhumb'))}</p>
+<h2>规划汇总与假设</h2><table>{summary}</table><h2>校核信息</h2><ul>{warnings or '<li>当前规则未发现问题</li>'}</ul>
+<h2>RPL</h2><table><thead><tr><th>序号</th><th>标签</th><th>经度</th><th>纬度</th><th>水深 m</th><th>表面 KP m</th><th>电缆里程 m</th><th>缆型</th></tr></thead><tbody>{rows}</tbody></table>
+<h2>SLD</h2>{export_sld(project,analysis)}<p>报告表示输入数据与明确模型下的规划结果。测深来源、缺测信息及近似应结合校核信息解读。成本为所设单价和速度下的初步估算。</p></html>'''
+
+
+def reverse_project(project: dict, analysis: dict | None = None) -> dict:
+    """Compatibility entry point; engineering transformations live in tools."""
+    from .tools import reverse_project as transform_project
+    return transform_project(project)["project"]
