@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "id": "synthetic-short-route-001",
+  "name": "合成短路线演示",
+  "crs": "EPSG:4326",
+  "description": "公开地理坐标上的独立演示；全部地形、缆材价格和附件参数均为合成假设。",
+  "route": {
+    "id": "route-main",
+    "name": "东南沿海至南海演示路由",
+    "curve": "rhumb",
+    "mode": "flexible",
+    "slack_basis": "surface",
+    "slack_pct": 1.5,
+    "points": [
+      {
+        "id": "p1",
+        "label": "合成登陆点",
+        "longitude": 118.0,
+        "latitude": 22.0,
+        "depth_m": 30.0,
+        "note": "合成，非实测"
+      },
+      {
+        "id": "p2",
+        "label": "合成转折点",
+        "longitude": 118.02,
+        "latitude": 22.005,
+        "depth_m": 60.0,
+        "note": "合成，非实测"
+      },
+      {
+        "id": "p3",
+        "label": "合成末点",
+        "longitude": 118.04,
+        "latitude": 22.0,
+        "depth_m": 100.0,
+        "note": "合成，非实测"
+      }
+    ],
+    "legs": [
+      {
+        "cable_type_id": "LW",
+        "slack_pct": 1.5
+      },
+      {
+        "cable_type_id": "DA",
+        "slack_pct": 1.5
+      }
+    ]
+  },
+  "cable_types": [
+    {
+      "id": "DA",
+      "name": "双铠装近岸缆",
+      "diameter_m": 0.044,
+      "wet_weight_n_m": 28,
+      "cost_per_m": 210,
+      "lay_speed_m_s": 0.8,
+      "ea_n": 150000000.0,
+      "ei_n_m2": 100,
+      "max_tension_n": 100000,
+      "min_bend_radius_m": 1.5
+    },
+    {
+      "id": "SA",
+      "name": "单铠装浅海缆",
+      "diameter_m": 0.034,
+      "wet_weight_n_m": 16,
+      "cost_per_m": 130,
+      "lay_speed_m_s": 1.2,
+      "ea_n": 120000000.0,
+      "ei_n_m2": 60,
+      "max_tension_n": 80000,
+      "min_bend_radius_m": 1.2
+    },
+    {
+      "id": "LWP",
+      "name": "轻型保护缆",
+      "diameter_m": 0.024,
+      "wet_weight_n_m": 8,
+      "cost_per_m": 75,
+      "lay_speed_m_s": 1.5,
+      "ea_n": 100000000.0,
+      "ei_n_m2": 30,
+      "max_tension_n": 60000,
+      "min_bend_radius_m": 1.0
+    },
+    {
+      "id": "LW",
+      "name": "深海轻型缆",
+      "diameter_m": 0.019,
+      "wet_weight_n_m": 4.2,
+      "cost_per_m": 48,
+      "lay_speed_m_s": 1.8,
+      "ea_n": 80000000.0,
+      "ei_n_m2": 12,
+      "max_tension_n": 45000,
+      "min_bend_radius_m": 0.8
+    }
+  ],
+  "bodies": [],
+  "costs": {
+    "currency": "CNY",
+    "vessel_day_rate": 250000,
+    "burial_per_m": 42,
+    "contingency_pct": 10
+  },
+  "rules": {
+    "max_slope_deg": 12,
+    "min_slack_pct": 0.5,
+    "max_slack_pct": 4,
+    "corridor_m": 500
+  },
+  "events": [],
+  "layers": [],
+  "profile": {
+    "samples": [],
+    "source": "synthetic_waypoint_depth_approximation"
+  }
+}

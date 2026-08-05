@@ -1,0 +1,6 @@
+kind,id,name,cable_type_id,length_m,cost,body_kind,note
+cable,c1,合成轻型缆,LW,3000,,,示例制造长度
+body,b1,合成中继器,,2,5000,repeater,占据实物长度
+cable,c2,合成双铠缆,DA,1600,,,示例制造长度
+body,b2,合成终端接头,,0,1000,joint,零长度但按件计价
+reference,r1,合成参考点,,,,,本行参考实物KP为4602
