@@ -550,13 +550,15 @@ def _bend_project(p: np.ndarray, inv_mass: np.ndarray, rest: np.ndarray,
         p[j + 1] += (inv_mass[j + 1] * d)[:, None] * change
 
 
-def simulate_lay(project: dict, config: dict) -> dict:
+def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     """Bounded material-node dynamics with surface feed and unilateral seabed contact.
 
     dt_s is the requested output interval; internal_dt_s is a solver step cap.
     The oldest bottom endpoint is anchored; the model is a finite lay window.
     """
     raw = _config(config)
+    if state_observer is not None and not callable(state_observer):
+        raise ValueError("state_observer must be a callable internal diagnostic hook")
     merged, saved = merge_resume_config(raw)
     c = _cable_defaults(project, merged)
     e = _environment(c)
@@ -819,6 +821,14 @@ def simulate_lay(project: dict, config: dict) -> dict:
                 "max_output_top_tension_n":max_output_top,"max_internal_top_tension_n":max_internal_top}}
         return pack_checkpoint(canonical_config,state,time,numerical)
 
+    def observe_state():
+        if state_observer is not None:
+            # Copies of scalar diagnostics cannot mutate the integrator state.
+            state_observer({"time_s": float(time), "node_material_m": local["coordinates"].tolist(),
+                            "node_speed_m_s": np.linalg.norm(v, axis=1).tolist(),
+                            "contact_mask": (p[:,2] <= bed(p)+1e-8).tolist()})
+
+    observe_state()
     frames.append(frame(start_time))
     if save_all or any(abs(t-start_time)<1e-9 for t in checkpoint_times):
         checkpoints.append(checkpoint())
@@ -922,6 +932,7 @@ def simulate_lay(project: dict, config: dict) -> dict:
                 raise ValueError("dynamic solver diverged; shorten internal_dt_s or change mesh/material")
             time += h
             step_count += 1
+            observe_state()
         time = float(output_time)
         frames.append(frame(float(output_time)))
         max_output_top = max(max_output_top,float(last_tensions[0]))
