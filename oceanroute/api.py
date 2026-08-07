@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import asynccontextmanager
 import json
 import logging
 import math
@@ -50,8 +51,19 @@ def _inherit_revision(source: dict, result: dict) -> dict:
 
 
 def create_app(store: ProjectStore | None = None) -> FastAPI:
-    app = FastAPI(title="OceanRoute Local API", version=__version__, description="独立海缆规划与研究仿真")
+    @asynccontextmanager
+    async def lifecycle(application):
+        application.state.voyage_jobs.start()
+        try:
+            yield
+        finally:
+            application.state.voyage_jobs.close()
+    app = FastAPI(title="OceanRoute Local API", version=__version__, description="独立海缆规划与研究仿真", lifespan=lifecycle)
     app.state.store = store or ProjectStore()
+    from .workspace_storage import WorkspaceStore
+    app.state.workspace_store = WorkspaceStore(app.state.store.path)
+    from .voyage_jobs import VoyageJobs
+    app.state.voyage_jobs = VoyageJobs(Path(app.state.store.path).parent/"voyage_jobs", lazy=True)
 
     @app.exception_handler(ValueError)
     async def bad_value(request: Request, exc: ValueError):
@@ -84,6 +96,7 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         return {"version": __version__, "model_status": "research", "items": [
             {"id": "route", "name": "路线规划 / RPL / SLD", "status": "implemented", "note": "独立实现，具体精度见模型说明与测试"},
             {"id": "projects", "name": "工程保存 / 修订恢复", "status": "implemented", "note": "本地 SQLite 事务与历史快照"},
+            {"id": "workspace", "name": "多路径工程 / 共享制造装配", "status": "implemented", "note": "schema2路径、共享缆库、库存与互斥替代关系；按唯一实物核算采购"},
             {"id": "exchange", "name": "开放格式交换", "status": "implemented", "note": "CSV、GeoJSON、KML、DXF、SVG、HTML 报告"},
             {"id": "tools", "name": "分缆 / 余缆模板 / 拆分合并", "status": "implemented", "note": "实际工程变换、制造量与有限附属体同步"},
             {"id": "constraints", "name": "Rigid / Clamped / Sliding 域约束", "status": "implemented", "note": "独立显式Path Link域，冲突拒绝；不支持的变换需重新配置"},
@@ -91,11 +104,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "routing", "name": "避让 / 地形路由搜索", "status": "implemented", "note": "有限网格A*候选，明确工作量上限及地形来源"},
             {"id": "terrain", "name": "XYZ / GeoTIFF / Surfer 与 DTM", "status": "implemented", "note": "沿线采样、网格、坡向阴影、等深线；有规模上限"},
             {"id": "simulation", "name": "稳态 / 动态 / 跨距模型", "status": "research", "note": "独立数值模型；适用假设与局限随结果输出"},
+            {"id": "voyage", "name": "长时连续计算 / 后台恢复", "status": "research", "note": "真实状态分块延续与有误差约束的平床网格粗化；并非已验证全航程模型"},
             {"id": "materials", "name": "混合缆型 / 有限附属体", "status": "research", "note": "材料坐标的局部物性与平移分布载荷，非完整刚体六自由度"},
             {"id": "shipplan", "name": "ShipPlan / Look Ahead / 张力搜索", "status": "research", "note": "真实模型生成初始指令及候选，未通过原厂或海试对照"},
             {"id": "sea", "name": "海况谱 / 用户RAO / Monte Carlo", "status": "research", "note": "实际波面、垂向运动与重复动力求解，非完整疲劳或6DOF"},
             {"id": "survey", "name": "实敷观测 / 规划对账", "status": "research", "note": "实际路线最近KP、横偏和连续观测量；基准与实物KP需明确对齐"},
             {"id": "repair", "name": "回收 / 拖曳 / 抓缆绳 / 浮标", "status": "research", "note": "独立准静态/稳态工具，非钩挂动力或完整浮标6DOF"},
+            {"id": "seismic", "name": "地震缆应答器 / 海流反算", "status": "research", "note": "真实稳态缆形观测算子、加权最小二乘、可观测性与局部协方差；非实时动态滤波"},
             {"id": "native", "name": "原厂专有格式", "status": "unverified", "note": "缺少公开格式规范与往返基准"},
             {"id": "instrument", "name": "船载设备与实时控制", "status": "planned", "note": "另需设备协议和现场验证"},
         ]}
@@ -124,6 +139,53 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     @app.post("/api/projects/{project_id}/restore/{revision}")
     def restore(project_id: str, revision: int):
         return app.state.store.restore(project_id, revision)
+
+    @app.post("/api/workspace/migrate")
+    def migrate_workspace(payload: dict):
+        from .workspace import migrate_project
+        return migrate_project(_project(payload.get("project", {})), payload.get("config", {}))
+
+    @app.post("/api/workspace/action")
+    def workspace_action(payload: dict):
+        from .workspace import workspace_action as action
+        return action(payload.get("workspace", {}), payload.get("config", {}))
+
+    @app.post("/api/workspace/analyze")
+    def analyze_workspace(payload: dict):
+        from .workspace import analyze_workspace as analyze
+        return analyze(payload)
+
+    @app.post("/api/workspace/import")
+    def import_workspace(payload: dict):
+        from .workspace import import_workspace as read
+        return read(payload.get("text", ""), payload.get("config", {}))
+
+    @app.post("/api/workspace/export")
+    def export_workspace(payload: dict):
+        from .workspace import export_workspace as write
+        return Response(write(payload), media_type="application/json",
+                        headers={"Content-Disposition": 'attachment; filename="workspace.oceanroute.json"'})
+
+    @app.get("/api/workspaces")
+    def workspaces():
+        return app.state.workspace_store.list()
+
+    @app.post("/api/workspaces")
+    def save_workspace(payload: dict):
+        return app.state.workspace_store.save(payload)
+
+    @app.get("/api/workspaces/{workspace_id}")
+    def open_workspace(workspace_id: str):
+        return app.state.workspace_store.get(workspace_id)
+
+    @app.get("/api/workspaces/{workspace_id}/revisions")
+    def workspace_revisions(workspace_id: str):
+        return app.state.workspace_store.revisions(workspace_id)
+
+    @app.post("/api/workspaces/{workspace_id}/restore/{revision}")
+    def restore_workspace(workspace_id: str, revision: int, payload: dict):
+        return app.state.workspace_store.restore(workspace_id, revision,
+                                                  expected_revision=payload.get("expected_revision"))
 
     @app.post("/api/import/rpl")
     def import_rpl(payload: dict):
@@ -256,6 +318,60 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         if kind not in functions:
             raise HTTPException(404, "未知维修研究工具")
         return functions[kind](payload.get("config", {}))
+
+    @app.post("/api/seismic/{kind}")
+    def seismic(kind: str, payload: dict):
+        from .seismic import predict_transponders, estimate_current
+        functions = {"predict": predict_transponders, "estimate": estimate_current}
+        if kind not in functions:
+            raise HTTPException(404, "未知地震缆研究工具")
+        return functions[kind](payload.get("config", {}))
+
+    @app.post("/api/voyage/run")
+    def voyage_run(payload: dict):
+        from .voyage import run_voyage
+        project = payload.get("project", {})
+        if project:
+            _project(project)
+        result = run_voyage(project, payload.get("config", {}))
+        from .voyage import _finite_json
+        _finite_json(result, 64_000_000)
+        return result
+
+    @app.get("/api/voyage/jobs")
+    def voyage_jobs():
+        return app.state.voyage_jobs.list()
+
+    @app.post("/api/voyage/jobs")
+    def voyage_submit(payload: dict):
+        project = payload.get("project", {})
+        if project:
+            _project(project)
+        return app.state.voyage_jobs.submit(project, payload.get("config", {}))
+
+    @app.get("/api/voyage/jobs/{job_id}")
+    def voyage_job(job_id: str):
+        return app.state.voyage_jobs.get(job_id)
+
+    @app.post("/api/voyage/jobs/{job_id}/cancel")
+    def voyage_cancel(job_id: str):
+        return app.state.voyage_jobs.cancel(job_id)
+
+    @app.post("/api/voyage/jobs/{job_id}/resume")
+    def voyage_resume(job_id: str, payload: dict):
+        return app.state.voyage_jobs.resume(job_id, payload)
+
+    @app.get("/api/voyage/jobs/{job_id}/checkpoint")
+    def voyage_checkpoint(job_id: str):
+        return app.state.voyage_jobs.checkpoint(job_id)
+
+    @app.get("/api/voyage/jobs/{job_id}/result")
+    def voyage_result(job_id: str):
+        return app.state.voyage_jobs.result(job_id)
+
+    @app.delete("/api/voyage/jobs/{job_id}")
+    def voyage_delete(job_id: str):
+        return app.state.voyage_jobs.delete(job_id)
 
     @app.post("/api/export/{format_name}")
     def export(format_name: str, payload: dict):
