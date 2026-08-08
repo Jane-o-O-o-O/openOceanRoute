@@ -23,10 +23,10 @@ test('new project saves twice, reopens and restores a revision',async({page,requ
   const name='UI regression '+Date.now();await page.getByLabel('工程名称',{exact:true}).fill(name);await page.getByLabel('工程名称',{exact:true}).blur();await ready(page);
   await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 1',{exact:true})).toBeVisible();await ready(page);
   await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 2',{exact:true})).toBeVisible();await ready(page);
-  const projects=await (await request.get('http://127.0.0.1:8765/api/projects')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved.revision).toBe(2);
+  const projects=await (await request.get('http://127.0.0.1:8765/api/workspaces')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved.revision).toBe(2);
   await page.getByRole('button',{name:'打开',exact:true}).click();await page.getByRole('button').filter({has:page.getByText(name,{exact:true})}).click();await ready(page);
   await page.getByRole('button',{name:'修订历史',exact:true}).click();await page.getByRole('button').filter({has:page.getByText('修订 1 · '+name,{exact:true})}).click();await ready(page);
-  const restored=await (await request.get('http://127.0.0.1:8765/api/projects/'+saved.id)).json();expect(restored.saved_revision).toBe(3);
+  const restored=await (await request.get('http://127.0.0.1:8765/api/workspaces/'+saved.id)).json();expect(restored.saved_revision).toBe(3);
 });
 
 test('CSV replacement, signed profile import, GeoJSON and every export work',async({page})=>{
