@@ -14,31 +14,8 @@ from uuid import uuid4
 
 
 def coordinate(value: str, *, latitude: bool) -> float:
-    value = str(value).strip().upper().replace("北", "N").replace("南", "S").replace("东", "E").replace("西", "W")
-    if re.search(r"[^NSEW0-9+\-.\s°º'\"′″:]", value) or re.search(r"\dE[-+]?\d", value):
-        raise ValueError("坐标包含无法识别的字符")
-    hemispheres = re.findall(r"[NSEW]", value)
-    if hemispheres and (len(set(hemispheres)) > 1 or any(h not in ("NS" if latitude else "EW") for h in hemispheres)):
-        raise ValueError("坐标半球与字段不一致")
-    nums = re.findall(r"[-+]?\d+(?:\.\d*)?|[-+]?\.\d+", value)
-    if not 1 <= len(nums) <= 3:
-        raise ValueError("坐标需为十进制度或度分秒")
-    parts = list(map(float, nums))
-    if any(not math.isfinite(x) for x in parts):
-        raise ValueError("坐标不是有限数值")
-    if any(x < 0 or x >= 60 for x in parts[1:]):
-        raise ValueError("分和秒应在 0 到 60 之间")
-    sign = -1 if parts[0] < 0 else 1
-    if hemispheres:
-        hemisphere_sign = -1 if hemispheres[0] in "SW" else 1
-        if parts[0] < 0 and hemisphere_sign > 0:
-            raise ValueError("负号与半球标识矛盾")
-        sign = hemisphere_sign
-    result = sign * (abs(parts[0]) + (parts[1] / 60 if len(parts) > 1 else 0) + (parts[2] / 3600 if len(parts) > 2 else 0))
-    limit = 90 if latitude else 180
-    if abs(result) > limit:
-        raise ValueError("坐标超出有效范围")
-    return result
+    from .rpl_templates import parse_coordinate
+    return parse_coordinate(value,latitude=latitude)
 
 
 ALIASES = {
@@ -48,29 +25,56 @@ ALIASES = {
     "depth_m": ["depth_m", "depth", "water_depth", "水深", "水深_m"],
     "note": ["note", "notes", "comment", "说明", "备注"],
     "kp_m": ["kp_m", "kp", "distance_m", "里程", "里程_m"],
+    "cable_kp_m": ["cable_kp_m", "cumulative_cable_m", "cable_distance_m", "电缆里程_m"],
+    "cable_type_id": ["cable_type_id", "cable_type", "缆型"],
+    "slack_pct": ["slack_pct", "surface_slack_pct", "bottom_slack_pct", "余缆", "余缆_pct"],
+    "slack_basis": ["slack_basis", "余缆基准"],
+    "mode": ["mode", "缆长模式"],
+    "fixed_cable_length_m": ["fixed_cable_length_m", "固定缆长_m"],
+    "burial": ["burial", "埋设"],
+    "stop_hours": ["stop_hours", "停时_h"],
+    "extra_cost": ["extra_cost", "附加费"],
 }
 
 
-def _table(text: str, delimiter: str | None = None) -> tuple[csv.DictReader, dict[str, str]]:
-    if len(text.encode("utf-8")) > 32 * 1024 * 1024:
+class _TableReader:
+    """DictReader equivalent preserving original physical source positions."""
+    def __init__(self,rows,fieldnames,delimiter,header_end):
+        self.rows,self.fieldnames,self.delimiter=rows,fieldnames,delimiter
+        self.header_end,self.line_num,self.record_start=header_end,header_end,header_end
+    def __iter__(self): return self
+    def __next__(self):
+        row,start,end=next(self.rows)
+        self.line_num,self.record_start=end,start
+        result={field:(row[i] if i<len(row) else None) for i,field in enumerate(self.fieldnames)}
+        if len(row)>len(self.fieldnames): result[None]=row[len(self.fieldnames):]
+        return result
+
+
+def _table(text: str, delimiter: str | None = None) -> tuple[_TableReader, dict[str, str]]:
+    if not isinstance(text,str) or len(text.encode("utf-8")) > 32 * 1024 * 1024:
         raise ValueError("文本文件超过 32 MB，请分批导入")
     text = text.lstrip("\ufeff")
-    text = "\n".join(line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#"))
-    if not text:
-        raise ValueError("文件为空")
     if delimiter == "\\t":
         delimiter = "\t"
     if delimiter is None:
+        first=next((line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")), "")
         try:
-            delimiter = csv.Sniffer().sniff(text[:8192], delimiters=",;\t|").delimiter
+            delimiter = csv.Sniffer().sniff(first[:8192], delimiters=",;\t|").delimiter
         except csv.Error:
             delimiter = ","
-    if len(delimiter) != 1:
+    if not isinstance(delimiter,str) or len(delimiter) != 1 or delimiter in "\r\n\0":
         raise ValueError("分隔符必须为单个字符")
-    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
-    headers = {str(c).strip().casefold(): c for c in reader.fieldnames or [] if c}
+    from .rpl_templates import iter_csv_records
+    rows=iter_csv_records(text,delimiter)
+    try: fieldnames,start,end=next(rows)
+    except StopIteration: raise ValueError("文件为空") from None
+    reader=_TableReader(rows,fieldnames,delimiter,end)
+    headers = {str(c).strip().casefold(): c for c in fieldnames if c}
     if not headers:
         raise ValueError("缺少表头")
+    if len(headers)!=len([c for c in fieldnames if c]):
+        raise ValueError("表头名称重复，不能确定字段位置")
     return reader, headers
 
 
@@ -84,32 +88,34 @@ def _fields(headers: dict[str, str], mapping: dict | None) -> dict[str, str | No
     return result
 
 
-def import_rpl(text: str, delimiter: str | None = None, mapping: dict | None = None) -> dict:
+def import_rpl(text: str, delimiter: str | None = None, mapping: dict | None = None, template: dict | None = None,
+               error_policy: str | None = None) -> dict:
+    from .rpl_templates import parse_rpl, validate_template, SCHEMA
+    if error_policy is not None and error_policy not in ("collect","skip","reject"):
+        raise ValueError("error_policy须为collect、skip或reject")
+    if template is not None:
+        if delimiter is not None or mapping is not None:
+            raise ValueError("template自带字段位置与分隔符，不能同时传delimiter/mapping")
+        template=validate_template(template)
+        if error_policy is not None and error_policy!=template["error_policy"]:
+            raise ValueError("顶层error_policy与template.error_policy冲突")
+        return parse_rpl(text,template)
+    if mapping is not None and not isinstance(mapping,dict):
+        raise ValueError("mapping须为字段到表头的JSON对象")
     reader, headers = _table(text, delimiter)
     fields = _fields(headers, mapping)
     if not fields["longitude"] or not fields["latitude"]:
         raise ValueError("找不到经度和纬度列；请使用 longitude、latitude 或设置列映射")
-    points, warnings = [], []
-    for index, row in enumerate(reader, 2):
-        try:
-            if None in row:
-                raise ValueError("列数多于表头，请检查引号和分隔符")
-            longitude = coordinate(row[fields["longitude"]], latitude=False)
-            latitude = coordinate(row[fields["latitude"]], latitude=True)
-            depth_text = row.get(fields["depth_m"], "") if fields["depth_m"] else ""
-            depth = float(depth_text) if depth_text and depth_text.strip() else None
-            if depth is not None and (not math.isfinite(depth) or depth < 0):
-                raise ValueError("水深须为非负米制数值")
-            points.append({"id": str(uuid4()), "label": row.get(fields["label"], "") or f"P{len(points)+1:02d}",
-                           "longitude": longitude, "latitude": latitude, "depth_m": depth,
-                           "note": row.get(fields["note"], "") or "", "kind": "rigid"})
-        except (ValueError, TypeError, KeyError) as exc:
-            warnings.append({"row": index, "message": str(exc)})
-        if index > 100_001:
-            raise ValueError("路由点超过 100,000 个，请分段处理")
-    if len(points) < 2:
-        raise ValueError("至少需要两个有效路由点" + (f"；首个问题：{warnings[0]['message']}" if warnings else ""))
-    return {"points": points, "warnings": warnings, "accepted_rows": len(points), "rejected_rows": len(warnings)}
+    generated={"schema":SCHEMA,"schema_version":1,"name":"CSV/TSV表头映射","format":"delimited","index_base":0,
+        "header_lines":reader.header_end,"delimiter":reader.delimiter,"error_policy":error_policy or "skip",
+        "fields":{key:{"column":reader.fieldnames.index(column)} for key,column in fields.items() if column},"defaults":{}}
+    if fields.get("slack_pct") and str(fields["slack_pct"]).strip().casefold()=="bottom_slack_pct":
+        generated["defaults"]["slack_basis"]="bottom"
+    result=parse_rpl(text,generated,expected_columns=len(reader.fieldnames))
+    if len(result["points"])<2 and error_policy is None:
+        raise ValueError("至少需要两个有效路由点"+(f"；首个问题：{result['warnings'][0]['message']}" if result["warnings"] else ""))
+    result["metadata"]["legacy_header_mapping"]=True
+    return result
 
 
 def import_profile(text: str, delimiter: str | None = None) -> dict:
