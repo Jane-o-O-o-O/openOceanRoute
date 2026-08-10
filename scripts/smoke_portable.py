@@ -1,0 +1,110 @@
+"""Install and verify a portable archive in a clean temporary environment."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+import zipfile
+
+
+def smoke(archive: Path, report: Path | None = None) -> dict:
+    started = time.monotonic()
+    with tempfile.TemporaryDirectory(prefix="oceanroute-portable-") as directory:
+        root = Path(directory)
+        with zipfile.ZipFile(archive.resolve()) as package:
+            package.extractall(root)
+        checkout = root / "OceanRoute"
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        environment = os.environ.copy()
+        environment.pop("PYTHONPATH", None)
+        environment["OCEANROUTE_DATA_DIR"] = str(root / "data")
+        environment["BROWSER"] = "true"
+        log = root / "launch.log"
+        process = None
+        try:
+            with log.open("w") as stream:
+                process = subprocess.Popen(
+                    [sys.executable, "launcher.py", "--port", str(port)],
+                    cwd=checkout, env=environment, stdout=stream, stderr=subprocess.STDOUT,
+                    start_new_session=os.name != "nt",
+                )
+                url = f"http://127.0.0.1:{port}"
+                health = None
+                deadline = time.monotonic() + 300
+                while time.monotonic() < deadline:
+                    if process.poll() is not None:
+                        raise RuntimeError("Launcher stopped: " + log.read_text()[-4000:])
+                    try:
+                        with urllib.request.urlopen(url + "/api/health", timeout=1) as response:
+                            health = json.load(response)
+                        break
+                    except (OSError, ValueError):
+                        time.sleep(.25)
+                if health is None:
+                    raise RuntimeError("Launcher startup timeout: " + log.read_text()[-4000:])
+                assert health["version"] == "0.2.0", health
+                with urllib.request.urlopen(url, timeout=10) as response:
+                    assert 'id="root"' in response.read().decode()
+                with urllib.request.urlopen(url + "/api/sample", timeout=10) as response:
+                    project = json.load(response)
+                request = urllib.request.Request(url + "/api/analyze", json.dumps(project).encode(),
+                                                 {"Content-Type": "application/json"})
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    analysis = json.load(response)
+                assert analysis["summary"]["surface_length_m"] > 0
+                assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
+                assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
+                print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
+        finally:
+            if process is not None and process.poll() is None:
+                if os.name == "nt":
+                    process.terminate()
+                else:
+                    os.killpg(process.pid, signal.SIGINT)
+                try:
+                    process.wait(timeout=20)
+                except subprocess.TimeoutExpired:
+                    if os.name == "nt":
+                        process.kill()
+                    else:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+        python = checkout / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        subprocess.run([str(python), "-m", "pip", "install", "-q", "-e", ".[terrain,test]"],
+                       cwd=checkout, env=environment, check=True)
+        tests = subprocess.run([str(python), "-m", "pytest", "-o", "addopts=", "-q"],
+                               cwd=checkout, env=environment, check=True, text=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        print(tests.stdout, end="", flush=True)
+        versions = subprocess.check_output(
+            [str(python), "-c", "import json,importlib.metadata as m; print(json.dumps({k:m.version(k) for k in ['oceanroute','fastapi','numpy','scipy','pyproj','shapely','rasterio','contourpy']}))"],
+            cwd=root, env=environment, text=True)
+        result = {"archive": archive.name, "platform": sys.platform,
+                  "python": sys.version.split()[0], "clean_venv": True,
+                  "launcher_install": True, "http_health": health,
+                  "http_ui": True, "real_analysis": True,
+                  "tests_output": tests.stdout.strip(), "versions": json.loads(versions),
+                  "wall_time_s": round(time.monotonic() - started, 2)}
+        if report is not None:
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+        print(json.dumps(result, ensure_ascii=False), flush=True)
+        return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("archive", type=Path)
+    parser.add_argument("--report", type=Path)
+    options = parser.parse_args()
+    smoke(options.archive, options.report)
