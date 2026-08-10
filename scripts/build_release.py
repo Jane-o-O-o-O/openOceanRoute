@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -28,12 +29,15 @@ def build(skip_frontend: bool = False) -> Path:
     output = ROOT / "outputs/releases"
     output.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--wheel-dir", str(output)], cwd=ROOT, check=True)
-    archive = output / "OceanRoute-0.1-portable.zip"
-    roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", "web/artifacts"]
+    version = re.search(r'^version = "(\d+\.\d+\.\d+)"$', (ROOT/"pyproject.toml").read_text(), re.M).group(1)
+    label = version.removesuffix(".0")
+    archive = output / f"OceanRoute-{label}-portable.zip"
+    roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", "web/artifacts", "resources/validation"]
     files = ["README.md", "pyproject.toml", "launcher.py", "web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts", "web/playwright.config.ts"]
     files += ["output/pdf/OceanRoute_用户手册.pdf", "output/pdf/OceanRoute_设计文档.pdf",
               "resources/research/manual_findings.md", "resources/research/website_findings.md",
               "resources/research/web_sources.json"]
+    files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
     for name in roots:
         paths.extend(p for p in (ROOT / name).rglob("*") if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc")
