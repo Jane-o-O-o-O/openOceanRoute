@@ -275,12 +275,14 @@ def coarsen_checkpoint(project, document, previous_document, policy=None, *, max
                       "estimated_work_units": original["solver"]["estimated_work_units"]+reduced["solver"]["estimated_work_units"]}}
 
 
-def _pack_voyage(physical, policy, chunks, history, origin_time, work):
+def _pack_voyage(physical, policy, chunks, history, origin_time, work, plan_mapping=None):
     document = {"schema": SCHEMA, "schema_version": 1, "validation_status": "research",
                 "mesh_method": MESH_METHOD,
                 "physical_checkpoint": deepcopy(physical), "adaptive_mesh": deepcopy(policy),
                 "completed_chunks": chunks, "mesh_history": deepcopy(history),
                 "origin_time_s": origin_time, "estimated_work_units": work}
+    if plan_mapping is not None:
+        document["plan_mapping"] = deepcopy(plan_mapping)
     document["checksum_sha256"] = hashlib.sha256(_finite_json(document)).hexdigest()
     return document
 
@@ -297,6 +299,9 @@ def read_voyage_checkpoint(document):
         if key not in document:
             raise ValueError("voyage checkpoint is missing actual state fields")
     read_checkpoint(document["physical_checkpoint"])
+    if "plan_mapping" in document:
+        from .plan_voyage import read_plan_mapping
+        read_plan_mapping(document["plan_mapping"], physical=document["physical_checkpoint"])
     _policy(document["adaptive_mesh"])
     _integer(document, "completed_chunks", 0, 0, 1000000)
     _num(document, "origin_time_s", 0, 0, document["physical_checkpoint"]["time_s"])
@@ -327,6 +332,12 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
     max_history = _integer(c, "max_mesh_records", 64, 1, 128)
     policy = _policy(c.get("adaptive_mesh", {}))
     base = deepcopy(_config(c.get("simulation", {})))
+    planning = c.get("plan_mapping")
+    if planning is not None:
+        from .plan_voyage import _digest, read_plan_mapping
+        planning = read_plan_mapping(planning, simulation=base)
+        if planning["project_sha256"] != _digest(project):
+            raise ValueError("project no longer matches the prepared planning mapping; prepare again")
     if any(k in base for k in ("resume_state", "save_checkpoints", "checkpoint_times_s")):
         raise ValueError("voyage owns continuation/checkpoint timing; provide resume_state at the voyage level")
     base.pop("duration_s", None)
@@ -338,6 +349,13 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
         if base:
             raise ValueError("resumed voyage restores physical controls; start a separate branch to change simulation configuration")
         physical = restored["physical_checkpoint"]
+        if planning is not None and planning != restored.get("plan_mapping"):
+            raise ValueError("resumed voyage preserves its original planning mapping")
+        planning = restored.get("plan_mapping")
+        if planning is not None and project:
+            from .plan_voyage import _digest
+            if planning["project_sha256"] != _digest(project):
+                raise ValueError("project no longer matches the saved planning mapping; prepare again")
         policy = restored["adaptive_mesh"]
         origin_time = restored["origin_time_s"]
         chunks, history, work = restored["completed_chunks"], restored["mesh_history"], restored["estimated_work_units"]
@@ -346,6 +364,8 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
         physical, origin_time, chunks, history, work = None, 0., 0, [], 0.
     start = physical["time_s"] if physical else 0.
     end = start+duration
+    if planning is not None and end > planning["instructions"][-1]["local_end_s"]+1e-8:
+        raise ValueError("voyage exceeds its prepared planning window; prepare future controls from a verified state")
     if end > 1e9:
         raise ValueError("voyage absolute end exceeds 1e9 seconds")
     if not saved:
@@ -456,19 +476,23 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
                     reports[-1]["merged_elements"] = len(mesh["transfers"])
         elif physical["time_s"] < end-1e-9 and policy["enabled"] and len(history) >= max_history and len(physical["state"]["positions"]) > policy["target_nodes"]:
             status, reason = "stopped", "mesh_history_budget"
-        envelope = _pack_voyage(physical, policy, chunks, history, origin_time, work)
+        if planning is not None:
+            from .plan_voyage import read_plan_mapping
+            read_plan_mapping(planning, physical=physical)
+        envelope = _pack_voyage(physical, policy, chunks, history, origin_time, work, planning)
         if on_chunk is not None:
             on_chunk({"checkpoint": envelope, "chunk": deepcopy(reports[-1]),
                       "requested_end_time_s": end, "elapsed_wall_s": time.monotonic()-started_wall})
         if reason is not None:
             break
-    checkpoint = _pack_voyage(physical, policy, chunks, history, origin_time, work) if physical else saved
+    checkpoint = _pack_voyage(physical, policy, chunks, history, origin_time, work, planning) if physical else saved
     actual_end = physical["time_s"] if physical else start
     state = physical["state"] if physical else None
     if reason:
         warnings["VOYAGE_PARTIAL_STOP"] = {"code": "VOYAGE_PARTIAL_STOP", "severity": "warning", "message": "Continuous run stopped at a completed state: "+reason}
     return {"model": "continuous-material-lay-with-checked-flat-bed-coarsening-v1", "validation_status": "research",
             "status": status, "stop_reason": reason, "checkpoint": checkpoint, "frames": frames, "chunks": reports,
+            **({"plan_mapping": deepcopy(planning)} if planning is not None else {}),
             "warnings": list(warnings.values()), "assumptions": [
                 "All cable material and original anchor remain active; no settled tail is deleted or fixed at a new point.",
                 "Coarsening applies only to persistently settled nearly straight homogeneous flat-bed elements with zero bending stiffness and no nearby bodies.",
