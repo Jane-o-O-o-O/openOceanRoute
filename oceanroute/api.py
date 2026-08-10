@@ -189,7 +189,18 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
 
     @app.post("/api/import/rpl")
     def import_rpl(payload: dict):
-        return exchange.import_rpl(str(payload.get("text", "")), payload.get("delimiter"), payload.get("mapping"))
+        return exchange.import_rpl(str(payload.get("text", "")), payload.get("delimiter"), payload.get("mapping"), payload.get("template"), payload.get("error_policy"))
+
+    @app.post("/api/import/rpl/template")
+    def validate_rpl_template(payload: dict):
+        from .rpl_templates import load_template, validate_template
+        template = load_template(payload["text"]) if "text" in payload else validate_template(payload.get("template"))
+        return {"template": template}
+
+    @app.get("/api/import/rpl/templates")
+    def rpl_template_examples():
+        from .rpl_templates import example_templates
+        return {"examples": example_templates()}
 
     @app.post("/api/import/profile")
     def import_profile(payload: dict):
@@ -243,6 +254,22 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     def dtm_grid(payload: dict):
         from .dtm import build_dtm
         return build_dtm(str(payload.get("text", "")),payload.get("config",{}))
+
+    @app.post("/api/dtm/slice")
+    def dtm_slice(payload: dict):
+        from .dtm import extract_dtm_slice
+        return extract_dtm_slice(payload.get("grid", {}), payload.get("config", {}))
+
+    @app.post("/api/dtm/bln/read")
+    def dtm_read_bln(payload: dict):
+        from .terrain_boundaries import read_bln
+        return read_bln(payload.get("text", ""), payload.get("crs"))
+
+    @app.post("/api/dtm/bln/write")
+    def dtm_write_bln(payload: dict):
+        from .terrain_boundaries import write_bln
+        return Response(write_bln(payload.get("document", {})), media_type="text/plain; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="terrain-boundary.bln"'})
 
     @app.post("/api/routing/search")
     def search_route(payload: dict):
@@ -428,6 +455,9 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         config = payload.get("config", {})
         if kind == "create":
             return build_ship_plan(project, config)
+        if kind == "prepare-voyage":
+            from .plan_voyage import prepare_plan_voyage
+            return prepare_plan_voyage(project, config)
         if kind == "lookahead":
             return look_ahead(project, config, payload.get("scenarios", []))
         if kind == "optimize":
