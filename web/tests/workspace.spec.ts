@@ -33,7 +33,7 @@ test('CSV replacement, signed profile import, GeoJSON and every export work',asy
   const errors:string[]=[];page.on('pageerror',err=>errors.push(err.message));
   await page.goto('/');await ready(page);await page.getByRole('button',{name:'导入数据',exact:true}).click();
   await page.locator('.import-text').fill('label,longitude,latitude,depth_m\nAlpha,118,22,30\nBeta,118.01,22.01,100');
-  await page.getByRole('button',{name:'导入数据',exact:true}).last().click();await expect(page.getByRole('dialog')).not.toBeVisible();await ready(page);
+  await page.getByRole('button',{name:'解析预览',exact:true}).click();await expect(page.getByRole('button',{name:'应用 RPL 导入',exact:true})).toBeEnabled();await page.getByRole('button',{name:'应用 RPL 导入',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();await ready(page);
   await page.getByRole('button',{name:'路由位置表',exact:true}).click();await expect(page.locator('.rpl-table tbody tr')).toHaveCount(2);
   await page.getByRole('button',{name:'导入数据',exact:true}).click();await page.getByRole('button',{name:'测深剖面',exact:true}).click();
   await page.locator('.import-text').fill('kp_m,depth_m\n0,30\n1000,60\n3000,100');await page.getByRole('button',{name:'导入数据',exact:true}).last().click();await expect(page.getByRole('dialog')).not.toBeVisible();await ready(page);
