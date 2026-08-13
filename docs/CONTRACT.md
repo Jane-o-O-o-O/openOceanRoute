@@ -79,8 +79,11 @@ Frontend uses same-origin `/api` through Vite proxy during development; producti
 - Captured manufacturing domains: `/api/constraints/{configure|edit|solve}`; [CONSTRAINT_NOTES.md](CONSTRAINT_NOTES.md).
 - Manufacturing CSV preview: `/api/assembly/import`; [ASSEMBLY_NOTES.md](ASSEMBLY_NOTES.md).
 - XYZ/GeoTIFF/Surfer profiles, KML and Shapefile ZIP, DTM grid: [GEODATA_NOTES.md](GEODATA_NOTES.md), `/api/dtm/grid`.
+- RPL fixed-width/multiline templates and explicit preview policy: `/api/import/rpl`, `/api/import/rpl/template`, `/api/import/rpl/templates`; [RPL_TEMPLATE_NOTES.md](RPL_TEMPLATE_NOTES.md).
+- Variational minimum-curvature grid, declared BLN/masks and full-raster slices: `/api/dtm/{grid|slice|bln/read|bln/write}`; [DTM_NOTES.md](DTM_NOTES.md).
 - Full dynamic checkpoints are fields in actual dynamic results; continuation passes `config.resume_state`; [MODEL_NOTES.md](MODEL_NOTES.md).
 - Initial ship plan, actual branch Look Ahead and bounded tension search: `/api/shipplan/{generate|lookahead|optimize}`; [SHIPPLAN_NOTES.md](SHIPPLAN_NOTES.md).
+- Explicit project/manufacturing-to-voyage preparation: `/api/shipplan/prepare-voyage`; [PLAN_VOYAGE_NOTES.md](PLAN_VOYAGE_NOTES.md). Preserve returned `config.plan_mapping` when submitting a job; mapped continuation stays within the prepared window.
 - Sea spectrum/RAO/real Monte Carlo: `/api/sea/{generate|simulate|montecarlo}`; [SEA_NOTES.md](SEA_NOTES.md).
 - Survey reconciliation: `/api/survey/reconcile`; [SURVEY_NOTES.md](SURVEY_NOTES.md).
 - Research recovery/tow/grapnel-rope/buoy tools: `/api/repair/{recovery|tow|rope|buoy}`; [REPAIR_NOTES.md](REPAIR_NOTES.md).
