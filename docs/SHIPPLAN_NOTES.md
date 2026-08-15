@@ -2,7 +2,7 @@
 
 版本：独立研究工作流 v1，2026-10-04。实现：`oceanroute/shipplan.py`。公开函数为 `build_ship_plan(project, config)`、`look_ahead(project, config, scenarios)`、`optimize_tension(project, config)`。所有输出保留 `validation_status: "research"`。
 
-这三个流程在已有规划与材料节点动态模型之上提供实际运算。动态窗口支持显式材料坐标的混合缆段与实体平移载荷，并可从真实保存状态继续和分支；项目 KP 到材料位置仍须明确映射。这些流程没有证明原厂等效精度，也没有自动完成全航次动态核验。基础力学模型、坐标和局限参见 [MODEL_NOTES.md](MODEL_NOTES.md)。
+这三个流程在已有规划与材料节点动态模型之上提供实际运算。动态窗口支持显式材料坐标的混合缆段与实体平移载荷，并可从真实保存状态继续和分支；项目KP到材料位置须明确映射。0.3新增 `/api/shipplan/prepare-voyage` 准备经校核的平床、同物性初态施工窗口，详见 [PLAN_VOYAGE_NOTES.md](PLAN_VOYAGE_NOTES.md)；它是显式预备流程，不能把任意初步计划直接当作完整动力状态。这些流程没有证明原厂等效精度，也没有自动完成全航次动态核验。基础力学模型、坐标和局限参见 [MODEL_NOTES.md](MODEL_NOTES.md)。
 
 ## 1. 初步船舶计划
 
