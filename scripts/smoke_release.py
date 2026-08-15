@@ -15,37 +15,42 @@ import sys
 import tempfile
 import zipfile
 
-EXPECTED_VERSION = "0.2.0"
-
 # Execute in a fresh process, with only the extracted wheel on PYTHONPATH. Keep
 # the checks here so the test cannot accidentally import the checkout's package.
 SMOKE_CODE = r'''
 from copy import deepcopy
+import base64
 import importlib
 import json
 import math
 import pathlib
 import re
+import sys
 import time
 
 import oceanroute
 from fastapi.testclient import TestClient
+from pyproj import CRS, Transformer
+from rasterio.io import MemoryFile
 from oceanroute.api import create_app
 from oceanroute.storage import ProjectStore
 from oceanroute.voyage import read_voyage_checkpoint
 
 root = pathlib.Path.cwd().resolve()
+expected_version = sys.argv[1]
 started = time.monotonic()
 modules = {}
 for name in ("oceanroute", "oceanroute.api", "oceanroute.storage",
              "oceanroute.workspace", "oceanroute.workspace_storage",
              "oceanroute.seismic", "oceanroute.voyage", "oceanroute.voyage_jobs",
-             "oceanroute.checkpoints"):
+             "oceanroute.checkpoints", "oceanroute.plan_voyage", "oceanroute.shipplan",
+             "oceanroute.simulation", "oceanroute.rpl_templates", "oceanroute.exchange",
+             "oceanroute.dtm", "oceanroute.terrain_boundaries", "oceanroute.terrain_slice"):
     module = importlib.import_module(name)
     location = pathlib.Path(module.__file__).resolve()
     assert location.is_relative_to(root), (name, str(location), str(root))
     modules[name] = str(location.relative_to(root))
-assert oceanroute.__version__ == "0.2.0", oceanroute.__version__
+assert oceanroute.__version__ == expected_version, (oceanroute.__version__, expected_version)
 
 
 def finite(value):
@@ -62,6 +67,12 @@ def get_json(client, path):
 def post_json(client, path, payload):
     response = client.post(path, json=payload)
     assert response.status_code == 200, (path, response.status_code, response.text[:1000])
+    return finite(response.json())
+
+
+def reject_json(client, path, payload):
+    response = client.post(path, json=payload)
+    assert response.status_code == 422, (path, response.status_code, response.text[:1000])
     return finite(response.json())
 
 
@@ -83,7 +94,7 @@ app = create_app(ProjectStore(store_path))
 # background worker, then waits for shutdown and releases the ownership lock.
 with TestClient(app) as client:
     health = get_json(client, "/api/health")
-    assert health["status"] == "ok" and health["version"] == "0.2.0", health
+    assert health["status"] == "ok" and health["version"] == expected_version, health
     page = client.get("/")
     assert page.status_code == 200 and 'id="root"' in page.text, page.text[:1000]
     assets = re.findall(r'(?:src|href)="(/assets/[^\"]+)"', page.text)
@@ -138,6 +149,108 @@ with TestClient(app) as client:
     restored = post_json(client, "/api/workspaces/" + identifier + "/restore/1",
                          {"expected_revision": 2})
     assert restored["saved_revision"] == 3 and len(restored["paths"]) == 1
+
+    # Save/reload declared templates through actual HTTP routes, then parse
+    # Unicode character columns and two physical lines per real record.
+    examples = get_json(client, "/api/import/rpl/templates")["examples"]
+    fixed_example = next(row for row in examples if row["template"]["format"] == "fixed_width")
+    normalized = post_json(client, "/api/import/rpl/template",
+                           {"template": fixed_example["template"]})["template"]
+    assert post_json(client, "/api/import/rpl/template", {
+        "text": json.dumps(normalized, ensure_ascii=False)})["template"] == normalized
+    parsed_fixed = post_json(client, "/api/import/rpl", {
+        "text": fixed_example["text"], "template": normalized})
+    assert parsed_fixed["can_apply"] and parsed_fixed["rejected_rows"] == 0
+    assert [row["label"] for row in parsed_fixed["points"]] == ["起点", "转点", "终点"]
+    assert [(r["line_start"], r["line_end"]) for r in parsed_fixed["records"]] == [(2, 3), (4, 5), (6, 7)]
+    assert parsed_fixed["metadata"]["cable_distance_origin_m"] == 5000
+    assert [row["fixed_cable_length_m"] for row in parsed_fixed["legs"]] == [1750, 1750]
+    fixed_analysis = post_json(client, "/api/analyze", {
+        "route": {**parsed_fixed["route_options"], "points": parsed_fixed["points"], "legs": parsed_fixed["legs"]},
+        "cable_types": [{"id": "LW", "cost_per_m": 10, "lay_speed_m_s": 2}]})
+    assert fixed_analysis["summary"]["cable_length_m"] == 3500
+    assert fixed_analysis["summary"]["material_cost"] == 35000
+    broken_lines = fixed_example["text"].splitlines()
+    broken_lines[3] = "坏"
+    broken_text = "\n".join(broken_lines)
+    collected = post_json(client, "/api/import/rpl", {"text": broken_text, "template": normalized})
+    assert collected["rejected_rows"] == 1 and not collected["can_apply"]
+    assert (collected["errors"][0]["record"], collected["errors"][0]["row"]) == (2, 4)
+    skipped = post_json(client, "/api/import/rpl", {"text": broken_text,
+        "template": {**normalized, "error_policy": "skip"}, "error_policy": "skip"})
+    assert skipped["can_apply"] and skipped["legs"][0]["fixed_cable_length_m"] == 3500
+    multiline_template = {"schema": "oceanroute.rpl-template", "schema_version": 1,
+        "format": "delimited", "index_base": 0, "lines_per_record": 2, "header_lines": 1,
+        "fields": {"label": {"line": 0, "column": 0}, "longitude": {"line": 0, "column": 1},
+                   "latitude": {"line": 0, "column": 2}, "note": {"line": 0, "column": 3},
+                   "cable_type_id": {"line": 1, "column": 0}, "slack_pct": {"line": 1, "column": 1},
+                   "depth_m": {"line": 1, "column": 2}}}
+    multiline_text = 'header\n"起点,甲",118,22,"第一行\n#保留的备注"\nLW,1.5,30\n#注释\n终点,118.01,22.01,末尾\nLW,2,40\n'
+    parsed_multiline = post_json(client, "/api/import/rpl", {
+        "text": multiline_text, "template": multiline_template})
+    assert parsed_multiline["can_apply"] and parsed_multiline["accepted_rows"] == 2
+    assert parsed_multiline["points"][0]["note"] == "第一行\n#保留的备注"
+    assert [(r["line_start"], r["line_end"]) for r in parsed_multiline["records"]] == [(2, 4), (6, 7)]
+    assert parsed_multiline["legs"][0]["slack_pct"] == 1.5
+    csv_example = next(row for row in examples if row["template"]["format"] == "delimited")
+    parsed_dms = post_json(client, "/api/import/rpl", csv_example)
+    assert parsed_dms["can_apply"] and parsed_dms["points"][0]["label"] == "起点,甲"
+    assert math.isclose(parsed_dms["points"][1]["longitude"], 118 + 1/60, abs_tol=1e-12)
+
+    # A synthetic affine surface exercises the real minimum-curvature sparse
+    # solve, declared BLN include/exclude mask, GeoTIFF and full-raster slice.
+    local = CRS.from_proj4("+proj=aeqd +lat_0=22 +lon_0=118 +datum=WGS84 +units=m +no_defs")
+    inverse = Transformer.from_crs(local, "EPSG:4326", always_xy=True)
+    source_rows = ["longitude latitude depth_m"]
+    for x in range(-200, 201, 100):
+        for y in range(-200, 201, 100):
+            longitude, latitude = inverse.transform(x, y)
+            source_rows.append(f"{longitude:.15g} {latitude:.15g} {100+.01*x+.02*y:.15g}")
+    boundary_text = ('5,0,"包含,示例"\n-220,-220\n220,-220\n220,220\n-220,220\n-220,-220\n'
+                     '5,1,hole\n-40,-40\n40,-40\n40,40\n-40,40\n-40,-40\n')
+    boundary = post_json(client, "/api/dtm/bln/read", {"text": boundary_text, "crs": local.to_string()})
+    written_boundary = client.post("/api/dtm/bln/write", json={"document": boundary})
+    assert written_boundary.status_code == 200
+    assert "attachment" in written_boundary.headers["content-disposition"]
+    assert post_json(client, "/api/dtm/bln/read", {
+        "text": written_boundary.text, "crs": boundary["crs"]}) == boundary
+    grid = post_json(client, "/api/dtm/grid", {"text": "\n".join(source_rows), "config": {
+        "method": "minimum_curvature", "grid_spacing_m": 50, "max_gap_m": 160,
+        "contour_interval_m": 5, "boundary_bln": boundary_text, "boundary_crs": local.to_string(),
+        "minimum_curvature": {"tension": .2}}})
+    solver = grid["metadata"]["solver"]
+    assert grid["validation_status"] == "research"
+    assert solver["algorithm"] == "masked-variational-thin-plate-lsmr-v1"
+    assert solver["converged"] and solver["unique_solution_verified"]
+    assert solver["work_units"] > 0 and solver["data_max_abs_error_m"] < 1e-4
+    assert grid["metadata"]["boundary_excluded_source_points"] == 1
+    with MemoryFile(base64.b64decode(grid["geotiff_base64"], validate=True)) as memory:
+        with memory.open() as raster:
+            assert raster.count == 4 and raster.width > 2 and raster.height > 2
+            assert raster.tags()["depth_positive"] == "down"
+            assert raster.descriptions[0] == "depth_m_positive_down"
+    # A deliberately wrong preview must never become the slice source.
+    raster_only = {"geotiff_base64": grid["geotiff_base64"], "preview": {"depth_m": [[999999]]}}
+    crossed_hole = post_json(client, "/api/dtm/slice", {"grid": raster_only, "config": {
+        "line": {"coordinates": [[-150, 0], [150, 0]], "crs": local.to_string()}, "spacing_m": 50}})
+    assert crossed_hole["summary"]["missing_count"] > 0
+    assert crossed_hole["summary"]["valid_count"] > 0
+    assert crossed_hole["summary"]["bottom_length_m"] is None
+    assert crossed_hole["summary"]["complete"] is False
+    assert len(crossed_hole["valid_segments"]) >= 2
+    complete_slice = post_json(client, "/api/dtm/slice", {"grid": raster_only, "config": {
+        "line": {"coordinates": [[-100, 100], [100, 100]], "crs": local.to_string()}, "spacing_m": 50}})
+    assert complete_slice["summary"]["complete"]
+    assert math.isclose(complete_slice["summary"]["horizontal_length_m"], 200, abs_tol=1e-6)
+    assert math.isclose(complete_slice["summary"]["bottom_length_m"], 200*math.sqrt(1+.01**2), abs_tol=1e-3)
+    transform_grid = Transformer.from_crs(grid["metadata"]["crs"], local, always_xy=True)
+    for sample in complete_slice["samples"]:
+        x, y = transform_grid.transform(sample["x_m"], sample["y_m"])
+        assert math.isclose(sample["depth_m"], 100+.01*x+.02*y, abs_tol=1e-4)
+    slice_document = post_json(client, "/api/dtm/bln/read", {
+        "text": complete_slice["slice_bln_text"], "crs": grid["metadata"]["crs"]})
+    assert slice_document["objects"] and all(len(p) == 3 for obj in slice_document["objects"] for p in obj["coordinates"])
+    reject_json(client, "/api/dtm/slice", {"grid": {"preview": grid["preview"]}, "config": {}})
 
     # Synthetic observations are generated by the real forward operator. They
     # are explicitly synthetic, not field data, and truth is removed before fit.
@@ -211,8 +324,46 @@ with TestClient(app) as client:
     assert abs(resumed["summary"]["material_balance_residual_m"]) < 1e-8
     read_voyage_checkpoint(resumed["checkpoint"])
 
+    # Flat-bed route preparation is a separate, explicit research workflow.
+    # Its initial suspended stock is inventory, not additional paid-out cable.
+    planned_project = {"crs": "EPSG:4326", "route": {"curve": "rhumb", "slack_pct": 2,
+        "points": [{"id": "start", "longitude": 0, "latitude": 0, "depth_m": 10},
+                   {"id": "end", "longitude": math.degrees(300/6378137), "latitude": 0, "depth_m": 10}],
+        "legs": [{"cable_type_id": "A"}]}, "cable_types": [{"id": "A", "lay_speed_m_s": .5,
+        "wet_weight_n_m": 4, "diameter_m": .02, "cost_per_m": 1, "ea_n": 1e6, "ei_n_m2": 0}], "bodies": []}
+    prepared = post_json(client, "/api/shipplan/prepare-voyage", {"project": planned_project,
+        "config": {"plan": {"bottom_tension_n": 10, "sample_spacing_m": 30}, "duration_s": 2,
+                   "simulation": {"dt_s": .25, "internal_dt_s": .05},
+                   "voyage": {"adaptive_mesh": {"enabled": False}, "chunk_duration_s": 1}}})
+    mapping = prepared["mapping"]
+    assert mapping["source_plan_start_s"] > 0 and mapping["manufacturing_origin_m"] == 0
+    assert math.isclose(mapping["initial_manufacturing_top_m"], mapping["initial_natural_length_m"], abs_tol=1e-9)
+    prepared_full = post_json(client, "/api/voyage/run", {"project": planned_project, "config": prepared["config"]})
+    assert prepared_full["status"] == "completed" and prepared_full["plan_mapping"] == mapping
+    assert math.isclose(prepared_full["summary"]["paid_out_m"], 1.02, abs_tol=1e-9)
+    assert math.isclose(prepared_full["frames"][0]["node_material_m"][0], mapping["initial_manufacturing_top_m"], abs_tol=1e-9)
+    assert math.isclose(prepared_full["frames"][-1]["node_material_m"][0], mapping["final_manufacturing_top_m"], abs_tol=1e-9)
+    assert abs(prepared_full["summary"]["material_balance_residual_m"]) < 1e-8
+    prepared_job = post_json(client, "/api/voyage/jobs", {"project": planned_project,
+        "config": {**prepared["config"], "duration_s": 1}})
+    prepared_parent_id = prepared_job["id"]
+    wait_completed(client, prepared_parent_id)
+    prepared_checkpoint = get_json(client, "/api/voyage/jobs/" + prepared_parent_id + "/checkpoint")
+    assert prepared_checkpoint["plan_mapping"] == mapping
+    read_voyage_checkpoint(prepared_checkpoint)
+    for change in ("geometry", "properties"):
+        stale_project = deepcopy(planned_project)
+        if change == "geometry":
+            stale_project["route"]["points"][-1]["latitude"] += .001
+        else:
+            stale_project["cable_types"][0]["wet_weight_n_m"] = 8
+        rejected = reject_json(client, "/api/voyage/run", {"project": stale_project,
+            "config": {"resume_state": prepared_checkpoint, "duration_s": 1}})
+        assert "saved planning mapping" in json.dumps(rejected), rejected
+    reject_json(client, "/api/voyage/run", {"project": stale_project, "config": prepared["config"]})
+
 # A second app in the same directory proves lifespan released the writer lock
-# and both completed jobs can actually be reloaded from durable files.
+# and completed jobs, including the planning map, reload from durable files.
 with TestClient(create_app(ProjectStore(store_path))) as reopened:
     recovered_parent = get_json(reopened, "/api/voyage/jobs/" + parent_id)
     recovered_child = get_json(reopened, "/api/voyage/jobs/" + child_id)
@@ -220,6 +371,27 @@ with TestClient(create_app(ProjectStore(store_path))) as reopened:
     assert get_json(reopened, "/api/voyage/jobs/" + child_id + "/result")["summary"]["end_time_s"] == 3
     read_voyage_checkpoint(get_json(reopened, "/api/voyage/jobs/" + child_id + "/checkpoint"))
     assert get_json(reopened, "/api/workspaces/" + identifier)["saved_revision"] == 3
+    recovered_planned = get_json(reopened, "/api/voyage/jobs/" + prepared_parent_id + "/checkpoint")
+    assert recovered_planned["plan_mapping"] == mapping
+    continued_plan = post_json(reopened, "/api/voyage/jobs/" + prepared_parent_id + "/resume", {"duration_s": 1})
+    prepared_child_id = continued_plan["id"]
+    completed_plan = wait_completed(reopened, prepared_child_id)
+    assert completed_plan["parent_job_id"] == prepared_parent_id
+    prepared_resumed = get_json(reopened, "/api/voyage/jobs/" + prepared_child_id + "/result")
+    assert prepared_resumed["plan_mapping"] == mapping
+    assert prepared_resumed["summary"]["start_time_s"] == 1 and prepared_resumed["summary"]["end_time_s"] == 2
+    assert math.isclose(prepared_resumed["summary"]["paid_out_m"], 1.02, abs_tol=1e-9)
+    assert abs(prepared_resumed["summary"]["material_balance_residual_m"]) < 1e-8
+    resumed_positions = prepared_resumed["checkpoint"]["physical_checkpoint"]["state"]["positions"]
+    full_positions = prepared_full["checkpoint"]["physical_checkpoint"]["state"]["positions"]
+    assert len(resumed_positions) == len(full_positions)
+    for actual_position, expected_position in zip(resumed_positions, full_positions):
+        assert len(actual_position) == len(expected_position) == 3
+        assert all(math.isclose(a, b, rel_tol=0, abs_tol=1e-8) for a, b in zip(actual_position, expected_position))
+    read_voyage_checkpoint(prepared_resumed["checkpoint"])
+    # A saved two-second mapping cannot silently invent later controls.
+    reject_json(reopened, "/api/voyage/run", {"project": planned_project,
+        "config": {"resume_state": prepared_resumed["checkpoint"], "duration_s": 1}})
 
 print(json.dumps(finite({
     "version": oceanroute.__version__, "wheel_module": str(oceanroute.__file__),
@@ -238,8 +410,32 @@ print(json.dumps(finite({
                "parent_frames": len(result["frames"]), "child_frames": len(resumed["frames"]),
                "checkpoint_validated": True, "durable_reopen": True,
                "writer_lifespan_reopened": True},
+    "rpl_templates": {"fixed_unicode_records": parsed_fixed["accepted_rows"],
+                      "fixed_multiline_records": True, "manufactured_length_m": 3500,
+                      "quoted_multiline_csv_records": parsed_multiline["accepted_rows"],
+                      "dms_csv_records": parsed_dms["accepted_rows"],
+                      "template_json_roundtrip": True, "collect_blocks_apply": True,
+                      "explicit_skip_bridge": True},
+    "dtm": {"source": "synthetic_affine_surface", "source_points": 25,
+            "method": "minimum_curvature", "converged": True,
+            "unique_solution_verified": True, "solver_work_units": solver["work_units"],
+            "data_max_abs_error_m": solver["data_max_abs_error_m"], "bln_roundtrip": True,
+            "excluded_source_points": grid["metadata"]["boundary_excluded_source_points"],
+            "hole_slice_missing_count": crossed_hole["summary"]["missing_count"],
+            "hole_slice_bottom_length_m": None, "preview_ignored": True,
+            "complete_slice_bottom_length_m": complete_slice["summary"]["bottom_length_m"]},
+    "plan_voyage": {"assumptions": "known_flat_bed_homogeneous_analytical_zero_velocity_initial_state",
+                    "source_plan_start_s": mapping["source_plan_start_s"],
+                    "initial_natural_length_m": mapping["initial_natural_length_m"],
+                    "manufacturing_origin_m": mapping["manufacturing_origin_m"],
+                    "paid_out_m": prepared_resumed["summary"]["paid_out_m"],
+                    "duration_s": 2, "resume_start_s": 1, "resume_end_s": 2,
+                    "initial_inventory_not_repaid": True, "durable_mapping_reopen": True,
+                    "resume_matches_uninterrupted_positions": True,
+                    "stale_geometry_rejected": True, "stale_physics_rejected": True,
+                    "prepared_window_overrun_rejected": True},
     "elapsed_s": time.monotonic() - started,
-    "scope": "extracted wheel + existing interpreter dependencies + ASGI lifecycle; not clean install/browser/long-voyage certification"
+    "scope": "extracted wheel + existing interpreter dependencies including terrain + ASGI lifecycle; synthetic small cases, not clean install/browser/field accuracy/long-voyage certification"
 })))
 '''
 
@@ -254,15 +450,15 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if len(metadata_paths) != 1:
                 raise ValueError("wheel must contain exactly one distribution METADATA")
             metadata = Parser().parsestr(package.read(metadata_paths[0]).decode("utf-8"))
-            if metadata["Name"].lower() != "oceanroute" or metadata["Version"] != EXPECTED_VERSION:
-                raise ValueError(f"expected OceanRoute {EXPECTED_VERSION}, got {metadata['Name']} {metadata['Version']}")
+            if (metadata["Name"] or "").lower() != "oceanroute" or not metadata["Version"]:
+                raise ValueError(f"expected OceanRoute METADATA with a version, got {metadata['Name']} {metadata['Version']}")
             package.extractall(destination)
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(destination)
         environment["PYTHONNOUSERSITE"] = "1"
         environment["OCEANROUTE_DATA_DIR"] = str(destination / "data")
         try:
-            completed = subprocess.run([sys.executable, "-c", SMOKE_CODE], cwd=destination,
+            completed = subprocess.run([sys.executable, "-c", SMOKE_CODE, metadata["Version"]], cwd=destination,
                                        env=environment, check=True, capture_output=True,
                                        text=True, timeout=120)
         except subprocess.CalledProcessError as error:

@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import socket
 import subprocess
@@ -22,6 +23,11 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
         with zipfile.ZipFile(archive.resolve()) as package:
             package.extractall(root)
         checkout = root / "OceanRoute"
+        match = re.search(r'^version = "([0-9]+\.[0-9]+\.[0-9]+)"$',
+                          (checkout / "pyproject.toml").read_text(), re.M)
+        if match is None:
+            raise ValueError("Archive has no declared OceanRoute version")
+        expected_version = match.group(1)
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
@@ -52,7 +58,7 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                         time.sleep(.25)
                 if health is None:
                     raise RuntimeError("Launcher startup timeout: " + log.read_text()[-4000:])
-                assert health["version"] == "0.2.0", health
+                assert health["version"] == expected_version, health
                 with urllib.request.urlopen(url, timeout=10) as response:
                     assert 'id="root"' in response.read().decode()
                 with urllib.request.urlopen(url + "/api/sample", timeout=10) as response:
