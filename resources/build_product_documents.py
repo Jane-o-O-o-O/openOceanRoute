@@ -102,7 +102,7 @@ def append_paragraph_group(story, paragraphs, source_line=""):
 def build(source_name, target_name, title, design=False):
     text = (ROOT / "docs" / source_name).read_text()
     story = [Spacer(1, 28), Paragraph("OCEANROUTE", STYLES["small"]), Paragraph(title, STYLES["title"]),
-             Paragraph("海缆规划与敷设研究工作空间 / 0.2", STYLES["h2"]),
+             Paragraph("海缆规划与敷设研究工作空间 / 0.3", STYLES["h2"]),
              Paragraph("2026-10-04 · 独立实现 · 可运行开发版", STYLES["body"]),
              Spacer(1, 12), Paragraph("本文对应当前程序行为。规划功能和研究模型的验证范围分别说明；没有原厂或海试对照时，不声称等效工程精度。", STYLES["body"])]
     if design:
@@ -118,7 +118,6 @@ def build(source_name, target_name, title, design=False):
             story.extend([Spacer(1, 12), image, Spacer(1, 8), Paragraph("工作空间示例。数据为合成演示，界面随版本更新。", STYLES["small"])])
     story.append(PageBreak())
     lines, index = text.splitlines(), 0
-    final_section_start = None
     while index < len(lines):
         line = lines[index].strip()
         index += 1
@@ -140,10 +139,6 @@ def build(source_name, target_name, title, design=False):
                 block.append(lines[index]); index += 1
             story.extend([table(block, design), Spacer(1, 9)])
         elif line.startswith("## "):
-            if design and line[3:].startswith("9."):
-                final_section_start = len(story)
-            if not design and re.match(r"4\.", line[3:]):
-                story.append(PageBreak())
             story.append(Paragraph(inline(line[3:]), STYLES["h2"]))
         elif line.startswith("### "):
             story.append(Paragraph(inline(line[4:]), STYLES["h3"]))
@@ -157,15 +152,13 @@ def build(source_name, target_name, title, design=False):
             append_paragraph_group(story, block)
         else:
             append_paragraph_group(story, [Paragraph(inline(line), STYLES["body"])], line)
-    if final_section_start is not None:
-        story[final_section_start:] = [KeepTogether(story[final_section_start:])]
     def page(canvas, doc):
         canvas.saveState()
         canvas.setFillColor(TEAL); canvas.rect(45, A4[1]-32, 25, 3, fill=1, stroke=0)
         canvas.setFillColor(MUTED); canvas.setFont("OceanCJK", 8)
         canvas.drawString(80, A4[1]-33, "OceanRoute / " + title)
         canvas.setStrokeColor(colors.HexColor("#D3E1E6")); canvas.line(45, 36, A4[0]-45, 36)
-        canvas.drawString(45, 23, "0.2 · 2026-10-04 · 独立实现，研究模型待工程校核")
+        canvas.drawString(45, 23, "0.3 · 2026-10-04 · 独立实现，研究模型待工程校核")
         canvas.drawRightString(A4[0]-45, 23, str(doc.page))
         canvas.restoreState()
     target = OUTPUT / target_name
