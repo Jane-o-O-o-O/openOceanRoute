@@ -169,7 +169,7 @@ def _assembly_from(project, analysis, name, identifier=None):
 
 def _strip(project, identifier, name):
     result = deepcopy(project)
-    for key in ("cable_types", "layers", "saved_revision", "workspace_context"):
+    for key in ("cable_types", "layers", "terrain_sources", "saved_revision", "workspace_context"):
         result.pop(key, None)
     result.update(id=identifier, name=name, schema_version=1)
     return result
@@ -178,6 +178,7 @@ def _strip(project, identifier, name):
 def _materialize(workspace, path):
     project = deepcopy(path["project"])
     project.update(schema_version=1, id=path["id"], name=path["name"], cable_types=deepcopy(workspace["cable_types"]), layers=deepcopy(workspace["layers"]))
+    project["terrain_sources"] = deepcopy(workspace.get("terrain_sources", []))
     project.pop("saved_revision", None)
     relation = next((l for l in workspace["associations"] if l["path_id"] == path["id"]), None)
     project["workspace_context"] = {"workspace_id": workspace["id"], "path_id": path["id"], "assembly_id": relation["assembly_id"] if relation else None,
@@ -228,6 +229,9 @@ def _validate(workspace):
             if key in value: finite_number(value[key], key, minimum=0)
     _unique(_array(ws.get("layers", []), "layers", 1000), "layers")
     ws.setdefault("layers", [])
+    from .terrain_sources import normalize_sources, _library_signature
+    ws["terrain_sources"] = normalize_sources(ws.get("terrain_sources", []))
+    terrain_signature = _library_signature(ws["terrain_sources"])
     paths = _unique(_array(ws.get("paths", []), "paths", 100), "paths")
     assemblies = _unique(_array(ws.get("assemblies", []), "assemblies", 100), "assemblies")
     links = _array(ws.get("associations", []), "associations", 100)
@@ -284,7 +288,7 @@ def _validate(workspace):
             _error("WORKSPACE_PATH_KIND", "当前关系库管理Cable Path；调查成果仍是独立GIS，不伪造可编辑As-Laid路径")
         path["kind"] = "cable"; path["name"] = str(path.get("name", path["id"]))
         child = _object(path.get("project"), "path.project")
-        if any(k in child for k in ("cable_types", "layers", "saved_revision")):
+        if any(k in child for k in ("cable_types", "layers", "terrain_sources", "saved_revision")):
             _error("WORKSPACE_SHARED_RESOURCE", "子路径不得保存共享库/图层/独立修订，须通过工作区同步")
         if child.get("id") != path["id"] or child.get("schema_version") != 1:
             _error("WORKSPACE_PATH_ID", "schema1子实体id必须等于path.id")
@@ -301,7 +305,7 @@ def _validate(workspace):
         if geometry_vertices > MAX_GEOMETRY_VERTICES:
             _error("WORKSPACE_LIMIT", "工作区全部路径地图加密预算为250,000个顶点；请拆分工程")
         materialized = _materialize(ws, path)
-        analysis = analyze_project(materialized)
+        analysis = analyze_project(materialized, _terrain_signature=terrain_signature)
         analyses[path["id"]] = analysis
         link = next((l for l in links if l["path_id"] == path["id"]), None)
         if link:
@@ -413,6 +417,8 @@ def _prepare_project(project, identifier, name, currency):
     for original, reference in zip(p.get("assembly_references", []), analysis.get("assembly_references", [])):
         original["id"] = reference["id"]
     p.setdefault("layers", [])
+    from .terrain_sources import normalize_sources
+    p["terrain_sources"] = normalize_sources(p.get("terrain_sources", []))
     return p, analysis
 
 
@@ -437,6 +443,7 @@ def migrate_project(project, config=None):
     p, analysis = _prepare_project(project, pid, name, currency)
     ws = {"schema_version": 2, "id": str(uuid4()), "name": str(config.get("name", project.get("name", "多路径海缆工程"))),
           "currency": currency, "active_path_id": pid, "cable_types": deepcopy(p["cable_types"]), "layers": deepcopy(p.get("layers", [])),
+          "terrain_sources": deepcopy(p["terrain_sources"]),
           "paths": [{"id": pid, "name": name, "kind": "cable", "project": _strip(p, pid, name)}],
           "assemblies": [], "associations": [], "origin_project_id": project.get("id"), "migration": "schema1_to_schema2"}
     assembly = _assembly_from(p, analysis, name+" · 制造装配")
@@ -467,7 +474,7 @@ def workspace_action(workspace, config):
         if "name" not in config: _error("WORKSPACE_STRUCTURE", "update_metadata须提供name")
         ws["name"] = str(config["name"])
     elif action == "update_shared":
-        for key in ("cable_types", "layers"):
+        for key in ("cable_types", "layers", "terrain_sources"):
             if key in config: ws[key] = deepcopy(config[key])
     elif action in {"add_path", "copy_path"}:
         source = _materialize(ws, path) if action == "copy_path" else _object(config.get("project"), "project")
@@ -475,7 +482,8 @@ def workspace_action(workspace, config):
         if policy not in {"independent", "alternative", "unassigned"}:
             _error("WORKSPACE_POLICY", "复制/新增assembly_policy须independent/alternative/unassigned")
         pid = str(uuid4()); name = str(config.get("name", str(source.get("name", "路径"))+(" · 副本" if action == "copy_path" else "")))
-        if source.get("cable_types") != ws["cable_types"] or source.get("layers", []) != ws["layers"]:
+        if (source.get("cable_types") != ws["cable_types"] or source.get("layers", []) != ws["layers"]
+                or source.get("terrain_sources", []) != ws["terrain_sources"]):
             _error("WORKSPACE_SHARED_RESOURCE", "新增路径必须引用当前共享库和GIS；先通过update_shared显式合并资源")
         p, a = _prepare_project(source, pid, name, ws["currency"])
         if policy == "independent":
@@ -493,7 +501,7 @@ def workspace_action(workspace, config):
         source = deepcopy(_object(config.get("project"), "project"))
         if source.get("id") != path_id:
             _error("WORKSPACE_PATH_ID", "投影id不匹配当前path，不自动覆盖其他路径")
-        for key in ("cable_types", "layers"):
+        for key in ("cable_types", "layers", "terrain_sources"):
             if key in source and source[key] != ws[key]:
                 if not config.get("update_shared", False):
                     _error("WORKSPACE_SHARED_EDIT_REQUIRED", "共享库/GIS变更须update_shared:true，不能丢失或私存修改")

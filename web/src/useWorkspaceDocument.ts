@@ -1,14 +1,14 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import type {Dispatch,SetStateAction} from 'react';
-import type {Cable,Layer,Project} from './types';
+import type {Cable,Layer,Project,TerrainSource} from './types';
 import {request} from './api';
 export type WorkspacePath={id:string;name:string;kind:string;project:Project};
 export type WorkspaceAssembly={id:string;name:string;currency:string;items:any[];total_length_m:number};
 export type WorkspaceAssociation={id:string;path_id:string;assembly_id:string;role:'deployment'|'alternative'};
-export type Workspace={id:string;schema_version:2;name:string;currency:string;active_path_id:string;cable_types:Cable[];layers:Layer[];paths:WorkspacePath[];assemblies:WorkspaceAssembly[];associations:WorkspaceAssociation[];saved_revision?:number;[key:string]:any};
+export type Workspace={id:string;schema_version:2;name:string;currency:string;active_path_id:string;cable_types:Cable[];layers:Layer[];terrain_sources?:TerrainSource[];paths:WorkspacePath[];assemblies:WorkspaceAssembly[];associations:WorkspaceAssociation[];saved_revision?:number;[key:string]:any};
 export type WorkspaceDocument={workspace:Workspace;draft:Project|null};
 export type WorkspaceResult={workspace:Workspace;project:Project;analysis:any;report:any;warnings:any[]};
-export function materialize(workspace:Workspace):Project{const path=workspace.paths.find(p=>p.id===workspace.active_path_id)||workspace.paths[0];return {...path.project,id:path.id,name:path.name,cable_types:workspace.cable_types,layers:workspace.layers,workspace_context:{workspace_id:workspace.id,path_id:path.id,workspace_revision:workspace.saved_revision,...workspace.associations.find(a=>a.path_id===path.id)}};}
+export function materialize(workspace:Workspace):Project{const path=workspace.paths.find(p=>p.id===workspace.active_path_id)||workspace.paths[0];return {...path.project,id:path.id,name:path.name,cable_types:workspace.cable_types,layers:workspace.layers,...(workspace.terrain_sources!==undefined?{terrain_sources:workspace.terrain_sources}:{}),workspace_context:{workspace_id:workspace.id,path_id:path.id,workspace_revision:workspace.saved_revision,...workspace.associations.find(a=>a.path_id===path.id)}};}
 export default function useWorkspaceDocument(notify:(message:string,error?:boolean)=>void){
   const [document,setDocumentState]=useState<WorkspaceDocument|null>(null),[aggregate,setAggregate]=useState<any>(null),[pending,setPending]=useState(false),[relationError,setRelationError]=useState('');
   const documentRef=useRef(document);documentRef.current=document;const notifyRef=useRef(notify);notifyRef.current=notify;
