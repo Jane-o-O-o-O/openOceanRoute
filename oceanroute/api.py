@@ -103,6 +103,9 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "assembly", "name": "制造清单 / 实制装配回写", "status": "implemented", "note": "独立CSV、明确映射预览，非原厂装配格式"},
             {"id": "routing", "name": "避让 / 地形路由搜索", "status": "implemented", "note": "有限网格A*候选，明确工作量上限及地形来源"},
             {"id": "terrain", "name": "XYZ / GeoTIFF / Surfer 与 DTM", "status": "implemented", "note": "沿线采样、网格、坡向阴影、等深线；有规模上限"},
+            {"id": "coordinates", "name": "显式投影坐标编辑", "status": "implemented", "note": "真实二维水平CRS预览及制造域编辑；不兼容CSF或任意地图投影切换"},
+            {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
+            {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播或自动初态"},
             {"id": "simulation", "name": "稳态 / 动态 / 跨距模型", "status": "research", "note": "独立数值模型；适用假设与局限随结果输出"},
             {"id": "voyage", "name": "长时连续计算 / 后台恢复", "status": "research", "note": "真实状态分块延续与有误差约束的平床网格粗化；并非已验证全航程模型"},
             {"id": "materials", "name": "混合缆型 / 有限附属体", "status": "research", "note": "材料坐标的局部物性与平移分布载荷，非完整刚体六自由度"},
@@ -118,6 +121,11 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     @app.post("/api/analyze")
     def analyze(payload: dict):
         return _analysis(payload)
+
+    @app.post("/api/coordinates/transform")
+    def coordinates_transform(payload: dict):
+        from .coordinate_transforms import transform_coordinates
+        return transform_coordinates(payload)
 
     @app.get("/api/projects")
     def projects():
@@ -222,6 +230,40 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         project["profile"] = {"samples": samples, "route_signature": route_signature(project), "source": payload.get("source", "用户剖面文本")}
         _analysis(project)
         return project
+
+    @app.get("/api/terrain/sources/example")
+    def terrain_sources_example():
+        from .terrain_sources import example_sources
+        return example_sources()
+
+    @app.post("/api/terrain/sources/normalize")
+    def terrain_sources_normalize(payload: dict):
+        from .terrain_sources import normalize_sources, _library_signature
+        if set(payload) != {"sources"}:
+            raise ValueError("normalize须仅包含sources数组")
+        sources = normalize_sources(payload["sources"])
+        return {"sources": sources, "library_signature": _library_signature(sources)}
+
+    @app.post("/api/terrain/query")
+    def terrain_query(payload: dict):
+        from .terrain_sources import query_terrain
+        if set(payload)-{"sources", "points", "config"}:
+            raise ValueError("query仅支持sources、points和config")
+        return query_terrain(payload.get("sources", []), payload.get("points"), payload.get("config"))
+
+    @app.post("/api/terrain/profile")
+    def terrain_profile(payload: dict):
+        from .terrain_sources import profile_from_sources
+        if set(payload)-{"project", "config"}:
+            raise ValueError("profile仅支持project和config；地形源属于project.terrain_sources")
+        return profile_from_sources(_project(payload.get("project", {})), payload.get("config"))
+
+    @app.post("/api/terrain/bathymetry")
+    def terrain_bathymetry(payload: dict):
+        from .terrain_bathymetry import bathymetry_from_sources
+        if set(payload)-{"project", "config"}:
+            raise ValueError("bathymetry仅支持project和config")
+        return bathymetry_from_sources(_project(payload.get("project", {})), payload.get("config"))
 
     @app.post("/api/terrain/xyz")
     def terrain_xyz(payload: dict):
