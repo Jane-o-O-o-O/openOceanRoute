@@ -541,6 +541,10 @@ def _preview_project(project, before, coordinates, anchor_old, anchor_new, start
             source = "synthetic_" + source
         metadata = {"original_source": before["profile_metadata"], "unmeasured_range_m": [old_start, old_end + shift],
                     "retained_geometry": "unchanged_prefix_and_suffix_only"}
+        original_terrain = ((project.get("profile") or {}).get("metadata") or {})
+        if original_terrain.get("model") in {"priority-terrain-library-v1", "terrain-library-derived-profile-v1"}:
+            metadata.update(model="terrain-library-derived-profile-v1",
+                            terrain_library_signature=original_terrain.get("terrain_library_signature"))
         measured = False
     profile.sort(key=lambda p: p["kp_m"])
     clean = []
