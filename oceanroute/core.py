@@ -82,15 +82,26 @@ def _validate_points(route):
     return normalized
 
 
-def _profiles(project, points, kps, signature, warnings):
+def _profiles(project, points, kps, signature, warnings, terrain_signature=None):
     profile_obj = _object(project.get("profile", {}) or {}, "profile")
     raw = _list(profile_obj.get("samples", []), "profile.samples")
     source = profile_obj.get("source", "user")
-    valid = bool(raw) and profile_obj.get("route_signature") == signature
-    if raw:
+    geometry_valid = bool(raw) and profile_obj.get("route_signature") == signature
+    terrain_meta = _object(profile_obj.get("metadata", {}) or {}, "profile.metadata")
+    library_bound = terrain_meta.get("model") in {"priority-terrain-library-v1", "terrain-library-derived-profile-v1"}
+    library_valid = True
+    if library_bound:
+        from .terrain_sources import terrain_library_signature
+        if terrain_signature is None:
+            terrain_signature = terrain_library_signature(project.get("terrain_sources", []))
+        library_valid = terrain_meta.get("terrain_library_signature") == terrain_signature
+        if raw and not library_valid:
+            _warning(warnings, "TERRAIN_LIBRARY_STALE", "共享地形内容、解释、启用状态或优先级已变化，旧剖面已停用；请重新采样")
+    valid = geometry_valid and library_valid
+    if raw and not geometry_valid:
         _warning(warnings, "PROFILE_UNBOUND" if not profile_obj.get("route_signature") else "PROFILE_STALE",
                  "导入剖面缺少当前路线签名，已停用" if not profile_obj.get("route_signature") else "路线几何已变化，旧剖面已停用",
-                 "warning") if not valid else None
+                 "warning")
     samples = []
     # Validate even stale data: malformed values must never quietly escape checks.
     for i, p in enumerate(raw):
@@ -105,7 +116,8 @@ def _profiles(project, points, kps, signature, warnings):
         # waypoint depths. A changed route needs fresh sampling or an explicit
         # removal of that profile before waypoint approximation is selected.
         samples = [{"kp_m": kp, "depth_m": None} for kp in sorted(set(kps))]
-        source = "stale_profile_unavailable" if profile_obj.get("route_signature") else "unbound_profile_unavailable"
+        source = ("stale_terrain_library_unavailable" if library_bound and not library_valid else
+                  "stale_profile_unavailable" if profile_obj.get("route_signature") else "unbound_profile_unavailable")
     elif not valid:
         samples = []
         # A repeated position with two inconsistent depths is not a vertical seabed.
@@ -167,8 +179,12 @@ def _profiles(project, points, kps, signature, warnings):
         enriched.append({"kp_m": kp, "depth_m": depth, "bottom_kp_m": bottom_kp, "slope_deg": slope})
     if any(p["depth_m"] is None for p in enriched) and any(p["depth_m"] is not None for p in enriched):
         _warning(warnings, "PROFILE_GAPS", "剖面未覆盖全路线或含缺测；有缺测的区间不计算海底距离和底余缆")
-    return enriched, depth_at, {"source": source, "route_signature": signature, "imported_profile_valid": valid,
+    metadata = {"source": source, "route_signature": signature, "imported_profile_valid": valid,
                                       "model": "piecewise_linear_kp_depth", "measured": valid and bool(profile_obj.get("measured", False)) and not str(source).lower().startswith("synthetic")}
+    if library_bound:
+        metadata.update(terrain_library_signature=terrain_signature, terrain_library_valid=library_valid,
+                        profile_terrain_library_signature=terrain_meta.get("terrain_library_signature"))
+    return enriched, depth_at, metadata
 
 
 def _leg_bottom(profile, start, end, profile_kps=None):
@@ -494,7 +510,7 @@ def _crossings(project, points, kps, curve, corridor, warnings):
     return sorted(crossings, key=lambda x: x["kp_m"])
 
 
-def analyze_project(project: dict) -> dict:
+def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
     project = _object(project, "project")
     if project.get("crs", "EPSG:4326") != "EPSG:4326":
         raise ValueError("项目内部坐标须为 EPSG:4326；请在导入时转换其他坐标系")
@@ -541,7 +557,7 @@ def analyze_project(project: dict) -> dict:
         if distance < 1e-7:
             _warning(warnings, "ZERO_LENGTH_LEG", "相邻路线点坐标重复，方位及余缆百分比不适用", "info", b["id"])
     signature = route_signature(project)
-    profile, depth_at, profile_meta = _profiles(project, points, kps, signature, warnings)
+    profile, depth_at, profile_meta = _profiles(project, points, kps, signature, warnings, _terrain_signature)
     profile_kps = [p["kp_m"] for p in profile]
     rules = _object(project.get("rules", {}), "rules")
     max_slope = _number(rules, "max_slope_deg", 15.0, minimum=0, maximum=90)
