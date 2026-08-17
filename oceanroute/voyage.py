@@ -201,7 +201,7 @@ def coarsen_checkpoint(project, document, previous_document, policy=None, *, max
     saved, previous = read_checkpoint(document), read_checkpoint(previous_document)
     if not limits["enabled"] or len(saved["arrays"]["positions"]) <= max(limits["target_nodes"], saved["config"]["nodes"]):
         return {"checkpoint": deepcopy(document), "accepted": False, "reason": "not_needed", "transfers": []}
-    if saved["config"].get("seabed_profile") is not None:
+    if saved["config"].get("seabed_profile") is not None or saved["config"].get("seabed_grid") is not None:
         return {"checkpoint": deepcopy(document), "accepted": False, "reason": "flat_bed_required", "transfers": []}
     evidence = settlement_evidence
     if (not isinstance(evidence, dict) or evidence.get("interval_start_s") != previous["time_s"]
@@ -401,7 +401,8 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
             iterations = settings["solver_iterations"]
             dt = min(settings["internal_dt_s"], settings["dt_s"])
             estimated_nodes = min(256, current_count+math.ceil(max_payout*step/parsed["state"]["segment_target_m"])+2)
-            step = min(step, 10_000_000*dt/(estimated_nodes*(iterations+len(settings.get("inline_bodies", []))+1)),
+            contact_work = 32*iterations+8 if "seabed_grid" in settings else 0
+            step = min(step, 10_000_000*dt/(estimated_nodes*(iterations+len(settings.get("inline_bodies", []))+1+contact_work)),
                        25000*dt, 1900*settings["dt_s"])
             request = {"resume_state": physical, "duration_s": step}
         else:
