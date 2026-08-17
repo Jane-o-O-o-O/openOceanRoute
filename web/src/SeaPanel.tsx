@@ -254,7 +254,7 @@ export function SeaPanel({project, onMessage}: Props) {
         {result.failures.map((failure: Row) => <p className="inline-warning" key={failure.trial}>试验 {failure.trial}：{failure.error} · {JSON.stringify(failure.parameters)}</p>)}</details>}
     </>}
     {dynamic && <><div className="panel-heading">{mode === 'montecarlo' ? `试验 ${selectedTrial.trial} 的真实计算帧` : '海况驱动的真实计算帧'}</div>
-      <div className="sim-view"><Scene3D frame={frame} depth={depth ?? simulation?.depth_m ?? 30}/>
+      <div className="sim-view"><Scene3D frame={frame} depth={depth ?? simulation?.depth_m ?? 30} seabedGrid={simulation?.seabed?.grid}/>
         <div className="sim-overlay"><span>实际求解坐标 m · z 向上</span>{frame && <strong>t = {format(frame.time_s)} s</strong>}</div></div>
       <div className="playback"><button title="回到首帧" disabled={!frames.length} onClick={() => {setFrameIndex(0); setPlaying(false);}}><RotateCcw size={16}/></button>
         <button title="播放实际帧" disabled={frames.length < 2} onClick={() => setPlaying(!playing)}>{playing ? <Pause size={16}/> : <Play size={16}/>}</button>
