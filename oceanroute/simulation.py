@@ -19,6 +19,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 from .checkpoints import merge_resume_config, pack_checkpoint
+from .bathymetry import BathymetryGrid
 
 G = 9.80665
 VALIDATION = "research"
@@ -29,7 +30,10 @@ def _num(c: dict, key: str, default: float, lo: float | None = None,
     value = c.get(key, default)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{key} must be a finite number")
-    value = float(value)
+    try:
+        value = float(value)
+    except (ValueError, OverflowError) as error:
+        raise ValueError(f"{key} must be a finite number") from error
     if not math.isfinite(value):
         raise ValueError(f"{key} must be finite")
     if lo is not None and (value <= lo if strict else value < lo):
@@ -80,6 +84,8 @@ def catenary(config: dict) -> dict:
     all three to use 1000 N bottom tension. Length refers to suspended arc.
     """
     c = _config(config)
+    if "seabed_grid" in c:
+        raise ValueError("catenary assumes flat horizontal touchdown; seabed_grid requires simulate_lay")
     depth = _num(c, "depth_m", 1000, .001, 12000)
     weight = _num(c, "wet_weight_n_m", 4, 1e-6, 20000)
     n = _integer(c, "nodes", 64, 3, 1000)
@@ -163,6 +169,8 @@ def steady_state(config: dict) -> dict:
     prescribes bottom horizontal tension and integrates until the surface.
     """
     c = _config(config)
+    if "seabed_grid" in c:
+        raise ValueError("steady_state assumes flat horizontal touchdown; seabed_grid requires simulate_lay")
     e = _environment(c)
     n = _integer(c, "nodes", 64, 3, 500)
     if e["bottom"] <= 0:
@@ -613,11 +621,22 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     if waves is not None and abs(waves.depth-e["depth"])>1e-6:
         raise ValueError("Airy wave reference depth must match the declared cable water depth")
     seabed = _profile(c, "seabed_profile")
+    grid = BathymetryGrid(c["seabed_grid"]) if "seabed_grid" in c else None
+    if grid is not None and seabed is not None:
+        raise ValueError("choose seabed_grid or seabed_profile, not both")
+    if grid is not None and waves is not None:
+        raise ValueError("seabed_grid cannot use constant-depth Airy wave_kinematics; variable-depth wave propagation is not implemented")
     if waves is not None and seabed is not None and (np.ptp(seabed[1])>1e-8 or abs(seabed[1][0]+waves.depth)>1e-6):
         raise ValueError("Airy wave kinematics currently require a flat seabed at the reference water depth")
     def bed(p):
+        if grid is not None:
+            # Check complete cell support for every point, including the ship
+            # and suspended nodes. Unknown terrain is never a successful floor.
+            return grid.surface(p)[0]
         return np.interp(p[:, 0], *seabed) if seabed is not None else np.full(len(p), -e["depth"])
 
+    if grid is not None and not saved:
+        e["depth"] = grid.initial_depth(_heading(plan[0]["heading_deg"]), e["bottom"]/e["weight"])
     if seabed is not None and not saved:
         if float(bed(np.array([[0., 0., 0.]]))[0]) >= -.001:
             raise ValueError("seabed_profile must leave positive water depth at the initial ship position")
@@ -648,6 +667,11 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         initial = catenary({"depth_m": e["depth"], "wet_weight_n_m": e["weight"],
                             "bottom_tension_n": e["bottom"], "nodes": n, "heading_deg": plan[0]["heading_deg"]})
         p = np.array(initial["nodes"], dtype=float)
+        if grid is not None:
+            initial_positions = p.copy()
+            inverse = np.ones(len(p)); inverse[[0,-1]] = 0
+            grid.project(p, inverse, np.zeros(len(p)), max_iterations=64)
+            initial_projection = float(np.max(np.linalg.norm(p-initial_positions,axis=1)))
         if seabed is not None and np.max(bed(p) - p[:, 2]) > 1e-8:
             p[:, 2] = np.maximum(p[:, 2], bed(p))
         v = np.zeros_like(p)
@@ -703,6 +727,14 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     work_estimate = (step_estimate*predicted_nodes*(iterations+material_work)
                      + frame_estimate*predicted_nodes*len(material_model.bodies)
                      +step_estimate*predicted_nodes*6*(int(np.count_nonzero(waves.amplitudes)) if waves is not None else 0))
+    if grid is not None:
+        # Each of <=16 local sweeps samples both before and after correction.
+        # Also bound other per-step/frame queries, 64 initial projection sweeps
+        # and all initial back-ray grid crossings + bounded Brent evaluations.
+        contact_work_bound = (step_estimate*predicted_nodes*(32*iterations+8)
+                              +frame_estimate*predicted_nodes*4
+                              +128*len(p)+2*(len(grid.x)+len(grid.y))+110)
+        work_estimate += contact_work_bound
     max_work=_num(c,"max_work_units",12000000,1,12000000)
     if frame_estimate > 2001 or step_estimate > 30000 or work_estimate > max_work:
         raise ValueError("simulation exceeds computation limit; shorten duration or coarsen dt/nodes")
@@ -718,6 +750,16 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         "Cable weight and drag use constant full immersion; changing immersion near the sea surface is omitted.",
         "Piecewise constant ship instructions and optional prescribed heave; no vessel dynamics or controller model.",
         "A fresh initial state is a no-current catenary; continuation restores the actual saved material-node state."])
+    if grid is not None:
+        result["model"] = "material-lumped-mass-xpbd-cable-lay-v3"
+        result["assumptions"][4] = "Bilinear 2D rigid height field; iterated local slope-normal unilateral point contact and bounded tangential velocity friction impulses."
+        result["assumptions"].append("Friction is a dissipative velocity-level Coulomb approximation; full static-friction complementarity, soil deformation and segment/body geometric collision are not solved.")
+        result["seabed"] = grid.metadata()
+        result["warnings"].append(_warning("TWO_DIMENSIONAL_CONTACT_RESEARCH", "Source elevations must already reference model sea surface z=0. Local point-contact reactions and normals need mesh/time refinement; these are not calibrated cable/soil engineering loads."))
+        result["warnings"].append(_warning("HARD_CONTACT_LOAD_RESOLUTION", "Contact forces are last-step impulses divided by that step duration. Impact peaks depend on time resolution, and a compliant residual pass does not certify tension or friction convergence."))
+        if not saved:
+            result["initialization"] = {"method":"horizontal-touchdown catenary back-ray root then local normal projection", "touchdown_depth_m":e["depth"], "max_normal_projection_displacement_m":initial_projection, "slope_equilibrium":False}
+            result["warnings"].append(_warning("INITIAL_BATHYMETRY_APPROXIMATION", "The fresh catenary has horizontal touchdown rather than slope equilibrium; interior intersections are normally projected and require a startup settling analysis."))
     if np.any(local["ei"] > 0) or any(row["ei_n_m2"] > 0 for row in material_model.rows):
         result["assumptions"].append("Bending uses a discrete secant tangent-difference energy; it is an approximate isotropic beam, not a full finite-rotation rod.")
     result["material_coordinate_convention"] = "Material coordinate increases from fixed oldest seabed endpoint toward vessel; initial_suspended_material_m is the bottom origin; vessel coordinate advances by payout."
@@ -752,7 +794,7 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         "damping_ratio":damping,"seabed_friction":friction,"heave_amplitude_m":heave_amp,
         "heave_period_s":heave_period,"max_tension_n":max_tension,"min_bend_radius_m":min_radius,
         "initial_suspended_material_m":material_model.origin}
-    for key in ("material_segments","inline_bodies","seabed_profile","current_profile","cable_type_id","ship_plan","ship_plan_horizon_s","vessel_motion_series","wave_kinematics"):
+    for key in ("material_segments","inline_bodies","seabed_profile","seabed_grid","current_profile","cable_type_id","ship_plan","ship_plan_horizon_s","vessel_motion_series","wave_kinematics"):
         if key in c:
             canonical_config[key] = deepcopy(c[key])
     try:
@@ -763,7 +805,7 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     # the node-count budget alone would not bound the resulting response size.
     if (configuration_bytes+predicted_nodes*1024+len(plan)*256+3000)*checkpoint_estimate>16000000:
         raise ValueError("saved checkpoint JSON volume exceeds 16 MB; select fewer save times or shorten motion/profile tables")
-    numerical = {"scheme":"implicit-compliant-material-nodes-v2","output_grid_origin_s":output_origin,
+    numerical = {"scheme":"implicit-compliant-material-nodes-2d-contact-v3" if grid is not None else "implicit-compliant-material-nodes-v2","output_grid_origin_s":output_origin,
                  "internal_dt_s":internal_dt,"output_dt_s":output_dt,"solver_iterations":iterations}
     frames,checkpoints = [],[]
     stats = saved["state"]["statistics"] if saved else {}
@@ -779,6 +821,12 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     interval_max_force = float(np.max(last_tensions))
     interval_max_internal_top = float(last_tensions[0])
     interval_minimum_radius = math.inf
+    if grid is not None:
+        last_normal_impulse = saved["arrays"]["node_contact_normal_impulse_n_s"].copy() if saved else np.zeros(len(p))
+        last_friction_impulse = saved["arrays"]["node_contact_friction_impulse_n_s"].copy() if saved else np.zeros_like(p)
+        last_contact_step = saved["state"]["last_contact_step_s"] if saved else 0.
+        contact_stats = {key: float(stats.get(key, 0.)) for key in ("max_contact_normal_force_n", "max_contact_penetration_m", "max_inward_contact_velocity_m_s", "friction_dissipation_j")}
+        contact_projection_sweeps = 0
     time = start_time
     plan_index = initial_plan_index
 
@@ -790,7 +838,7 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         # Tension on the segment immediately before first bottom contact.
         td_force = float(last_tensions[min(td_index - 1, len(last_tensions)-1)])
         lengths = np.linalg.norm(np.diff(p, axis=0), axis=1)
-        return {"time_s": float(t), "ship": p[0].tolist(), "nodes": p.tolist(), "node_velocity_m_s":v.tolist(),
+        row = {"time_s": float(t), "ship": p[0].tolist(), "nodes": p.tolist(), "node_velocity_m_s":v.tolist(),
                 "top_tension_n": float(last_tensions[0]), "bottom_tension_n": td_force,
                 "touchdown": p[td_index].tolist(), "touchdown_node_index": td_index,
                 "node_tension_n": np.r_[last_tensions[0], .5*(last_tensions[:-1]+last_tensions[1:]), last_tensions[-1]].tolist(),
@@ -803,6 +851,18 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                 "segment_ea_n": local["ea"].tolist(), "segment_wet_weight_n_m": local["segment_weight"].tolist(),
                 "segment_diameter_m": local["segment_diameter"].tolist(),
                 "inline_bodies": material_model.body_frames(p, local, contact)}
+        if grid is not None:
+            _, normals = grid.surface(p)
+            row.update({"node_seabed_z_m": bottoms.tolist(), "node_seabed_normal":normals.tolist(),
+                        "node_contact_mask":(p[:,2] <= bottoms+1e-8).tolist(),
+                        "node_contact_normal_impulse_n_s":last_normal_impulse.tolist(),
+                        "node_contact_friction_impulse_n_s":last_friction_impulse.tolist(),
+                        "last_contact_step_s":last_contact_step,
+                        "energy":{"kinetic_j":float(.5*np.sum(local["mass"][:,None]*v*v)),
+                                  "submerged_gravity_potential_j":float(np.sum(local["weight"]*p[:,2])),
+                                  "axial_elastic_j":float(.5*np.sum(local["ea"]/rest*np.maximum(lengths-rest,0)**2)),
+                                  "cumulative_contact_friction_dissipation_j":contact_stats["friction_dissipation_j"]}})
+        return row
 
     def checkpoint():
         state = {"positions":p.tolist(),"velocities":v.tolist(),"rest_lengths_m":rest.tolist(),
@@ -819,6 +879,12 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                 "max_strain":max_strain,"worst_residual_m":worst_residual,
                 "minimum_radius_m":minimum_radius if math.isfinite(minimum_radius) else None,
                 "max_output_top_tension_n":max_output_top,"max_internal_top_tension_n":max_internal_top}}
+        if grid is not None:
+            state.update({"node_seabed_normal":grid.surface(p)[1].tolist(),
+                          "node_contact_normal_impulse_n_s":last_normal_impulse.tolist(),
+                          "node_contact_friction_impulse_n_s":last_friction_impulse.tolist(),
+                          "last_contact_step_s":last_contact_step})
+            state["statistics"].update(contact_stats)
         return pack_checkpoint(canonical_config,state,time,numerical)
 
     def observe_state():
@@ -888,11 +954,17 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             p[0], p[-1] = ship, anchor
             multipliers = np.zeros(len(rest))
             bend_multipliers = np.zeros((len(p)-2, 3))
+            if grid is not None:
+                contact_multipliers = np.zeros(len(p))
             for _ in range(iterations):
                 _stretch_project(p, inv_mass, rest, local["ea"], h, multipliers)
                 if np.any(local["ei"] > 0):
                     _bend_project(p, inv_mass, rest, local["ei"], h, bend_multipliers)
-                p[1:-1, 2] = np.maximum(p[1:-1, 2], bed(p)[1:-1])
+                if grid is not None:
+                    sweeps, _ = grid.project(p, inv_mass, contact_multipliers)
+                    contact_projection_sweeps += sweeps
+                else:
+                    p[1:-1, 2] = np.maximum(p[1:-1, 2], bed(p)[1:-1])
                 p[0], p[-1] = ship, anchor
             last_tensions = -multipliers / (h*h)
             lengths = np.linalg.norm(np.diff(p, axis=0), axis=1)
@@ -912,11 +984,31 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                     v[j] += inv_mass[j, None]*impulse[:, None]*tangent_seg
                     v[j+1] -= inv_mass[j+1, None]*impulse[:, None]*tangent_seg
             touching = p[:, 2] <= bed(p) + 1e-8
-            v[touching, 2] = np.maximum(v[touching, 2], 0)
-            horizontal = np.linalg.norm(v[:, :2], axis=1)
-            friction_decrement = friction * np.maximum(local["weight"], 0) / mass * h
-            multiplier = np.maximum(1-friction_decrement/np.maximum(horizontal, 1e-12), 0)
-            v[touching, :2] *= multiplier[touching, None]
+            if grid is not None:
+                bottoms, normals = grid.surface(p)
+                free_touching = touching & (inv_mass > 0)
+                normal_velocity = np.sum(v*normals,axis=1)
+                velocity_impulse = np.where(free_touching, mass*np.maximum(-normal_velocity,0),0)
+                v += (velocity_impulse/mass)[:,None]*normals
+                last_normal_impulse = np.maximum(contact_multipliers,0)/h+velocity_impulse
+                tangent_v = v-np.sum(v*normals,axis=1)[:,None]*normals
+                tangent_speed = np.linalg.norm(tangent_v,axis=1)
+                magnitude = np.where(free_touching, np.minimum(mass*tangent_speed,friction*last_normal_impulse),0)
+                last_friction_impulse = -magnitude[:,None]*tangent_v/np.maximum(tangent_speed[:,None],1e-12)
+                before_energy = .5*mass*np.sum(v*v,axis=1)
+                v += last_friction_impulse/mass[:,None]
+                contact_stats["friction_dissipation_j"] += float(np.sum(np.maximum(before_energy-.5*mass*np.sum(v*v,axis=1),0)))
+                contact_stats["max_contact_normal_force_n"] = max(contact_stats["max_contact_normal_force_n"],float(np.max(last_normal_impulse/h)))
+                contact_stats["max_contact_penetration_m"] = max(contact_stats["max_contact_penetration_m"],float(np.max(np.maximum((bottoms-p[:,2])*normals[:,2],0))))
+                after_vn = np.sum(v*normals,axis=1)
+                contact_stats["max_inward_contact_velocity_m_s"] = max(contact_stats["max_inward_contact_velocity_m_s"],float(np.max(np.where(free_touching,np.maximum(-after_vn,0),0))))
+                last_contact_step = float(h)
+            else:
+                v[touching, 2] = np.maximum(v[touching, 2], 0)
+                horizontal = np.linalg.norm(v[:, :2], axis=1)
+                friction_decrement = friction * np.maximum(local["weight"], 0) / mass * h
+                multiplier = np.maximum(1-friction_decrement/np.maximum(horizontal, 1e-12), 0)
+                v[touching, :2] *= multiplier[touching, None]
             v[0] = (ship-old[0])/h
             v[-1] = 0
             directions = np.diff(p, axis=0)/np.maximum(lengths[:, None], 1e-12)
@@ -940,6 +1032,8 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             checkpoints.append(checkpoint())
     tolerance = max(1e-5, segment_target*1e-3)
     converged = worst_residual <= tolerance
+    if grid is not None:
+        converged = converged and contact_stats["max_contact_penetration_m"] <= 1e-8 and contact_stats["max_inward_contact_velocity_m_s"] <= 1e-8
     if not converged:
         result["warnings"].append(_warning("ITERATION_RESIDUAL", "Some compliant constraint solves exceeded the spatial residual tolerance; refine internal_dt_s/solver_iterations and compare results."))
     if max_strain > .05:
@@ -979,12 +1073,26 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                               "spatial_residual_tolerance_m": tolerance}})
     if save_all or checkpoint_times:
         result["checkpoints"] = checkpoints
+    if grid is not None:
+        result["summary"]["contact"] = dict(contact_stats)
+        result["solver"]["contact"] = {"method":"iterated unit-normal unilateral position projection + tangential velocity impulse",
+            "max_normal_projection_iterations":16, "normal_projection_sweeps_this_run":contact_projection_sweeps,
+            "actual_bilinear_node_queries_this_run":grid.queried_nodes,
+            "penetration_tolerance_m":1e-8, "inward_normal_velocity_tolerance_m_s":1e-8,
+            "friction_model":"velocity-level Coulomb bound; no full static-friction complementarity"}
+        result["solver"]["work_basis"] = {
+            "unit":"normalized node-constraint iteration/material/wave terms plus bilinear node queries; not FLOPs",
+            "additional_bilinear_node_query_upper_bound":contact_work_bound,
+            "bilinear_queries_per_node_constraint_iteration_cap":32,
+            "coverage":"includes dynamics, output/checkpoint queries, bounded initial normal projection and back-ray search; excludes CRS validation, JSON encoding and rendering, whose input/output sizes are separately bounded"}
     return result
 
 
 def span_analysis(config: dict) -> dict:
     """Convex small-slope tensioned-beam obstacle problem on an x/z profile."""
     c = _config(config)
+    if "seabed_grid" in c:
+        raise ValueError("span_analysis requires a one-dimensional profile; seabed_grid contact is only implemented in simulate_lay")
     profile = _profile(c, "profile")
     if profile is None:
         profile = _profile(c, "seabed_profile")
