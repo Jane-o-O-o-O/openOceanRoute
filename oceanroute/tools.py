@@ -35,6 +35,26 @@ def _clean_project(project):
     return result
 
 
+def _profile_provenance(profile):
+    """Copy exact sampled provenance; inserted stations are explicitly derived."""
+    profile = profile or {}
+    rows = profile.get("samples", [])
+    keys = [row["kp_m"] for row in rows]
+    bound = (profile.get("metadata") or {}).get("model") in {"priority-terrain-library-v1", "terrain-library-derived-profile-v1"}
+    fields = ("source_id", "source_fingerprint", "fallback", "fallback_count", "provenance_interpolated")
+    def sample(kp, depth, output_kp):
+        row = {"kp_m": output_kp, "depth_m": depth}
+        index = bisect.bisect_left(keys, kp)
+        matching = next((i for i in (index, index-1) if 0 <= i < len(keys) and abs(keys[i]-kp) <= EPS), None)
+        if matching is not None:
+            row.update({key: deepcopy(rows[matching][key]) for key in fields if key in rows[matching]})
+        elif bound:
+            row.update(source_id=None, source_fingerprint=None, fallback=None, fallback_count=None,
+                       provenance_interpolated=True)
+        return row
+    return sample
+
+
 def _effective_leg(project, analysis, index):
     route = project["route"]
     options = route.get("legs", [])
@@ -512,7 +532,8 @@ def split_project(project: dict, config: dict) -> dict:
         profile = working.get("profile", {})
         if profile.get("samples") and profile.get("route_signature") == route_signature(working):
             lo, hi = (0, split_kp) if side == 0 else (split_kp, before["summary"]["surface_length_m"])
-            selected = [{"kp_m": p["kp_m"] - lo, "depth_m": p["depth_m"]} for p in before["profile"] if lo - EPS <= p["kp_m"] <= hi + EPS]
+            source_sample = _profile_provenance(profile)
+            selected = [source_sample(p["kp_m"], p["depth_m"], p["kp_m"]-lo) for p in before["profile"] if lo - EPS <= p["kp_m"] <= hi + EPS]
             result["profile"]["samples"] = selected
             result["profile"]["route_signature"] = route_signature(result)
         projects.append(result)
@@ -579,7 +600,8 @@ def reverse_project(project: dict) -> dict:
             body.pop("kp_m", None)
         result["bodies"].append(body)
     if project.get("profile", {}).get("samples") and project["profile"].get("route_signature") == route_signature(project):
-        result["profile"]["samples"] = [{"kp_m": flip(p["kp_m"]), "depth_m": p["depth_m"]} for p in reversed(before["profile"])]
+        source_sample = _profile_provenance(project["profile"])
+        result["profile"]["samples"] = [source_sample(p["kp_m"], p["depth_m"], flip(p["kp_m"])) for p in reversed(before["profile"])]
         result["profile"]["route_signature"] = route_signature(result)
     after = analyze_project(result)
     return {"project": result, "warnings": warnings, "report": {"operation": "reverse", "invariants": _comparison(_sum_invariants([before]), after)}}
@@ -590,6 +612,12 @@ def merge_projects(projects: list[dict], config: dict | None = None) -> dict:
     if not isinstance(projects, list) or len(projects) < 2 or len(projects) > 100:
         raise ValueError("合并须提供 2 至 100 个工程")
     analyses = [analyze_project(p) for p in projects]
+    from .terrain_sources import terrain_library_signature, normalize_sources
+    terrain_signatures = [terrain_library_signature(p.get("terrain_sources", [])) for p in projects]
+    if len(set(terrain_signatures)) > 1:
+        raise ValueError("MERGE_TERRAIN_LIBRARY_CONFLICT: 合并路径须使用同一明确地形源库；请先统一共享源并重新采样，不能丢弃或混合优先级")
+    terrain_bound = any(((p.get("profile") or {}).get("metadata") or {}).get("model") in
+                        {"priority-terrain-library-v1", "terrain-library-derived-profile-v1"} for p in projects)
     if any(p.get("route", {}).get("constraint_state") is not None for p in projects):
         raise ValueError("CONSTRAINT_TRANSFORM_UNSUPPORTED: 合并尚未映射 Path Link 域；请明确重新配置约束后操作")
     curve = projects[0]["route"].get("curve", "rhumb")
@@ -611,6 +639,7 @@ def merge_projects(projects: list[dict], config: dict | None = None) -> dict:
                 raise ValueError("合并工程船费、埋设费或预备费参数不同，请显式选择 cost_policy:first")
             warnings.append(_warning("MERGE_COST_REBASED", "合并工程使用首个工程的费率重新计算"))
     result = _clean_project(projects[0])
+    result["terrain_sources"] = normalize_sources(projects[0].get("terrain_sources", []))
     result["id"], result["name"] = str(uuid4()), config.get("name", " + ".join(str(p.get("name", f"工程 {i + 1}")) for i, p in enumerate(projects)))
     result.pop("saved_revision", None)
     result["route"]["id"] = str(uuid4())
@@ -722,15 +751,19 @@ def merge_projects(projects: list[dict], config: dict | None = None) -> dict:
             copied["id"] = key
             layer_ids.add(key)
             result["layers"].append(copied)
+        source_sample = _profile_provenance(project.get("profile", {}))
         for sample in analysis["profile"]:
-            copied = {"kp_m": sample["kp_m"] + surface_offset, "depth_m": sample["depth_m"]}
+            copied = source_sample(sample["kp_m"], sample["depth_m"], sample["kp_m"]+surface_offset)
             if profile_samples and abs(profile_samples[-1]["kp_m"] - copied["kp_m"]) <= EPS:
                 existing_depth = profile_samples[-1]["depth_m"]
                 new_depth = copied["depth_m"]
                 if existing_depth is None:
-                    profile_samples[-1]["depth_m"] = new_depth
+                    profile_samples[-1].update(copied)
                 elif new_depth is not None and abs(existing_depth - new_depth) > EPS:
                     profile_samples[-1]["depth_m"] = None
+                    if terrain_bound:
+                        profile_samples[-1].update(source_id=None, source_fingerprint=None, fallback=None,
+                                                   fallback_count=None, provenance_interpolated=True)
                     warnings.append(_warning("MERGE_DEPTH_CONFLICT", "相接端点水深冲突；该处标记缺测，相关海底距离待核对", kp_m=copied["kp_m"]))
             else:
                 profile_samples.append(copied)
@@ -747,6 +780,9 @@ def merge_projects(projects: list[dict], config: dict | None = None) -> dict:
                          "source": source_name,
                          "measured": all(s["profile"].get("measured", False) for s in sources) and not bridges,
                          "metadata": {"sources": sources, "unmeasured_connectors": bridges}}
+    if terrain_bound:
+        result["profile"]["metadata"].update(model="terrain-library-derived-profile-v1",
+                                             terrain_library_signature=terrain_signatures[0])
     if any(not s["profile"]["imported_profile_valid"] for s in sources):
         warnings.append(_warning("MERGE_PROFILE_PROVENANCE", "合并剖面含路线点近似或缺测，请查看各来源，未将其标记为实测"))
     after = analyze_project(result)
