@@ -1,3 +1,4 @@
+import {artifactPath} from './artifact-path';
 import {test,expect} from '@playwright/test';
 
 async function ready(page:any){await expect(page.locator('.calculation-status')).toHaveText('工程计算已更新',{timeout:20000})}
@@ -14,7 +15,7 @@ test('planning results agree with the backend and fixed cable survives a coordin
   await expect(page.locator('.metric').nth(1).locator('strong')).toHaveText('—');
   await page.getByRole('button',{name:'撤销 ⌘Z'}).click();await ready(page);
   await expect(page.getByLabel('经度 / °E',{exact:true})).toHaveValue(String(sample.route.points[0].longitude));
-  await page.screenshot({path:'artifacts/planning-verified.png',fullPage:true});
+  await page.screenshot({path:artifactPath('planning-verified.png'),fullPage:true});
 });
 
 test('new project saves twice, reopens and restores a revision',async({page,request})=>{
@@ -54,12 +55,12 @@ test('all physics solvers render real nodes and dynamic frames play',async({page
     await page.locator('.solver-tabs button').filter({has:page.getByText(kind,{exact:true})}).click();
     if(kind==='动态敷设'){await page.getByLabel('模拟时长 / s',{exact:true}).fill('2');await page.getByLabel('模拟时长 / s',{exact:true}).blur();await page.getByLabel('离散节点数',{exact:true}).fill('10');await page.getByLabel('离散节点数',{exact:true}).blur();}
     await page.getByRole('button',{name:'运行计算',exact:true}).click();await expect(page.locator('.sim-results > .summary-fields')).toBeVisible({timeout:45000});await expect(page.locator('.scene-host canvas')).toBeVisible();await page.locator('.nodes-table summary').click();expect(await page.locator('.nodes-table tbody tr').count()).toBeGreaterThan(2);
-    await page.locator('.sim-main').evaluate((el:HTMLElement)=>el.scrollTop=0);await page.locator('.sim-settings').evaluate((el:HTMLElement)=>el.scrollTop=0);await page.screenshot({path:`artifacts/${kind}.png`,fullPage:true});
+    await page.locator('.sim-main').evaluate((el:HTMLElement)=>el.scrollTop=0);await page.locator('.sim-settings').evaluate((el:HTMLElement)=>el.scrollTop=0);await page.screenshot({path:artifactPath(`${kind}.png`),fullPage:true});
   }await expect(page.locator('.playback input')).toHaveAttribute('max',/[1-9][0-9]*/);await page.getByRole('button',{name:'播放计算帧',exact:true}).click();await expect(page.locator('.sim-overlay strong')).not.toHaveText('t = 0.00 s');expect(errors).toEqual([]);
 });
 
 test('mobile layout contains its tables and navigation',async({page})=>{
   await page.setViewportSize({width:390,height:844});await page.goto('/');await ready(page);
   expect(await page.evaluate(()=>document.body.scrollWidth)).toBeLessThanOrEqual(390);
-  await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
+  await page.screenshot({path:artifactPath('mobile.png'),fullPage:true});
 });
