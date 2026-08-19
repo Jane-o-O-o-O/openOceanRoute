@@ -75,7 +75,7 @@ def architecture():
 def relations():
     drawing = Drawing(WIDTH, 235)
     boxes = {"ws": (WIDTH*.34, 188, WIDTH*.32, 36, "Workspace", "完整工程与修订"),
-             "shared": (0, 112, WIDTH*.28, 40, "共享资源", "缆材库 / GIS"),
+             "shared": (0, 112, WIDTH*.28, 40, "共享资源", "缆材 / GIS / 地形源"),
              "path": (WIDTH*.36, 112, WIDTH*.28, 40, "Cable Paths", "独立路线投影"),
              "assembly": (WIDTH*.72, 112, WIDTH*.28, 40, "Assemblies", "唯一实物库存"),
              "project": (WIDTH*.18, 25, WIDTH*.28, 40, "Project schema 1", "路线 / 物性 / 费用"),
@@ -102,13 +102,13 @@ def append_paragraph_group(story, paragraphs, source_line=""):
 def build(source_name, target_name, title, design=False):
     text = (ROOT / "docs" / source_name).read_text()
     story = [Spacer(1, 28), Paragraph("OCEANROUTE", STYLES["small"]), Paragraph(title, STYLES["title"]),
-             Paragraph("海缆规划与敷设研究工作空间 / 0.3", STYLES["h2"]),
+             Paragraph("海缆规划与敷设研究工作空间 / 0.4", STYLES["h2"]),
              Paragraph("2026-10-04 · 独立实现 · 可运行开发版", STYLES["body"]),
              Spacer(1, 12), Paragraph("本文对应当前程序行为。规划功能和研究模型的验证范围分别说明；没有原厂或海试对照时，不声称等效工程精度。", STYLES["body"])]
     if design:
         story.extend([Spacer(1, 10), architecture()])
     else:
-        screenshot = ROOT / "web/artifacts/production-workspace.png"
+        screenshot = ROOT / "web/artifacts/release-0.4/workspace.png"
         if not screenshot.exists():
             screenshot = ROOT / "web/artifacts/planning-verified.png"
         if screenshot.exists():
@@ -158,7 +158,7 @@ def build(source_name, target_name, title, design=False):
         canvas.setFillColor(MUTED); canvas.setFont("OceanCJK", 8)
         canvas.drawString(80, A4[1]-33, "OceanRoute / " + title)
         canvas.setStrokeColor(colors.HexColor("#D3E1E6")); canvas.line(45, 36, A4[0]-45, 36)
-        canvas.drawString(45, 23, "0.3 · 2026-10-04 · 独立实现，研究模型待工程校核")
+        canvas.drawString(45, 23, "0.4 · 2026-10-04 · 独立实现，研究模型待工程校核")
         canvas.drawRightString(A4[0]-45, 23, str(doc.page))
         canvas.restoreState()
     target = OUTPUT / target_name

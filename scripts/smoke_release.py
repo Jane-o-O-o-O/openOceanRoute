@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from email.parser import Parser
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ import re
 import sys
 import time
 
+import numpy as np
 import oceanroute
 from fastapi.testclient import TestClient
 from pyproj import CRS, Transformer
@@ -35,6 +37,7 @@ from rasterio.io import MemoryFile
 from oceanroute.api import create_app
 from oceanroute.storage import ProjectStore
 from oceanroute.voyage import read_voyage_checkpoint
+from oceanroute.checkpoints import read_checkpoint
 
 root = pathlib.Path.cwd().resolve()
 expected_version = sys.argv[1]
@@ -45,7 +48,9 @@ for name in ("oceanroute", "oceanroute.api", "oceanroute.storage",
              "oceanroute.seismic", "oceanroute.voyage", "oceanroute.voyage_jobs",
              "oceanroute.checkpoints", "oceanroute.plan_voyage", "oceanroute.shipplan",
              "oceanroute.simulation", "oceanroute.rpl_templates", "oceanroute.exchange",
-             "oceanroute.dtm", "oceanroute.terrain_boundaries", "oceanroute.terrain_slice"):
+             "oceanroute.dtm", "oceanroute.terrain_boundaries", "oceanroute.terrain_slice",
+             "oceanroute.coordinate_transforms", "oceanroute.terrain_sources",
+             "oceanroute.bathymetry", "oceanroute.terrain_bathymetry"):
     module = importlib.import_module(name)
     location = pathlib.Path(module.__file__).resolve()
     assert location.is_relative_to(root), (name, str(location), str(root))
@@ -252,6 +257,131 @@ with TestClient(app) as client:
     assert slice_document["objects"] and all(len(p) == 3 for obj in slice_document["objects"] for p in obj["coordinates"])
     reject_json(client, "/api/dtm/slice", {"grid": {"preview": grid["preview"]}, "config": {}})
 
+    # Real horizontal coordinate previews retain every bad point and prevent
+    # partial application. UTM is checked against an independent fixed value.
+    coordinates = post_json(client, "/api/coordinates/transform", {
+        "source_crs": "EPSG:4326", "target_crs": "EPSG:32650",
+        "points": [{"id": "origin", "x": 118, "y": 22}]})
+    assert coordinates["can_apply"] and not coordinates["errors"]
+    utm = coordinates["points"][0]["output"]
+    assert math.isclose(utm["x"], 603224.6404290784, rel_tol=0, abs_tol=1e-7)
+    assert math.isclose(utm["y"], 2433164.428653589, rel_tol=0, abs_tol=1e-7)
+    assert coordinates["operation"]["ballpark"] is False
+    assert coordinates["operation"]["best_available"] is True
+    reversed_coordinates = post_json(client, "/api/coordinates/transform", {
+        "source_crs": "EPSG:32650", "target_crs": "EPSG:4326", "points": [utm]})
+    assert math.isclose(reversed_coordinates["points"][0]["output"]["x"], 118, rel_tol=0, abs_tol=1e-10)
+    assert math.isclose(reversed_coordinates["points"][0]["output"]["y"], 22, rel_tol=0, abs_tol=1e-10)
+    invalid_coordinates = post_json(client, "/api/coordinates/transform", {
+        "source_crs": "EPSG:4326", "target_crs": "EPSG:32650",
+        "points": [{"id": "good", "x": 118, "y": 22}, {"id": "bad", "x": 118, "y": 95}]})
+    assert not invalid_coordinates["can_apply"] and len(invalid_coordinates["errors"]) == 1
+    assert invalid_coordinates["points"][0]["accepted"]
+    assert not invalid_coordinates["points"][1]["accepted"]
+    assert invalid_coordinates["points"][1]["output"] is None
+
+    # Actual source holes and coverage gaps exercise priority selection and
+    # same-datum fallback. The workspace persists one shared source library;
+    # raising a priority invalidates both alternative paths without substituting
+    # their deliberately supplied waypoint depths.
+    terrain_example = get_json(client, "/api/terrain/sources/example")
+    normalized_sources = post_json(client, "/api/terrain/sources/normalize", {
+        "sources": terrain_example["sources"]})
+    terrain_query = post_json(client, "/api/terrain/query", {
+        "sources": normalized_sources["sources"], "points": terrain_example["points"]})
+    terrain_samples = terrain_query["samples"]
+    assert all(math.isclose(row["depth_m"], expected, rel_tol=0, abs_tol=1e-8)
+               for row, expected in zip(terrain_samples[:3], [300, 100, 100]))
+    assert terrain_samples[3]["depth_m"] is None and terrain_samples[3]["source_id"] is None
+    assert [a["status"] for a in terrain_samples[1]["attempts"]] == ["nodata", "valid"]
+    assert terrain_samples[1]["fallback"] and terrain_samples[2]["fallback"]
+    assert terrain_query["quality"]["library_signature"] == normalized_sources["library_signature"]
+    assert terrain_query["quality"]["missing_count"] == 1
+    for source in terrain_query["sources"]:
+        assert source["horizontal_operations"]
+        assert all(op["ballpark"] is False and op["best_available"] is True
+                   for op in source["horizontal_operations"])
+    terrain_project = deepcopy(terrain_example["project"])
+    for point in terrain_project["route"]["points"]:
+        point["depth_m"] = 55
+    terrain_profile = post_json(client, "/api/terrain/profile", {
+        "project": terrain_project, "config": terrain_example["config"]})
+    terrain_project = terrain_profile["project"]
+    terrain_analysis = post_json(client, "/api/analyze", terrain_project)
+    assert terrain_analysis["profile_metadata"]["imported_profile_valid"]
+    assert terrain_analysis["summary"]["bottom_length_m"] > terrain_analysis["summary"]["surface_length_m"]
+    terrain_workspace = post_json(client, "/api/workspace/migrate", {"project": terrain_project})["workspace"]
+    assert terrain_workspace["terrain_sources"] == normalized_sources["sources"]
+    assert "terrain_sources" not in terrain_workspace["paths"][0]["project"]
+    terrain_saved = post_json(client, "/api/workspaces", terrain_workspace)["workspace"]
+    terrain_workspace_id = terrain_saved["id"]
+    assert get_json(client, "/api/workspaces/"+terrain_workspace_id) == terrain_saved
+    terrain_copy = post_json(client, "/api/workspace/action", {
+        "workspace": terrain_saved, "config": {"action": "copy_path", "assembly_policy": "alternative"}})
+    assert len(terrain_copy["workspace"]["paths"]) == 2 and len(terrain_copy["workspace"]["assemblies"]) == 1
+    terrain_second = post_json(client, "/api/workspaces", terrain_copy["workspace"])["workspace"]
+    reprioritized = deepcopy(terrain_second["terrain_sources"])
+    next(s for s in reprioritized if s["id"] == "example-background")["priority"] = 1000
+    terrain_stale = post_json(client, "/api/workspace/action", {
+        "workspace": terrain_second, "config": {"action": "update_shared", "terrain_sources": reprioritized}})
+    assert len(terrain_stale["analysis"]["paths"]) == 2
+    assert all(row["summary"]["bottom_length_m"] is None for row in terrain_stale["analysis"]["paths"])
+    assert {w["path_id"] for w in terrain_stale["warnings"] if w["code"] == "TERRAIN_LIBRARY_STALE"} == {
+        p["id"] for p in terrain_stale["workspace"]["paths"]}
+    terrain_third = post_json(client, "/api/workspaces", terrain_stale["workspace"])["workspace"]
+    assert terrain_third["saved_revision"] == 3
+
+    # Make a real source-derived mechanical grid. The explicit sea-surface
+    # height h=.75 in the source datum must translate 12m depth to z=-12.75m.
+    # This is a small aligned synthetic case, not a tidal model or shipplan
+    # touchdown controller. Every sampled grid node and its source are retained.
+    grid_project = deepcopy(terrain_example["project"])
+    grid_project["terrain_sources"] = [grid_project["terrain_sources"][0]]
+    flat_source = grid_project["terrain_sources"][0]
+    flat_source["text"] = flat_source["text"].replace("100", "12")
+    for key in ("fingerprint", "content_sha256", "byte_count"):
+        flat_source.pop(key, None)
+    generated_bathymetry = post_json(client, "/api/terrain/bathymetry", {
+        "project": grid_project, "config": {"origin": [118, 22], "bounds_m": [-40, -40, 40, 40],
+        "nx": 5, "ny": 5, "vertical_datum": "synthetic-demo-datum", "sea_surface_height_m": .75}})
+    assert generated_bathymetry["can_apply"] and generated_bathymetry["validation_status"] == "research"
+    physical_grid = generated_bathymetry["seabed_grid"]
+    assert np.allclose(np.asarray(physical_grid["z_m"]), -12.75, rtol=0, atol=1e-9)
+    assert generated_bathymetry["derivation"]["sea_surface_height_m"] == .75
+    assert generated_bathymetry["derivation"]["missing_nodes"] == 0
+    assert physical_grid["source"]["sha256"] == generated_bathymetry["derivation"]["library_signature"]
+    assert all(row["source_id"] == "example-background" for row in generated_bathymetry["samples"])
+    missing_height = deepcopy({"origin": [118, 22], "bounds_m": [-40, -40, 40, 40],
+        "nx": 5, "ny": 5, "vertical_datum": "synthetic-demo-datum"})
+    reject_json(client, "/api/terrain/bathymetry", {"project": grid_project, "config": missing_height})
+    grid_simulation = {"seabed_grid": physical_grid, "depth_m": 12.75, "wet_weight_n_m": 4,
+        "bottom_tension_n": 10, "nodes": 12, "ship_speed_m_s": .2, "payout_m_s": .4,
+        "heading_deg": 90, "dt_s": .25, "internal_dt_s": .025, "solver_iterations": 24,
+        "ea_n": 1e4, "seabed_friction": .5}
+    grid_full = post_json(client, "/api/simulation/dynamic", {"config": {
+        **grid_simulation, "duration_s": 1.5, "checkpoint_times_s": [.75]}})
+    assert grid_full["model"].endswith("v3") and grid_full["solver"]["converged"]
+    assert grid_full["checkpoint"]["schema_version"] == 2
+    assert grid_full["checkpoint"]["config"]["seabed_grid"] == physical_grid
+    assert grid_full["summary"]["material_balance_residual_m"] < 1e-8
+    read_checkpoint(grid_full["checkpoint"])
+    grid_resumed = post_json(client, "/api/simulation/dynamic", {"config": {
+        "resume_state": grid_full["checkpoints"][0], "duration_s": .75}})
+    for key in ("positions", "velocities", "rest_lengths_m", "node_material_m", "node_seabed_normal",
+                "node_contact_normal_impulse_n_s", "node_contact_friction_impulse_n_s"):
+        assert np.allclose(np.asarray(grid_resumed["checkpoint"]["state"][key]),
+                           np.asarray(grid_full["checkpoint"]["state"][key]), rtol=1e-9, atol=1e-8), key
+    grid_job = post_json(client, "/api/voyage/jobs", {"project": {}, "config": {
+        "simulation": grid_simulation, "duration_s": .75, "chunk_duration_s": .75,
+        "adaptive_mesh": {"enabled": False}, "max_total_work_units": 2_000_000,
+        "max_chunks": 8, "max_output_frames": 16, "max_mesh_records": 8}})
+    grid_parent_id = grid_job["id"]
+    wait_completed(client, grid_parent_id)
+    grid_parent_checkpoint = get_json(client, "/api/voyage/jobs/"+grid_parent_id+"/checkpoint")
+    assert grid_parent_checkpoint["physical_checkpoint"]["schema_version"] == 2
+    assert grid_parent_checkpoint["physical_checkpoint"]["config"]["seabed_grid"] == physical_grid
+    read_voyage_checkpoint(grid_parent_checkpoint)
+
     # Synthetic observations are generated by the real forward operator. They
     # are explicitly synthetic, not field data, and truth is removed before fit.
     truth_config = {
@@ -371,6 +501,42 @@ with TestClient(create_app(ProjectStore(store_path))) as reopened:
     assert get_json(reopened, "/api/voyage/jobs/" + child_id + "/result")["summary"]["end_time_s"] == 3
     read_voyage_checkpoint(get_json(reopened, "/api/voyage/jobs/" + child_id + "/checkpoint"))
     assert get_json(reopened, "/api/workspaces/" + identifier)["saved_revision"] == 3
+    reopened_terrain = get_json(reopened, "/api/workspaces/"+terrain_workspace_id)
+    assert reopened_terrain == terrain_third
+    assert reopened_terrain["terrain_sources"] == reprioritized
+    reopened_terrain_analysis = post_json(reopened, "/api/workspace/analyze", reopened_terrain)
+    assert all(row["summary"]["bottom_length_m"] is None for row in reopened_terrain_analysis["paths"])
+    assert all("terrain_sources" not in p["project"] for p in reopened_terrain["paths"])
+    reopened_query = post_json(reopened, "/api/terrain/query", {
+        "sources": reopened_terrain["terrain_sources"], "points": terrain_example["points"]})
+    assert all(math.isclose(row["depth_m"], 100, rel_tol=0, abs_tol=1e-8) for row in reopened_query["samples"][:3])
+    assert all(row["source_id"] == "example-background" for row in reopened_query["samples"][:3])
+    assert reopened_query["samples"][3]["depth_m"] is None
+
+    # The durable job record contains the complete source-derived 2D grid,
+    # source signature, actual contact state and model version, across owner
+    # shutdown/reopen. Resume performs real physics and matches one run.
+    assert get_json(reopened, "/api/voyage/jobs/"+grid_parent_id)["status"] == "completed"
+    recovered_grid = get_json(reopened, "/api/voyage/jobs/"+grid_parent_id+"/checkpoint")
+    assert recovered_grid == grid_parent_checkpoint
+    assert recovered_grid["physical_checkpoint"]["config"]["seabed_grid"] == physical_grid
+    grid_continuation = post_json(reopened, "/api/voyage/jobs/"+grid_parent_id+"/resume", {
+        "duration_s": .75, "chunk_duration_s": .75})
+    grid_child_id = grid_continuation["id"]
+    grid_complete = wait_completed(reopened, grid_child_id)
+    assert grid_complete["parent_job_id"] == grid_parent_id
+    grid_result = get_json(reopened, "/api/voyage/jobs/"+grid_child_id+"/result")
+    assert grid_result["summary"]["start_time_s"] == .75 and grid_result["summary"]["end_time_s"] == 1.5
+    assert math.isclose(grid_result["summary"]["paid_out_m"], .6, rel_tol=0, abs_tol=1e-9)
+    assert abs(grid_result["summary"]["material_balance_residual_m"]) < 1e-8
+    grid_final_checkpoint = grid_result["checkpoint"]["physical_checkpoint"]
+    assert grid_final_checkpoint["schema_version"] == 2
+    assert grid_final_checkpoint["config"]["seabed_grid"] == physical_grid
+    for key in ("positions", "velocities", "rest_lengths_m", "node_material_m", "node_seabed_normal",
+                "node_contact_normal_impulse_n_s", "node_contact_friction_impulse_n_s"):
+        assert np.allclose(np.asarray(grid_final_checkpoint["state"][key]),
+                           np.asarray(grid_full["checkpoint"]["state"][key]), rtol=1e-9, atol=1e-8), key
+    read_voyage_checkpoint(grid_result["checkpoint"])
     recovered_planned = get_json(reopened, "/api/voyage/jobs/" + prepared_parent_id + "/checkpoint")
     assert recovered_planned["plan_mapping"] == mapping
     continued_plan = post_json(reopened, "/api/voyage/jobs/" + prepared_parent_id + "/resume", {"duration_s": 1})
@@ -434,6 +600,32 @@ print(json.dumps(finite({
                     "resume_matches_uninterrupted_positions": True,
                     "stale_geometry_rejected": True, "stale_physics_rejected": True,
                     "prepared_window_overrun_rejected": True},
+    "coordinates": {"source_crs": "EPSG:4326", "target_crs": "EPSG:32650",
+                    "known_utm_xy_m": [utm["x"], utm["y"]], "reverse_roundtrip": True,
+                    "ballpark": False, "best_available": True,
+                    "bad_point_preserved": True, "partial_apply_blocked": True},
+    "terrain_sources": {"source": "explicit_synthetic_XYZ_and_Surfer_hole",
+                        "sources": len(normalized_sources["sources"]),
+                        "query_depths_m": [row["depth_m"] for row in terrain_samples],
+                        "query_source_ids": [row["source_id"] for row in terrain_samples],
+                        "library_signature": normalized_sources["library_signature"],
+                        "hole_fallback": True, "coverage_fallback": True, "all_missing_kept_null": True,
+                        "profile_import_valid": True, "shared_paths": 2, "saved_revision": 3,
+                        "priority_change_invalidates_both_profiles": True, "waypoint_depth_not_substituted": True,
+                        "full_source_payload_reopened": True, "reopened_priority_query_verified": True},
+    "bathymetry": {"model": generated_bathymetry["model"], "grid_nodes": 25,
+                   "source_datum": generated_bathymetry["derivation"]["source_vertical_datum"],
+                   "sea_surface_height_m": .75, "generated_z_m": -12.75,
+                   "grid_sha256": generated_bathymetry["derivation"]["grid_sha256"],
+                   "source_library_signature": physical_grid["source"]["sha256"],
+                   "explicit_height_required": True, "missing_nodes": 0,
+                   "dynamic_model": grid_full["model"], "physical_checkpoint_schema_version": 2,
+                   "solver_converged": grid_full["solver"]["converged"],
+                   "material_balance_residual_m": grid_result["summary"]["material_balance_residual_m"],
+                   "duration_s": 1.5, "resume_start_s": .75, "resume_end_s": 1.5,
+                   "direct_resume_matches_uninterrupted_state": True,
+                   "durable_full_grid_and_contact_reopened": True,
+                   "background_resume_matches_uninterrupted_state": True},
     "elapsed_s": time.monotonic() - started,
     "scope": "extracted wheel + existing interpreter dependencies including terrain + ASGI lifecycle; synthetic small cases, not clean install/browser/field accuracy/long-voyage certification"
 })))
@@ -472,6 +664,8 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
         report = json.loads(completed.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
+        report["wheel_bytes"] = wheel.stat().st_size
+        report["wheel_sha256"] = hashlib.sha256(wheel.read_bytes()).hexdigest()
         report["python_executable"] = sys.executable
         report["platform"] = sys.platform
         if report_path is not None:
