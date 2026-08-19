@@ -1,6 +1,22 @@
-# OceanRoute 0.3 验证与发行进度
+# OceanRoute 0.4 验证与发行进度
 
-2026-10-04。0.3为独立实现的可运行阶段版，完整复现目标仍未完成。0.1/0.2冻结包保留；各版本的测试和安装证据分开记录。
+2026-10-04。0.4新增显式投影坐标编辑、共享多源地形、真实二维接触及来源到动力网格转换。完整复现目标仍未完成，0.1/0.2/0.3冻结包保留。完整后端861项46.43秒通过；实际编译静态界面48项149.31秒通过，0跳过/失败/重试；全新临时环境启动器首装、HTTP及真实分析通过，再运行隔离环境861项65.98秒全部通过（整个首装验收110.25秒）。
+
+正式wheel在源目录之外用现有依赖执行真实21模块/API流程通过，1.24秒；用户手册9页、设计9页共18页全部实际逐页渲染复核，修复一处协方差公式特殊字符缺失。发行形式仍要求Python3.10+和首次联网安装，实测macOS/Python3.13.9/Chrome；Windows/Linux与原厂/海试精度未验收。
+
+实际报告分别为 resources/validation/release_0.4_backend.json、release_0.4_browser.json、release_0.4_portable_smoke.json、release_0.4_wheel_smoke.json、release_0.4_pdf_qa.json。159个运行/测试/界面/配置/验收脚本文件与全新首装的初始压缩包逐字节相同，冻结摘要见release_0.4_verified_runtime.json。最终封装只收入已核对文档、截图和报告；ZIP/wheel全部成员、RECORD、路径安全及历史六包未变的独立审计在release_0.4_artifact_audit.json。最终文件大小/SHA由外部manifest-0.4.json记录，避免审计报告自身引用ZIP摘要。
+
+当前发行包 outputs/releases/OceanRoute-0.4-portable.zip、oceanroute-0.4.0-py3-none-any.whl；两PDF在output/pdf/，历史包独立保留。新安装仅一条测试客户端依赖弃用提醒，不影响运行。高EA瞬态/冲击峰值仍须另验步长收敛，残差通过和测试通过不等于工程载荷认证。柔性底余缆工作区的共享来源单独变更会因缺有效剖面安全拒绝，原库不变；全路径重采样的原子GUI事务尚未提供，详见TERRAIN_SOURCES_NOTES.md。
+
+## 0.4新增合同与限制
+
+坐标只转二维水平与原生单位，非ballpark最佳操作缺网格拒绝，任意坏点禁止整批应用。共享库按(-priority,id)逐点真实来源回退，同名垂直基准或明确筛选，改变解释/优先级停用旧剖面；反向/拆分/合并的派生来源仍受库摘要约束。来源到动力网格需明确海面高h并真实查询z=-depth-h，NoData不填零。二维动态是高度场点接触与有界速度冲量摩擦，新检查点完整冻结源/网格/接触；原静态/波浪组合与变深ShipPlan自动初态仍拒绝，不进入平床粗化。
+
+合同分别见 `COORDINATE_NOTES.md`、`TERRAIN_SOURCES_NOTES.md`、`TERRAIN_BATHYMETRY_NOTES.md`、`BATHYMETRY_NOTES.md`。
+
+## 冻结0.3记录
+
+2026-10-04。0.3为独立实现的可运行阶段版，下列记录只对应冻结0.3包，不代替0.4验证。
 
 ## 0.3新增能力
 
