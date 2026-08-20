@@ -23,6 +23,9 @@ def _crs(value, field):
         raise ValueError(f"{field} 不是有效坐标系") from exc
     if result.is_compound or result.is_vertical or result.is_geocentric or not (result.is_projected or result.is_geographic) or len(result.axis_info) != 2:
         raise ValueError(f"{field} 只支持二维水平坐标系；不转换垂直/地心/复合或三维坐标")
+    factors = [float(axis.unit_conversion_factor) for axis in result.axis_info]
+    if not all(math.isfinite(factor) and factor>0 for factor in factors) or not math.isclose(factors[0],factors[1],rel_tol=1e-12,abs_tol=0):
+        raise ValueError(f"{field} 不支持混合轴单位；PROJ的二维单位步骤不能保证逐轴不同单位的原生坐标一致性")
     return result
 
 

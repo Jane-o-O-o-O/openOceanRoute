@@ -22,7 +22,10 @@ GEOD = Geod(ellps="WGS84")
 def finite_number(value, field: str, *, minimum=None, maximum=None) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field} 必须是有限数值")
-    value = float(value)
+    try:
+        value = float(value)
+    except OverflowError as error:
+        raise ValueError(f"{field} 必须是有限数值") from error
     if not math.isfinite(value):
         raise ValueError(f"{field} 必须是有限数值")
     if minimum is not None and value < minimum:
