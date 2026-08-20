@@ -21,7 +21,7 @@ def sample_route(project: dict, spacing_m: float = 1000) -> list[dict]:
     points = project["route"]["points"]
     curve = project["route"].get("curve", "rhumb")
     samples, kp = [], 0.0
-    for index, (a, b) in enumerate(zip(points, points[1:])):
+    for a, b in zip(points, points[1:]):
         distance, _ = inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)
         if distance < 1e-9:
             continue
@@ -29,7 +29,7 @@ def sample_route(project: dict, spacing_m: float = 1000) -> list[dict]:
         if len(samples) + count > 50_000:
             raise ValueError("采样点超过 50,000 个，请加大采样间距或拆分路线")
         for j in range(count + 1):
-            if index and j == 0:
+            if samples and j == 0:
                 continue
             lon, lat = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], j/count, curve)
             samples.append({"kp_m": kp + distance*j/count, "longitude": lon, "latitude": lat})

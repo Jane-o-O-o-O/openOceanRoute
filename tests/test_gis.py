@@ -40,6 +40,19 @@ def test_xyz_known_plane_and_no_extrapolation():
     assert missing["project"]["profile"]["samples"][-1]["depth_m"] is None
 
 
+def test_leading_repeated_waypoint_keeps_real_zero_station_and_valid_bottom_length():
+    p=project()
+    p["route"]["points"].insert(1,{**p["route"]["points"][0],"id":"duplicate-start"})
+    text="longitude latitude depth_m\n117.99 21.99 100\n118.03 21.99 100\n117.99 22.01 100\n118.03 22.01 100"
+    result=profile_from_xyz(p,text,spacing_m=200,max_gap_m=5000)
+    samples=result["project"]["profile"]["samples"]
+    assert samples[0]["kp_m"]==0 and samples[0]["depth_m"]==pytest.approx(100)
+    assert all(b["kp_m"]>a["kp_m"] for a,b in zip(samples,samples[1:]))
+    checked=analyze_project(result["project"])
+    assert checked["summary"]["bottom_length_m"]==pytest.approx(checked["summary"]["surface_length_m"])
+    assert not any(w["code"]=="PROFILE_GAPS" for w in checked["warnings"])
+
+
 def test_raster_crs_and_nodata_are_preserved():
     rasterio = pytest.importorskip("rasterio")
     from rasterio.io import MemoryFile
