@@ -103,9 +103,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "assembly", "name": "制造清单 / 实制装配回写", "status": "implemented", "note": "独立CSV、明确映射预览，非原厂装配格式"},
             {"id": "routing", "name": "避让 / 地形路由搜索", "status": "implemented", "note": "有限网格A*候选，明确工作量上限及地形来源"},
             {"id": "terrain", "name": "XYZ / GeoTIFF / Surfer 与 DTM", "status": "implemented", "note": "沿线采样、网格、坡向阴影、等深线；有规模上限"},
-            {"id": "coordinates", "name": "显式投影坐标编辑", "status": "implemented", "note": "真实二维水平CRS预览及制造域编辑；不兼容CSF或任意地图投影切换"},
+            {"id": "coordinates", "name": "显式投影坐标编辑", "status": "implemented", "note": "真实二维水平CRS预览及制造域编辑；不兼容CSF或混合轴单位"},
+            {"id": "map_projection", "name": "工程平面投影视图", "status": "implemented", "note": "真实EPSG/WKT/PROJ路线与GIS显示、原生XY网格、局部比例及操作选择预算；不重投影在线瓦片"},
             {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
+            {"id": "workspace_terrain", "name": "整工程地形重采样", "status": "implemented", "note": "多路径、底余缆及共享库存一笔预览验收；缺测、固定域不足或不同制造结果整笔拒绝"},
             {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播或自动初态"},
+            {"id": "static_bathymetry", "name": "坡床悬链线 / 变深海底定端静力", "status": "research", "note": "真实坡床切向弹性悬垂及定端自然长约束；接触/摩擦/力残差与缆段穿床验证，非自动动态初态"},
+            {"id": "catenary_calculator", "name": "四种边界悬链线计算器", "status": "research", "note": "总底张力、总顶张力、水平顶角及明确自然/伸长入水长；多根须显式选择并逐根验证床格，不自动建立动态初态"},
             {"id": "simulation", "name": "稳态 / 动态 / 跨距模型", "status": "research", "note": "独立数值模型；适用假设与局限随结果输出"},
             {"id": "voyage", "name": "长时连续计算 / 后台恢复", "status": "research", "note": "真实状态分块延续与有误差约束的平床网格粗化；并非已验证全航程模型"},
             {"id": "materials", "name": "混合缆型 / 有限附属体", "status": "research", "note": "材料坐标的局部物性与平移分布载荷，非完整刚体六自由度"},
@@ -162,6 +166,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     def analyze_workspace(payload: dict):
         from .workspace import analyze_workspace as analyze
         return analyze(payload)
+
+    @app.post("/api/workspace/terrain/preview")
+    def preview_workspace_terrain(payload: dict):
+        from .workspace_terrain import preview_workspace_terrain as preview
+        if set(payload)-{"workspace", "sources", "config", "draft"} or not {"workspace", "sources"} <= payload.keys():
+            raise ValueError("terrain preview须含workspace和独立sources，另可有config/draft")
+        return preview(payload["workspace"], payload["sources"], payload.get("config"), draft=payload.get("draft"))
 
     @app.post("/api/workspace/import")
     def import_workspace(payload: dict):
@@ -230,6 +241,32 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         project["profile"] = {"samples": samples, "route_signature": route_signature(project), "source": payload.get("source", "用户剖面文本")}
         _analysis(project)
         return project
+
+    @app.post("/api/maps/project")
+    def project_map(payload: dict):
+        from .map_projection import project_map as project
+        return project(payload)
+
+    @app.post("/api/simulation/slope-catenary")
+    def slope_catenary(payload: dict):
+        from .static_bathymetry import slope_catenary as solve
+        if set(payload) != {"config"}:
+            raise ValueError("slope-catenary accepts exactly config")
+        return solve(payload["config"])
+
+    @app.post("/api/simulation/static-bathymetry")
+    def static_bathymetry(payload: dict):
+        from .static_bathymetry import static_equilibrium as solve
+        if set(payload) != {"config"}:
+            raise ValueError("static-bathymetry accepts exactly config")
+        return solve(payload["config"])
+
+    @app.post("/api/simulation/catenary-calculator")
+    def catenary_calculator(payload: dict):
+        from .catenary_calculator import calculate_catenary
+        if set(payload) != {"config"}:
+            raise ValueError("catenary-calculator accepts exactly config")
+        return calculate_catenary(payload["config"])
 
     @app.get("/api/terrain/sources/example")
     def terrain_sources_example():
