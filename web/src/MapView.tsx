@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import L from 'leaflet';
 import {Crosshair,Layers,MousePointer2,Plus,Compass} from 'lucide-react';
 import type {Project,Point} from './types';
+import ProjectedMapView from './ProjectedMapView';
 
 export type PathOverlay={id:string;name:string;segments:number[][][];role?:string};
 const noPathOverlays:PathOverlay[]=[];
@@ -20,7 +21,9 @@ function routePositions(points:Point[],curve:string):L.LatLngTuple[]{
   }return result;
 }
 
-export default function MapView({project,geometry,selected,onSelect,onMove,onAdd,fitVersion,editable=true,allowAdd=true,pathOverlays=noPathOverlays,onPathPick}:{project:Project;geometry?:number[][];selected:string|null;onSelect:(id:string)=>void;onMove:(id:string,lat:number,lon:number)=>void|Promise<boolean>;onAdd:(lat:number,lon:number)=>void;fitVersion:number;editable?:boolean;allowAdd?:boolean;pathOverlays?:PathOverlay[];onPathPick?:(id:string)=>void}){
+type MapProps={project:Project;geometry?:number[][];geometrySegments?:number[][][];selected:string|null;onSelect:(id:string)=>void;onMove:(id:string,lat:number,lon:number)=>void|Promise<boolean>;onAdd:(lat:number,lon:number)=>void;fitVersion:number;editable?:boolean;allowAdd?:boolean;pathOverlays?:PathOverlay[];onPathPick?:(id:string)=>void};
+export default function MapView(props:MapProps){const [display,setDisplay]=useState('geographic');return <div className="map-view-container"><nav className="map-display-mode" aria-label="地图显示方式"><button className={display==='geographic'?'active':''} onClick={()=>setDisplay('geographic')}>经纬地图</button><button className={display==='projected'?'active':''} onClick={()=>setDisplay('projected')}>投影视图</button></nav>{display==='projected'?<ProjectedMapView {...props} pathOverlays={props.pathOverlays||noPathOverlays}/>:<GeographicMapView {...props}/>}</div>}
+function GeographicMapView({project,geometry,selected,onSelect,onMove,onAdd,fitVersion,editable=true,allowAdd=true,pathOverlays=noPathOverlays,onPathPick}:MapProps){
   const element=useRef<HTMLDivElement>(null),mapRef=useRef<L.Map|null>(null),content=useRef<L.LayerGroup|null>(null),gridRef=useRef<L.LayerGroup|null>(null),initial=useRef(false);
   const callbacks=useRef({onSelect,onMove,onAdd}),addRef=useRef(false);callbacks.current={onSelect,onMove,onAdd};
   const [adding,setAdding]=useState(false),[base,setBase]=useState(false),[cursor,setCursor]=useState('WGS 84 · EPSG:4326');addRef.current=adding&&editable&&allowAdd;
