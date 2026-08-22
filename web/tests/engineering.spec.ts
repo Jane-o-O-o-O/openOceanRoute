@@ -1,3 +1,4 @@
+import {apiURL} from './test-environment';
 import {artifactPath} from './artifact-path';
 import {test,expect} from '@playwright/test';
 async function ready(page:any){await expect(page.locator('.calculation-status')).toHaveText('工程计算已更新',{timeout:20000})}
@@ -15,7 +16,7 @@ test('subdivision, depth bands, templates and geodetic tool apply real results',
 test('split saves two source projects and merge restores material balance',async({page,request})=>{
   await page.goto('/');await ready(page);const cable=await page.locator('.metric').nth(2).locator('strong').innerText();await page.getByRole('button',{name:'工程工具',exact:true}).click();await tool(page,'工程拆分');
   const response=page.waitForResponse((r:any)=>r.url().endsWith('/api/tools/split'));await compute(page);const split=await (await response).json();await expect(page.locator('.variant-card')).toHaveCount(2);await page.getByRole('button',{name:'保存两条子工程',exact:true}).click();await expect(page.getByText('已保存 2 条拆分工程',{exact:true})).toBeVisible();
-  const sources=[];for(const p of split.projects){sources.push(await(await request.get('http://127.0.0.1:8765/api/projects/'+p.id)).json())}
+  const sources=[];for(const p of split.projects){sources.push(await(await request.get(apiURL+'/projects/'+p.id)).json())}
   await tool(page,'工程合并');await page.getByLabel('当前工作空间作为第一条路线').uncheck();
   for(const p of sources){await page.locator('.merge-sources>div').first().getByRole('button').filter({has:page.getByText(p.name,{exact:true})}).first().click()}
   await compute(page);await page.getByRole('button',{name:'应用到工作空间',exact:true}).click();await ready(page);await expect(page.locator('.metric').nth(2).locator('strong')).toHaveText(cable);
