@@ -1,7 +1,8 @@
+import {apiURL} from './test-environment';
 import {artifactPath} from './artifact-path';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
-const api='http://127.0.0.1:8765/api';
+const api=apiURL;
 async function ready(page:any){await expect(page.locator('.calculation-status')).toHaveText('工程计算已更新',{timeout:20000})}
 async function imports(page:any){await page.goto('/');await ready(page);await page.getByRole('button',{name:'导入数据',exact:true}).click();await expect(page.locator('.rpl-import-panel')).toBeVisible()}
 async function parse(page:any){const response=page.waitForResponse((r:any)=>r.url().endsWith('/api/import/rpl'));await page.getByRole('button',{name:'解析预览',exact:true}).click();const received=await response;expect(received.status()).toBe(200);return await received.json()}
