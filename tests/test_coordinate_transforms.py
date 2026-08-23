@@ -12,6 +12,18 @@ from oceanroute.coordinate_transforms import transform_coordinates, _geographic_
 from oceanroute.storage import ProjectStore
 
 
+@pytest.mark.parametrize("mixed_field",["source_crs","target_crs"])
+def test_mixed_native_axis_units_are_rejected_instead_of_silently_mislabelled(mixed_field):
+    definition=CRS.from_epsg(32631).to_json_dict()
+    definition.pop("id",None)
+    definition["name"]="Explicit mixed foot/metre counterexample"
+    definition["coordinate_system"]["axis"][0]["unit"]={"type":"LinearUnit","name":"foot","conversion_factor":.3048}
+    mixed=CRS.from_json_dict(definition).to_wkt()
+    payload=request(); payload[mixed_field]=mixed
+    with pytest.raises(ValueError,match="混合轴单位"):
+        transform_coordinates(payload)
+
+
 def request(source='EPSG:4326', target='EPSG:32650', points=None, **kwargs):
     return {'source_crs': source, 'target_crs': target,
             'points': points or [{'id': 'p1', 'x': 118, 'y': 22}], **kwargs}
