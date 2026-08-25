@@ -1,3 +1,4 @@
+import {apiURL} from './test-environment';
 import {test,expect} from '@playwright/test';
 async function ready(page:any){await expect(page.locator('.calculation-status')).toHaveText('工程计算已更新',{timeout:20000})}
 test('same-ID tools and undo preserve revision, a stale second window cannot overwrite',async({page,context,request})=>{
@@ -5,5 +6,5 @@ test('same-ID tools and undo preserve revision, a stale second window cannot ove
   const other=await context.newPage();await other.goto('/');await ready(other);await other.getByRole('button',{name:'打开',exact:true}).click();await other.getByRole('dialog').getByRole('button').filter({has:other.getByText(name,{exact:true})}).click();await ready(other);
   for(const p of [page,other]){await p.getByRole('button',{name:'工程工具',exact:true}).click();await p.getByRole('button',{name:'计算结果',exact:true}).click();await expect(p.locator('.tool-result')).toBeVisible();await p.getByRole('button',{name:'应用到工作空间',exact:true}).click();await ready(p)}
   await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 2',{exact:true})).toBeVisible();await ready(page);const conflictResponse=other.waitForResponse(r=>r.url().endsWith('/api/workspaces')&&r.request().method()==='POST');await other.getByRole('button',{name:'保存',exact:true}).click();expect([409,422]).toContain((await conflictResponse).status());await expect(other.locator('.toast.error')).toContainText('WORKSPACE_REVISION_CONFLICT');
-  await page.getByRole('button',{name:'撤销 ⌘Z',exact:true}).click();await ready(page);await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 3',{exact:true})).toBeVisible();const projects=await(await request.get('http://127.0.0.1:8765/api/workspaces')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved.revision).toBe(3);await other.close();
+  await page.getByRole('button',{name:'撤销 ⌘Z',exact:true}).click();await ready(page);await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 3',{exact:true})).toBeVisible();const projects=await(await request.get(apiURL+'/workspaces')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved.revision).toBe(3);await other.close();
 });
