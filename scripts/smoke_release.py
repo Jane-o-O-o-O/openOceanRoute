@@ -50,7 +50,10 @@ for name in ("oceanroute", "oceanroute.api", "oceanroute.storage",
              "oceanroute.simulation", "oceanroute.rpl_templates", "oceanroute.exchange",
              "oceanroute.dtm", "oceanroute.terrain_boundaries", "oceanroute.terrain_slice",
              "oceanroute.coordinate_transforms", "oceanroute.terrain_sources",
-             "oceanroute.bathymetry", "oceanroute.terrain_bathymetry"):
+             "oceanroute.bathymetry", "oceanroute.terrain_bathymetry",
+             "oceanroute.map_projection", "oceanroute.workspace_terrain",
+             "oceanroute.static_bathymetry",
+             "oceanroute.catenary_calculator"):
     module = importlib.import_module(name)
     location = pathlib.Path(module.__file__).resolve()
     assert location.is_relative_to(root), (name, str(location), str(root))
@@ -331,6 +334,76 @@ with TestClient(app) as client:
     terrain_third = post_json(client, "/api/workspaces", terrain_stale["workspace"])["workspace"]
     assert terrain_third["saved_revision"] == 3
 
+    # Independently served projected geometry and one atomic whole-workspace
+    # source refresh: no source checkout or partly written path states.
+    map_result = post_json(client, "/api/maps/project", {
+        "target_crs": "EPSG:32650",
+        "points": [{"id": "smoke-point", "longitude": 118., "latitude": 22.}]})
+    assert map_result["can_display"] and not map_result["errors"]
+    assert np.allclose(map_result["points"][0]["coordinates"],
+                       [603224.6404290784, 2433164.428653589], rtol=0, atol=1e-7)
+    atomic_terrain = post_json(client, "/api/workspace/terrain/preview", {
+        "workspace": terrain_second, "sources": reprioritized,
+        "config": {"spacing_m": 200, "vertical_datum": "synthetic-demo-datum"}})
+    assert atomic_terrain["can_apply"] and atomic_terrain["workspace"] is not None
+    assert len(atomic_terrain["paths"]) == 2
+    assert all(row["status"] == "success" for row in atomic_terrain["paths"])
+    assert len(atomic_terrain["workspace"]["assemblies"]) == 1
+    new_source_library = post_json(client, "/api/terrain/sources/normalize", {"sources": reprioritized})
+    assert atomic_terrain["workspace"]["terrain_sources"] == new_source_library["sources"]
+    for row in atomic_terrain["paths"]:
+        assert row["samples"]
+        assert all(sample["source_id"] == "example-background" and math.isclose(sample["depth_m"], 100., abs_tol=1e-8)
+                   for sample in row["samples"])
+    for path in atomic_terrain["workspace"]["paths"]:
+        assert path["project"]["profile"]["metadata"]["terrain_library_signature"] == new_source_library["library_signature"]
+    # Preview does not save a revision or replace already persisted old data.
+    assert get_json(client, "/api/workspaces/"+terrain_workspace_id) == terrain_third
+
+    # All four Calculator boundary routes and the two explicit elastic length
+    # bases operate from the extracted wheel, with no fabricated selected root.
+    plane_grid = {"schema": "oceanroute.bathymetry.v1", "x_m": [-80., 0., 80.],
+        "y_m": [-80., 0., 80.],
+        "z_m": [[-30.+.1*x+.05*y for x in [-80., 0., 80.]] for y in [-80., 0., 80.]],
+        "source": {"name": "explicit synthetic wheel smoke plane",
+        "horizontal_crs": "LOCAL_CARTESIAN_METRES", "origin_projected_m": [0., 0.],
+        "vertical_datum": "already aligned model sea zero"}}
+    calculator_config = {"seabed_grid": plane_grid, "wet_weight_n_m": 4.,
+        "ea_n": 100000., "heading_deg": 90., "nodes": 41,
+        "boundary": {"kind": "bottom_tension", "value_n": 100.}}
+    calculator_first = post_json(client, "/api/simulation/catenary-calculator", {"config": calculator_config})
+    assert calculator_first["accepted"] and calculator_first["selected"]
+    calculator_summary = calculator_first["selected"]["result"]["summary"]
+    assert math.isclose(calculator_summary["natural_length_m"], 50.3803848342, abs_tol=1e-8)
+    assert calculator_summary["stretched_arc_length_m"] > calculator_summary["natural_length_m"]
+    calculator_boundaries = [
+        {"kind": "top_tension", "value_n": calculator_summary["top_tension_n"]},
+        {"kind": "top_angle", "value_deg": calculator_summary["top_angle_from_horizontal_deg"],
+         "reference": "horizontal", "direction": "touchdown_to_vessel"},
+        {"kind": "cable_in_water", "value_m": calculator_summary["natural_length_m"], "length_basis": "natural"},
+        {"kind": "cable_in_water", "value_m": calculator_summary["stretched_arc_length_m"], "length_basis": "stretched_arc"}]
+    for boundary in calculator_boundaries:
+        actual_calculator = post_json(client, "/api/simulation/catenary-calculator", {
+            "config": {**calculator_config, "boundary": boundary}})
+        assert actual_calculator["accepted"] and actual_calculator["solver"]["root_enumeration_complete"]
+        assert math.isclose(actual_calculator["selected"]["bottom_tension_n"], 100., abs_tol=1e-7)
+        assert np.allclose(actual_calculator["selected"]["result"]["nodes"],
+                           calculator_first["selected"]["result"]["nodes"], rtol=0, atol=1e-7)
+    slope_result = post_json(client, "/api/simulation/slope-catenary", {"config": {
+        "seabed_grid": plane_grid, "wet_weight_n_m": 4., "ea_n": 100000.,
+        "heading_deg": 90., "nodes": 41, "bottom_tension_n": 100.}})
+    assert slope_result["accepted"]
+    assert np.allclose(slope_result["nodes"], calculator_first["selected"]["result"]["nodes"], rtol=0, atol=1e-7)
+    curved_grid = deepcopy(plane_grid)
+    curved_grid["z_m"] = [[-40.+.1*x+.05*y+.0003*x*y for x in curved_grid["x_m"]] for y in curved_grid["y_m"]]
+    curved_result = post_json(client, "/api/simulation/static-bathymetry", {"config": {
+        "seabed_grid": curved_grid, "wet_weight_n_m": 4., "ea_n": 10000., "nodes": 18,
+        "vessel_position_m": [0., 0., 0.], "anchor_position_m": [-60., -10., -46.32],
+        "natural_length_m": 80.}})
+    assert curved_result["accepted"] and curved_result["solver"]["converged"]
+    assert 2 < curved_result["summary"]["contact_nodes"] < 18
+    assert curved_result["segment_clearance"]["minimum_clearance_m"] >= -1e-6
+
     # Make a real source-derived mechanical grid. The explicit sea-surface
     # height h=.75 in the source datum must translate 12m depth to z=-12.75m.
     # This is a small aligned synthetic case, not a tidal model or shipplan
@@ -604,6 +677,18 @@ print(json.dumps(finite({
                     "known_utm_xy_m": [utm["x"], utm["y"]], "reverse_roundtrip": True,
                     "ballpark": False, "best_available": True,
                     "bad_point_preserved": True, "partial_apply_blocked": True},
+    "map_projection": {"target_crs": "EPSG:32650", "actual_xy": map_result["points"][0]["coordinates"],
+                       "can_display": True},
+    "workspace_terrain": {"selected_paths": len(atomic_terrain["paths"]), "can_apply": True,
+                          "shared_assemblies": 1, "preview_does_not_save": True},
+    "catenary_calculator": {"boundaries_exercised": 4, "length_bases_exercised": 2,
+                            "natural_length_m": calculator_summary["natural_length_m"],
+                            "stretched_arc_length_m": calculator_summary["stretched_arc_length_m"],
+                            "actual_node_roundtrips": True, "scope": "synthetic unique-root wheel smoke"},
+    "static_bathymetry": {"slope_accepted": slope_result["accepted"],
+                          "curved_accepted": curved_result["accepted"],
+                          "contact_nodes": curved_result["summary"]["contact_nodes"],
+                          "minimum_segment_clearance_m": curved_result["segment_clearance"]["minimum_clearance_m"]},
     "terrain_sources": {"source": "explicit_synthetic_XYZ_and_Surfer_hole",
                         "sources": len(normalized_sources["sources"]),
                         "query_depths_m": [row["depth_m"] for row in terrain_samples],

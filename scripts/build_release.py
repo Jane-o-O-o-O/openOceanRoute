@@ -12,13 +12,30 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build(skip_frontend: bool = False, archive_only: bool = False) -> Path:
+def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_directory: Path | None = None, pdf_suffix: str | None = None) -> Path:
+    dist = (frontend_directory or ROOT / "web/dist").resolve()
+    version = re.search(r'^version = "(\d+\.\d+\.\d+)"$', (ROOT/"pyproject.toml").read_text(), re.M).group(1)
+    label = version.removesuffix(".0")
+    # Later releases must not silently bundle the unversioned frozen 0.4 PDFs.
+    modern_documents = tuple(map(int, version.split("."))) >= (0, 5, 0)
+    if pdf_suffix is None:
+        pdf_suffix = label if modern_documents else ""
+    if modern_documents and pdf_suffix != label:
+        raise ValueError(f"Release {version} requires explicitly versioned PDFs with suffix {label}")
+    if pdf_suffix and not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", pdf_suffix):
+        raise ValueError("PDF suffix must contain 1 to 64 letters, digits, dots, underscores or hyphens")
+    suffix = "_" + pdf_suffix if pdf_suffix else ""
+    documents = [f"output/pdf/OceanRoute_用户手册{suffix}.pdf", f"output/pdf/OceanRoute_设计文档{suffix}.pdf"]
+    if any(not (ROOT / name).is_file() for name in documents):
+        raise RuntimeError("Missing the explicitly selected manual/design PDFs")
     if not skip_frontend and not archive_only:
         npm = shutil.which("npm.cmd" if sys.platform == "win32" else "npm")
         if not npm:
             raise RuntimeError("需要 Node.js 编译发布界面")
-        subprocess.run([npm, "run", "build"], cwd=ROOT / "web", check=True)
-    dist = ROOT / "web/dist"
+        command = [npm, "run", "build"]
+        if frontend_directory is not None:
+            command += ["--", "--outDir", str(dist)]
+        subprocess.run(command, cwd=ROOT / "web", check=True)
     if not (dist / "index.html").exists():
         raise RuntimeError("缺少已编译界面")
     packaged_static = ROOT / "oceanroute/static"
@@ -38,7 +55,6 @@ def build(skip_frontend: bool = False, archive_only: bool = False) -> Path:
         if cached_package.exists():
             shutil.rmtree(cached_package)
         subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--wheel-dir", str(output)], cwd=ROOT, check=True)
-    version = re.search(r'^version = "(\d+\.\d+\.\d+)"$', (ROOT/"pyproject.toml").read_text(), re.M).group(1)
     wheel = output / f"oceanroute-{version}-py3-none-any.whl"
     expected = {str(p.relative_to(ROOT)): p for p in (ROOT / "oceanroute").rglob("*")
                 if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
@@ -48,12 +64,11 @@ def build(skip_frontend: bool = False, archive_only: bool = False) -> Path:
             raise RuntimeError(f"Wheel package mismatch: extra={sorted(members-set(expected))}; missing={sorted(set(expected)-members)}")
         if any(package.read(name) != path.read_bytes() for name, path in expected.items()):
             raise RuntimeError("Wheel package bytes differ from current source/static/manual")
-    label = version.removesuffix(".0")
     archive = output / f"OceanRoute-{label}-portable.zip"
     roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", "web/artifacts", "resources/validation"]
     files = ["README.md", "pyproject.toml", "launcher.py", "web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts", "web/playwright.config.ts"]
-    files += ["output/pdf/OceanRoute_用户手册.pdf", "output/pdf/OceanRoute_设计文档.pdf",
-              "resources/research/manual_findings.md", "resources/research/website_findings.md",
+    files += documents
+    files += ["resources/research/manual_findings.md", "resources/research/website_findings.md",
               "resources/research/web_sources.json"]
     files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
@@ -70,5 +85,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-frontend", action="store_true")
     parser.add_argument("--archive-only", action="store_true", help="refresh documentation/reports in ZIP while preserving the verified wheel")
+    parser.add_argument("--frontend-directory", type=Path, help="Use a separately verified frontend without replacing a frozen build")
+    parser.add_argument("--pdf-suffix", help="Select versioned PDF filenames; defaults to the current release label from 0.5 onward")
     options = parser.parse_args()
-    build(options.skip_frontend, options.archive_only)
+    build(options.skip_frontend, options.archive_only, frontend_directory=options.frontend_directory, pdf_suffix=options.pdf_suffix)

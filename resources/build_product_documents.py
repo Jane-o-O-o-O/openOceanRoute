@@ -1,4 +1,5 @@
 """Render the maintained manual and design sources to inspectable Chinese PDFs."""
+import argparse
 from pathlib import Path
 import re
 from xml.sax.saxutils import escape
@@ -94,21 +95,25 @@ def append_paragraph_group(story, paragraphs, source_line=""):
     headings = []
     while story and isinstance(story[-1], Paragraph) and story[-1].style.name in {"h2", "h3"}:
         headings.insert(0, story.pop())
-    group = KeepTogether(headings + paragraphs)
+    flowables = headings + paragraphs
+    group = flowables[0] if len(flowables) == 1 else KeepTogether(flowables)
+    group.oceanroute_flowables = flowables
     group.source_line = source_line
     story.append(group)
 
 
-def build(source_name, target_name, title, design=False):
+def build(source_name, target_name, title, design=False, *, version="0.4", date="2026-10-04", output_directory=OUTPUT, screenshot_path=None):
     text = (ROOT / "docs" / source_name).read_text()
     story = [Spacer(1, 28), Paragraph("OCEANROUTE", STYLES["small"]), Paragraph(title, STYLES["title"]),
-             Paragraph("海缆规划与敷设研究工作空间 / 0.4", STYLES["h2"]),
-             Paragraph("2026-10-04 · 独立实现 · 可运行开发版", STYLES["body"]),
+             Paragraph(inline("海缆规划与敷设研究工作空间 / " + version), STYLES["h2"]),
+             Paragraph(inline(date + " · 独立实现 · 可运行开发版"), STYLES["body"]),
              Spacer(1, 12), Paragraph("本文对应当前程序行为。规划功能和研究模型的验证范围分别说明；没有原厂或海试对照时，不声称等效工程精度。", STYLES["body"])]
     if design:
         story.extend([Spacer(1, 10), architecture()])
     else:
-        screenshot = ROOT / "web/artifacts/release-0.4/workspace.png"
+        screenshot = Path(screenshot_path) if screenshot_path else ROOT / ("web/artifacts/release-" + version) / "workspace.png"
+        if not screenshot.exists():
+            screenshot = ROOT / "web/artifacts/dev-next/all/production-workspace.png"
         if not screenshot.exists():
             screenshot = ROOT / "web/artifacts/planning-verified.png"
         if screenshot.exists():
@@ -148,7 +153,8 @@ def build(source_name, target_name, title, design=False):
                 block.append(Paragraph(inline(lines[index].strip()), STYLES["body"]))
                 index += 1
             if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
-                block.insert(0, story.pop())
+                lead = story.pop()
+                block[0:0] = getattr(lead, "oceanroute_flowables", [lead])
             append_paragraph_group(story, block)
         else:
             append_paragraph_group(story, [Paragraph(inline(line), STYLES["body"])], line)
@@ -158,10 +164,12 @@ def build(source_name, target_name, title, design=False):
         canvas.setFillColor(MUTED); canvas.setFont("OceanCJK", 8)
         canvas.drawString(80, A4[1]-33, "OceanRoute / " + title)
         canvas.setStrokeColor(colors.HexColor("#D3E1E6")); canvas.line(45, 36, A4[0]-45, 36)
-        canvas.drawString(45, 23, "0.4 · 2026-10-04 · 独立实现，研究模型待工程校核")
+        canvas.drawString(45, 23, version + " · " + date + " · 独立实现，研究模型待工程校核")
         canvas.drawRightString(A4[0]-45, 23, str(doc.page))
         canvas.restoreState()
-    target = OUTPUT / target_name
+    output_directory = Path(output_directory)
+    output_directory.mkdir(parents=True, exist_ok=True)
+    target = output_directory / target_name
     document = SimpleDocTemplate(str(target), pagesize=A4, leftMargin=45, rightMargin=45, topMargin=51, bottomMargin=51,
                                  title=title, author="OceanRoute", subject="独立实现用户与设计文档")
     document.build(story, onFirstPage=page, onLaterPages=page)
@@ -169,5 +177,16 @@ def build(source_name, target_name, title, design=False):
 
 
 if __name__ == "__main__":
-    build("USER_MANUAL.md", "OceanRoute_用户手册.pdf", "用户手册")
-    build("DESIGN.md", "OceanRoute_设计文档.pdf", "软件设计文档", design=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", default="0.4")
+    parser.add_argument("--date", default="2026-10-04")
+    parser.add_argument("--output-directory", type=Path, default=OUTPUT)
+    parser.add_argument("--filename-suffix", default="", help="Separate new PDF filenames from frozen releases")
+    parser.add_argument("--screenshot", type=Path)
+    args = parser.parse_args()
+    if args.filename_suffix and not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", args.filename_suffix):
+        parser.error("filename-suffix must contain 1 to 64 letters, digits, dots, underscores or hyphens")
+    suffix = "_" + args.filename_suffix if args.filename_suffix else ""
+    common = dict(version=args.version, date=args.date, output_directory=args.output_directory, screenshot_path=args.screenshot)
+    build("USER_MANUAL.md", "OceanRoute_用户手册" + suffix + ".pdf", "用户手册", **common)
+    build("DESIGN.md", "OceanRoute_设计文档" + suffix + ".pdf", "软件设计文档", design=True, **common)
