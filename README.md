@@ -2,11 +2,11 @@
 
 基于用户提供的 MakaiPlan / MakaiPlan Pro 公开说明与手册独立开发。包含多路径/制造关系、地图/RPL/剖面/SLD、约束、余缆和费用、地形/避让、实敷调查、施工指令、动力/海况、海流反算、维修研究及连续后台计算。0.5整合真实投影地图、整工程地形原子更新、坡床/变深定端静力及四边界悬链线Calculator；自然长和伸长弧长明确区分，下坡多解逐根验收并显式选择。程序与界面为自有实现，不包含原厂程序、授权或付费资源。
 
-当前阶段发行版为0.5，完整回归、PDF和隔离安装验收已完成；完整原厂复现与海试精度仍未验收。0.1至0.4发行包与0.4 PDF保持冻结。新功能步骤已整合到用户手册和设计文档；实际证据见 [交付验证记录](docs/RELEASE_NOTES.md)。
+当前阶段发行版为0.6，新增投影画布原子编辑、实际定端平衡动态初态和地理计划库存映射。完整原厂复现、原生文件、设备接入与海试精度仍未验收。0.1至0.5安装包、PDF和历史验证独立保留；实际证据见 [交付验证记录](docs/RELEASE_NOTES.md)。
 
 ## 运行
 
-当前版本发行包为 `outputs/releases/OceanRoute-0.5-portable.zip`，保留0.1至0.4历史包。解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），程序打开本地工作空间。两份新PDF为 `output/pdf/OceanRoute_用户手册_0.5.pdf` 与 `output/pdf/OceanRoute_设计文档_0.5.pdf`，旧版无后缀PDF保持冻结。发行包需要Python，尚未提供免Python桌面安装器。
+当前0.6发行包为 `outputs/releases/OceanRoute-0.6-portable.zip`，实际验收状态见发行记录；保留0.1至0.5历史包。解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），程序打开本地工作空间。两份新PDF为 `output/pdf/OceanRoute_用户手册_0.6.pdf` 与 `output/pdf/OceanRoute_设计文档_0.6.pdf`，旧版无后缀PDF保持冻结。发行包需要Python，尚未提供免Python桌面安装器。
 
 要求 Python 3.10 或更高版本。发布包包含已编译界面，不需要 Node.js；源码开发使用 Node.js 20 或更高版本。
 
@@ -49,6 +49,7 @@ npm --prefix web run test:e2e
 
 浏览器测试按 `web/playwright.config.ts` 启动本地服务与开发界面，需要已安装 Google Chrome。Windows 将验证命令的 `.venv/bin/python` 替换为 `.venv\Scripts\python.exe`。动态模型、ShipPlan、Look Ahead 和张力搜索均有实际数值计算，尚无原厂黄金输出或海试数据对照，不能声称与 Pro 工程精度等效。原生文件、设备接口及完整地震/维修动态的差距见状态矩阵。
 
-0.5完整后端1113项（48.82秒）、实际编译界面61项（174.77秒，零跳过/失败/重试）通过；全新环境首装、HTTP及隔离1113项回归也通过（65.69秒；首装完整流程94.58秒）。新手册11页、设计10页全部逐页渲染核对。wheel在源码目录之外实际运行25模块/API流程通过。实测macOS、Python3.13.9和Chrome，Windows/Linux安装及原厂/海试等效未验收。154份运行/测试/界面源码、8份编译资源、内置手册和启动器/示例与实际验收包逐字节核对；最终封装只刷新已核对的文档、验证记录和发行脚本。历史版本完整记录见交付验证记录。发行检查脚本为 `scripts/smoke_release.py` 和 `scripts/smoke_portable.py`，实际报告随包放在 `resources/validation/`。
+0.6完整后端1200项56.28秒、最终同源生产浏览器74项219.13秒通过；wheel在源码目录之外实际27模块/API及持久恢复通过。全新环境启动器首装、HTTP和两个新物理例通过，隔离1200项回归66.54秒、整体101.53秒。手册14页、设计13页全部逐页视觉QA。185份运行/源码/编译资源/内置手册/启动器/示例与真实首装包逐字节一致；成员、RECORD、历史19份产物和最终SHA256见发行记录及manifest-0.6.json。实测macOS/Python3.13.9/Chrome；Windows/Linux与原厂/海试等效未验收。发行检查脚本为 `scripts/smoke_release.py`、`scripts/smoke_portable.py` 和 `scripts/audit_release.py`。
+
 
 Token 费用由使用平台结算，助手不接受转账。没有已核实账单和单价时，不提供固定费用报价。
