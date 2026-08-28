@@ -107,8 +107,9 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "map_projection", "name": "工程平面投影视图", "status": "implemented", "note": "真实EPSG/WKT/PROJ路线与GIS显示、原生XY网格、局部比例及操作选择预算；不重投影在线瓦片"},
             {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
             {"id": "workspace_terrain", "name": "整工程地形重采样", "status": "implemented", "note": "多路径、底余缆及共享库存一笔预览验收；缺测、固定域不足或不同制造结果整笔拒绝"},
-            {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播或自动初态"},
-            {"id": "static_bathymetry", "name": "坡床悬链线 / 变深海底定端静力", "status": "research", "note": "真实坡床切向弹性悬垂及定端自然长约束；接触/摩擦/力残差与缆段穿床验证，非自动动态初态"},
+            {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播"},
+            {"id": "static_bathymetry", "name": "坡床悬链线 / 变深海底定端静力", "status": "research", "note": "真实坡床切向弹性悬垂及定端自然长约束；接触/摩擦/力残差与缆段穿床验证；显式动态入口重新验收"},
+            {"id": "equilibrium_initial", "name": "定端自然长动态初态 / 地理计划预备", "status": "research", "note": "同质无流零抗弯初态真实求解并独立验收；实际米制地理床格平移、初始库存不重复放出、预应力积分与完整恢复；不重建施工历史"},
             {"id": "catenary_calculator", "name": "四种边界悬链线计算器", "status": "research", "note": "总底张力、总顶张力、水平顶角及明确自然/伸长入水长；多根须显式选择并逐根验证床格，不自动建立动态初态"},
             {"id": "simulation", "name": "稳态 / 动态 / 跨距模型", "status": "research", "note": "独立数值模型；适用假设与局限随结果输出"},
             {"id": "voyage", "name": "长时连续计算 / 后台恢复", "status": "research", "note": "真实状态分块延续与有误差约束的平床网格粗化；并非已验证全航程模型"},
@@ -260,6 +261,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         if set(payload) != {"config"}:
             raise ValueError("static-bathymetry accepts exactly config")
         return solve(payload["config"])
+
+    @app.post("/api/simulation/prepare-equilibrium-initial")
+    def prepare_equilibrium_initial(payload: dict):
+        from .initial_equilibrium import resolve_initial_equilibrium
+        if set(payload)-{"project", "config"} or "config" not in payload:
+            raise ValueError("prepare-equilibrium-initial accepts config and optional project")
+        return resolve_initial_equilibrium(_project(payload.get("project", {})), payload["config"])
 
     @app.post("/api/simulation/catenary-calculator")
     def catenary_calculator(payload: dict):
