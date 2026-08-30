@@ -635,7 +635,13 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             return grid.surface(p)[0]
         return np.interp(p[:, 0], *seabed) if seabed is not None else np.full(len(p), -e["depth"])
 
-    if grid is not None and not saved:
+    equilibrium_blueprint = None
+    initialization_provenance = saved["state"].get("initialization_provenance") if saved else None
+    if "initial_equilibrium" in c and not saved:
+        from .initial_equilibrium import estimate_initial_equilibrium_work
+        equilibrium_blueprint = estimate_initial_equilibrium_work(project, c)
+        e["depth"] = equilibrium_blueprint["reference_depth_m"]
+    if grid is not None and not saved and equilibrium_blueprint is None:
         e["depth"] = grid.initial_depth(_heading(plan[0]["heading_deg"]), e["bottom"]/e["weight"])
     if seabed is not None and not saved:
         if float(bed(np.array([[0., 0., 0.]]))[0]) >= -.001:
@@ -663,6 +669,20 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             heave_phase_origin,heave_offset = start_time,float(ship[2])
         if np.min(p[:,2]-bed(p)) < -1e-7:
             raise ValueError("checkpoint cable penetrates its declared seabed")
+    elif equilibrium_blueprint is not None:
+        # This temporary geometry is only a bounded preflight blueprint. The
+        # actual equilibrium solve occurs after dynamic/output capacity guards.
+        rest = np.array(equilibrium_blueprint["rest_lengths_m"], dtype=float)
+        ship = np.array(equilibrium_blueprint["vessel_position_m"], dtype=float)
+        anchor = np.array(equilibrium_blueprint["anchor_position_m"], dtype=float)
+        initial_length = float(np.sum(rest))
+        fraction = np.r_[0., np.cumsum(rest)]/initial_length
+        p = ship[None,:]+fraction[:,None]*(anchor-ship)[None,:]
+        v = np.zeros_like(p)
+        last_tensions = np.zeros(len(rest))
+        segment_target = equilibrium_blueprint["segment_target_m"]
+        paid, output_origin = 0., 0.
+        heave_phase_origin, heave_offset = 0., float(ship[2])
     else:
         initial = catenary({"depth_m": e["depth"], "wet_weight_n_m": e["weight"],
                             "bottom_tension_n": e["bottom"], "nodes": n, "heading_deg": plan[0]["heading_deg"]})
@@ -727,20 +747,56 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     work_estimate = (step_estimate*predicted_nodes*(iterations+material_work)
                      + frame_estimate*predicted_nodes*len(material_model.bodies)
                      +step_estimate*predicted_nodes*6*(int(np.count_nonzero(waves.amplitudes)) if waves is not None else 0))
+    equilibrium_dynamics = initialization_provenance is not None or equilibrium_blueprint is not None
+    if equilibrium_dynamics:
+        work_estimate += step_estimate*predicted_nodes*3
     if grid is not None:
         # Each of <=16 local sweeps samples both before and after correction.
         # Also bound other per-step/frame queries, 64 initial projection sweeps
         # and all initial back-ray grid crossings + bounded Brent evaluations.
-        contact_work_bound = (step_estimate*predicted_nodes*(32*iterations+8)
+        contact_work_bound = (step_estimate*predicted_nodes*(32*iterations+(9 if equilibrium_dynamics else 8))
                               +frame_estimate*predicted_nodes*4
                               +128*len(p)+2*(len(grid.x)+len(grid.y))+110)
         work_estimate += contact_work_bound
+    initialization_verification_work = (saved.get("initialization_verification") or {}).get("estimated_work_units",0) if saved else 0
+    work_estimate += initialization_verification_work
     max_work=_num(c,"max_work_units",12000000,1,12000000)
     if frame_estimate > 2001 or step_estimate > 30000 or work_estimate > max_work:
         raise ValueError("simulation exceeds computation limit; shorten duration or coarsen dt/nodes")
     checkpoint_estimate = frame_estimate if save_all else len(checkpoint_times)+1
     if checkpoint_estimate>256 or checkpoint_estimate*predicted_nodes>32000:
         raise ValueError("saved checkpoint volume exceeds its limit; select fewer times or reduce duration/nodes")
+    canonical_config = {"duration_s":duration,"dt_s":output_dt,"internal_dt_s":internal_dt,"nodes":n,
+        "solver_iterations":iterations,"depth_m":e["depth"],"wet_weight_n_m":e["weight"],
+        "diameter_m":e["diameter"],"drag_coefficient":e["cd"],"water_density_kg_m3":e["rho"],
+        "ea_n":ea,"ei_n_m2":ei,"mass_kg_m":dry_mass,"added_mass_coefficient":added,
+        "bottom_tension_n":e["bottom"],"ship_speed_m_s":e["speed"],"payout_m_s":e["payout"],
+        "heading_deg":e["heading"],"current_x_m_s":float(e["current"][0]),"current_y_m_s":float(e["current"][1]),
+        "damping_ratio":damping,"seabed_friction":friction,"heave_amplitude_m":heave_amp,
+        "heave_period_s":heave_period,"max_tension_n":max_tension,"min_bend_radius_m":min_radius,
+        "initial_suspended_material_m":material_model.origin}
+    for key in ("material_segments","inline_bodies","seabed_profile","seabed_grid","current_profile","cable_type_id","ship_plan","ship_plan_horizon_s","vessel_motion_series","wave_kinematics","initial_equilibrium"):
+        if key in c:
+            canonical_config[key] = deepcopy(c[key])
+    try:
+        configuration_bytes=len(json.dumps(canonical_config,ensure_ascii=False,allow_nan=False,separators=(",",":")).encode("utf-8"))
+    except (TypeError,ValueError,OverflowError,RecursionError) as error:
+        raise ValueError("checkpoint configuration must be finite serializable JSON") from error
+    # Motion/profile tables are repeated in a portable standalone checkpoint;
+    # the node-count budget alone would not bound the resulting response size.
+    provenance_volume_bound = (20000+800*n) if equilibrium_blueprint is not None else (len(json.dumps(initialization_provenance,ensure_ascii=False,allow_nan=False).encode("utf-8")) if initialization_provenance is not None else 0)
+    if (configuration_bytes+provenance_volume_bound+predicted_nodes*1024+len(plan)*256+3000)*checkpoint_estimate>16000000:
+        raise ValueError("saved checkpoint JSON volume exceeds 16 MB; select fewer save times or shorten motion/profile tables")
+    initialization_work = 0
+    if equilibrium_blueprint is not None:
+        from .initial_equilibrium import resolve_initial_equilibrium
+        resolved = resolve_initial_equilibrium(project, c)
+        p = np.array(resolved["positions"], dtype=float)
+        last_tensions = np.array(resolved["segment_tension_n"], dtype=float)
+        if not np.array_equal(rest, np.array(resolved["rest_lengths_m"], dtype=float)):
+            raise ValueError("initial_equilibrium preflight/actual natural material state differs")
+        initialization_provenance = deepcopy(resolved["provenance"])
+        initialization_work = resolved["estimated_work_units"]
     result = _base("material-lumped-mass-xpbd-cable-lay-v2", [
         "Newtonian material nodes, submerged weight, normal quadratic Morison drag and isotropic added mass.",
         "Tension-only axial elasticity solved by compliant implicit position constraints; no torsion or fluid acceleration.",
@@ -757,15 +813,21 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         result["seabed"] = grid.metadata()
         result["warnings"].append(_warning("TWO_DIMENSIONAL_CONTACT_RESEARCH", "Source elevations must already reference model sea surface z=0. Local point-contact reactions and normals need mesh/time refinement; these are not calibrated cable/soil engineering loads."))
         result["warnings"].append(_warning("HARD_CONTACT_LOAD_RESOLUTION", "Contact forces are last-step impulses divided by that step duration. Impact peaks depend on time resolution, and a compliant residual pass does not certify tension or friction convergence."))
-        if not saved:
+        if not saved and initialization_provenance is None:
             result["initialization"] = {"method":"horizontal-touchdown catenary back-ray root then local normal projection", "touchdown_depth_m":e["depth"], "max_normal_projection_displacement_m":initial_projection, "slope_equilibrium":False}
             result["warnings"].append(_warning("INITIAL_BATHYMETRY_APPROXIMATION", "The fresh catenary has horizontal touchdown rather than slope equilibrium; interior intersections are normally projected and require a startup settling analysis."))
+    if initialization_provenance is not None:
+        result["model"] = "material-lumped-mass-xpbd-cable-lay-v4"
+        result["initialization"] = deepcopy(initialization_provenance)
+        result["assumptions"][7] = "Fresh initialization independently solves and verifies a fixed-end natural-material equilibrium before actuation; continuation restores the actual saved dynamic state without rerunning the static optimizer."
+        result["warnings"].append(_warning("STATIC_INITIAL_EQUILIBRIUM_RESEARCH", "Initial equilibrium assumes uniform wet-weight/EA, zero bending and no initially deployed body/current. Frictional loading history is not inferred. Subsequent vessel/feed/heave controls and newly paid material create actual dynamic transients."))
     if np.any(local["ei"] > 0) or any(row["ei_n_m2"] > 0 for row in material_model.rows):
         result["assumptions"].append("Bending uses a discrete secant tangent-difference energy; it is an approximate isotropic beam, not a full finite-rotation rod.")
     result["material_coordinate_convention"] = "Material coordinate increases from fixed oldest seabed endpoint toward vessel; initial_suspended_material_m is the bottom origin; vessel coordinate advances by payout."
     if material_model.explicit:
         result["assumptions"].append("Piecewise material properties are integrated over each natural-length element; axial EA uses series compliance and bending uses neighboring local stiffness.")
-        result["warnings"].append(_warning("HETEROGENEOUS_INITIAL_TRANSIENT", "Initial geometry uses baseline uniform catenary weight with locally adjusted axial prestress; mixed weights and inline-body loads need a startup settling and convergence analysis."))
+        if initialization_provenance is None:
+            result["warnings"].append(_warning("HETEROGENEOUS_INITIAL_TRANSIENT", "Initial geometry uses baseline uniform catenary weight with locally adjusted axial prestress; mixed weights and inline-body loads need a startup settling and convergence analysis."))
     if material_model.bodies:
         result["assumptions"].append("Inline bodies add translational mass, submerged weight and isotropic drag through material-coordinate nodal shape functions; finite bodies deploy progressively.")
         result["warnings"].append(_warning("LUMPED_INLINE_BODY", "Inline-body rotation, rigidity, hydrodynamic shape, bend restriction and geometric collision are not resolved; body loads act through cable nodes."))
@@ -785,32 +847,12 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     if waves is not None:
         result["assumptions"].append("Constant-depth Airy particle velocities modify relative drag. Kinematics above mean sea level are capped at surface values; full cable immersion remains assumed.")
         result["warnings"].append(_warning("LINEAR_WAVE_DRAG_ONLY","Wave acceleration/inertia, breaking, radiation/diffraction, changing immersion and vessel response are not solved; user linear kinematics enter drag only."))
-    canonical_config = {"duration_s":duration,"dt_s":output_dt,"internal_dt_s":internal_dt,"nodes":n,
-        "solver_iterations":iterations,"depth_m":e["depth"],"wet_weight_n_m":e["weight"],
-        "diameter_m":e["diameter"],"drag_coefficient":e["cd"],"water_density_kg_m3":e["rho"],
-        "ea_n":ea,"ei_n_m2":ei,"mass_kg_m":dry_mass,"added_mass_coefficient":added,
-        "bottom_tension_n":e["bottom"],"ship_speed_m_s":e["speed"],"payout_m_s":e["payout"],
-        "heading_deg":e["heading"],"current_x_m_s":float(e["current"][0]),"current_y_m_s":float(e["current"][1]),
-        "damping_ratio":damping,"seabed_friction":friction,"heave_amplitude_m":heave_amp,
-        "heave_period_s":heave_period,"max_tension_n":max_tension,"min_bend_radius_m":min_radius,
-        "initial_suspended_material_m":material_model.origin}
-    for key in ("material_segments","inline_bodies","seabed_profile","seabed_grid","current_profile","cable_type_id","ship_plan","ship_plan_horizon_s","vessel_motion_series","wave_kinematics"):
-        if key in c:
-            canonical_config[key] = deepcopy(c[key])
-    try:
-        configuration_bytes=len(json.dumps(canonical_config,ensure_ascii=False,allow_nan=False,separators=(",",":")).encode("utf-8"))
-    except (TypeError,ValueError,OverflowError,RecursionError) as error:
-        raise ValueError("checkpoint configuration must be finite serializable JSON") from error
-    # Motion/profile tables are repeated in a portable standalone checkpoint;
-    # the node-count budget alone would not bound the resulting response size.
-    if (configuration_bytes+predicted_nodes*1024+len(plan)*256+3000)*checkpoint_estimate>16000000:
-        raise ValueError("saved checkpoint JSON volume exceeds 16 MB; select fewer save times or shorten motion/profile tables")
-    numerical = {"scheme":"implicit-compliant-material-nodes-2d-contact-v3" if grid is not None else "implicit-compliant-material-nodes-v2","output_grid_origin_s":output_origin,
+    numerical = {"scheme":("implicit-compliant-material-nodes-equilibrium-prestress-v4" if equilibrium_dynamics else ("implicit-compliant-material-nodes-2d-contact-v3" if grid is not None else "implicit-compliant-material-nodes-v2")),"output_grid_origin_s":output_origin,
                  "internal_dt_s":internal_dt,"output_dt_s":output_dt,"solver_iterations":iterations}
     frames,checkpoints = [],[]
     stats = saved["state"]["statistics"] if saved else {}
     worst_residual = stats.get("worst_residual_m",0.)
-    max_strain = stats.get("max_strain",0.)
+    max_strain = stats.get("max_strain",float(np.max(np.maximum(np.linalg.norm(np.diff(p,axis=0),axis=1)/rest-1,0))) if initialization_provenance is not None else 0.)
     step_count = stats.get("steps",0)
     initial_step_count = step_count
     max_force = stats.get("max_force_n",float(np.max(last_tensions)))
@@ -851,6 +893,11 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                 "segment_ea_n": local["ea"].tolist(), "segment_wet_weight_n_m": local["segment_weight"].tolist(),
                 "segment_diameter_m": local["segment_diameter"].tolist(),
                 "inline_bodies": material_model.body_frames(p, local, contact)}
+        if initialization_provenance is not None:
+            row.update({"anchor_position_m": anchor.tolist(), "anchor_segment_tension_n":float(last_tensions[-1]),
+                        "segment_tension_n":last_tensions.tolist(), "touchdown_detected":bool(len(contact))})
+            if not len(contact):
+                row.update({"touchdown":None,"touchdown_node_index":None,"bottom_tension_n":None})
         if grid is not None:
             _, normals = grid.surface(p)
             row.update({"node_seabed_z_m": bottoms.tolist(), "node_seabed_normal":normals.tolist(),
@@ -885,6 +932,8 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                           "node_contact_friction_impulse_n_s":last_friction_impulse.tolist(),
                           "last_contact_step_s":last_contact_step})
             state["statistics"].update(contact_stats)
+        if initialization_provenance is not None:
+            state["initialization_provenance"] = deepcopy(initialization_provenance)
         return pack_checkpoint(canonical_config,state,time,numerical)
 
     def observe_state():
@@ -956,6 +1005,28 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             bend_multipliers = np.zeros((len(p)-2, 3))
             if grid is not None:
                 contact_multipliers = np.zeros(len(p))
+            if equilibrium_dynamics:
+                # Warm multipliers must carry their actual positional force
+                # kick. Merely assigning lambda would omit/double prestress.
+                # Current Hooke forces are recomputed after any real payout;
+                # no node is fixed merely because it began in equilibrium.
+                old_delta = np.diff(old,axis=0)
+                old_length = np.linalg.norm(old_delta,axis=1)
+                old_tangent = old_delta/np.maximum(old_length[:,None],1e-12)
+                prestress = local["ea"]*np.maximum(old_length/rest-1,0)
+                multipliers = -h*h*prestress
+                axial_force = np.zeros_like(old)
+                axial_force[:-1] += prestress[:,None]*old_tangent
+                axial_force[1:] -= prestress[:,None]*old_tangent
+                p += h*h*inv_mass[:,None]*axial_force
+                old_bed, old_normal = grid.surface(old)
+                old_force = axial_force.copy()
+                old_force[:,2] -= local["weight"]
+                normal_support = np.where((old[:,2] <= old_bed+1e-8)&(inv_mass>0),
+                                          np.maximum(-np.sum(old_force*old_normal,axis=1),0),0)
+                contact_multipliers = h*h*normal_support
+                p += inv_mass[:,None]*contact_multipliers[:,None]*old_normal
+                p[0],p[-1] = ship,anchor
             for _ in range(iterations):
                 _stretch_project(p, inv_mass, rest, local["ea"], h, multipliers)
                 if np.any(local["ei"] > 0):
@@ -1071,6 +1142,17 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                               "effective_internal_dt_cap_s":effective_cap,
                               "estimated_work_units": work_estimate,
                               "spatial_residual_tolerance_m": tolerance}})
+    if initialization_provenance is not None:
+        result["solver"]["initialization_work"] = {"estimated_work_units_this_run":initialization_work,
+            "original_estimated_work_units":initialization_provenance["solver"]["estimated_work_units"],
+            "checkpoint_proof_verification_work_this_run":initialization_verification_work,
+            "work_components":{key:initialization_provenance["solver"][key] for key in ("static_solver_estimated_work_units","independent_mapping_work_upper_bound")},
+            "static_optimizer_run_this_call":equilibrium_blueprint is not None,
+            "work_basis":"separately bounded dense static solve and independent mapping verification; normalized units, not FLOPs/CPU time",
+            "actual_original_solver_iterations":initialization_provenance["solver"]["iterations"],
+            "actual_original_function_evaluations":initialization_provenance["solver"]["function_evaluations"],
+            "max_work_units":initialization_provenance["solver"]["max_work_units"]}
+        result["solver"]["charged_normalized_work_units"] = work_estimate+initialization_work
     if save_all or checkpoint_times:
         result["checkpoints"] = checkpoints
     if grid is not None:
@@ -1084,6 +1166,8 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             "unit":"normalized node-constraint iteration/material/wave terms plus bilinear node queries; not FLOPs",
             "additional_bilinear_node_query_upper_bound":contact_work_bound,
             "bilinear_queries_per_node_constraint_iteration_cap":32,
+            "additional_prestress_node_force_units_per_step":3 if equilibrium_dynamics else 0,
+            "additional_prestress_bilinear_queries_per_node_step":1 if equilibrium_dynamics else 0,
             "coverage":"includes dynamics, output/checkpoint queries, bounded initial normal projection and back-ray search; excludes CRS validation, JSON encoding and rendering, whose input/output sizes are separately bounded"}
     return result
 
