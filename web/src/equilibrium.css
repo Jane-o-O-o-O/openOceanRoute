@@ -1,0 +1,4 @@
+.equilibrium-initial-settings select{width:100%;margin:6px 0 10px}.equilibrium-initial-settings .equilibrium-diagnostics{margin:12px 0;padding:12px;min-width:0}.equilibrium-initial-settings .summary-fields{grid-template-columns:1fr}.equilibrium-diagnostics pre{max-height:280px;overflow:auto;font:10px/1.65 ui-monospace,SFMono-Regular,monospace;background:#f1f6f8;padding:12px;margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere}.equilibrium-diagnostics details{margin-top:10px}.static-to-dynamic{margin:12px 0}.static-to-dynamic p{line-height:1.7;margin-bottom:12px}
+.scene-legend{right:17px;flex-wrap:wrap;font-size:10px;line-height:1.5;background:#f7fbfbd9;padding:4px 8px;border-radius:4px}
+
+.voyage-layout .scene-host,.sea-layout .scene-host,.repair-layout .scene-host,.seismic-layout .scene-host{height:100%}
