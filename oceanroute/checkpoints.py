@@ -16,6 +16,7 @@ SCHEMA = "oceanroute.dynamic.checkpoint"
 SCHEMA_VERSION = 1
 MODEL = "material-lumped-mass-xpbd-cable-lay-v2"
 MODEL_2D = "material-lumped-mass-xpbd-cable-lay-v3"
+MODEL_EQUILIBRIUM = "material-lumped-mass-xpbd-cable-lay-v4"
 CONTACT_FIELDS = {"node_seabed_normal", "node_contact_normal_impulse_n_s",
                   "node_contact_friction_impulse_n_s", "last_contact_step_s"}
 CONTACT_STATS = {"max_contact_normal_force_n", "max_contact_penetration_m",
@@ -25,7 +26,7 @@ FROZEN_FIELDS = {
     "depth_m", "wet_weight_n_m", "diameter_m", "water_density_kg_m3", "drag_coefficient", "bottom_tension_n",
     "nodes", "dt_s", "internal_dt_s", "solver_iterations", "ea_n", "ei_n_m2", "mass_kg_m",
     "added_mass_coefficient", "damping_ratio", "seabed_friction", "seabed_profile", "seabed_grid",
-    "initial_suspended_material_m", "material_segments", "inline_bodies", "cable_type_id",
+    "initial_suspended_material_m", "material_segments", "inline_bodies", "cable_type_id", "initial_equilibrium",
 }
 
 
@@ -53,7 +54,7 @@ def _digest(document):
 
 def pack_checkpoint(config, state, time, numerical):
     is_2d = "seabed_grid" in config
-    document = {"schema": SCHEMA, "schema_version": 2 if is_2d else SCHEMA_VERSION, "model": MODEL_2D if is_2d else MODEL,
+    document = {"schema": SCHEMA, "schema_version": 3 if "initial_equilibrium" in config else (2 if is_2d else SCHEMA_VERSION), "model": MODEL_EQUILIBRIUM if "initial_equilibrium" in config else (MODEL_2D if is_2d else MODEL),
                 "validation_status": "research", "source": "oceanroute.simulation.simulate_lay",
                 "time_s": float(time), "config": deepcopy(config), "state": deepcopy(state),
                 "numerical": deepcopy(numerical)}
@@ -99,10 +100,11 @@ def read_checkpoint(document):
     required = {"schema", "schema_version", "model", "time_s", "config", "state", "numerical", "checksum_sha256", "source", "validation_status"}
     if not required <= document.keys():
         raise ValueError("checkpoint is missing required schema/state/provenance fields")
-    if document["schema"] != SCHEMA or not isinstance(document["schema_version"],int) or document["schema_version"] not in (1, 2) or isinstance(document["schema_version"],bool):
+    if document["schema"] != SCHEMA or not isinstance(document["schema_version"],int) or document["schema_version"] not in (1, 2, 3) or isinstance(document["schema_version"],bool):
         raise ValueError("unsupported checkpoint schema/version")
-    is_2d = document["schema_version"] == 2
-    if document["model"] != (MODEL_2D if is_2d else MODEL) or document["source"] != "oceanroute.simulation.simulate_lay" or document["validation_status"]!="research":
+    is_2d = document["schema_version"] in (2, 3)
+    has_equilibrium = document["schema_version"] == 3
+    if document["model"] != (MODEL_EQUILIBRIUM if has_equilibrium else (MODEL_2D if is_2d else MODEL)) or document["source"] != "oceanroute.simulation.simulate_lay" or document["validation_status"]!="research":
         raise ValueError("checkpoint model or source is incompatible")
     if document["checksum_sha256"] != _digest(document):
         raise ValueError("checkpoint checksum mismatch; preserve the complete original saved state")
@@ -110,6 +112,8 @@ def read_checkpoint(document):
     c, s, numerical = document["config"], document["state"], document["numerical"]
     if not isinstance(c,dict) or not isinstance(s,dict) or not isinstance(numerical,dict):
         raise ValueError("checkpoint config/state/numerical must be objects")
+    if has_equilibrium != ("initial_equilibrium" in c) or has_equilibrium != ("initialization_provenance" in s):
+        raise ValueError("checkpoint version and complete initial equilibrium provenance are incompatible")
     if is_2d != ("seabed_grid" in c):
         raise ValueError("checkpoint schema/model and seabed_grid presence are incompatible")
     if is_2d:
@@ -136,7 +140,7 @@ def read_checkpoint(document):
         raise ValueError("2D checkpoint is missing actual contact diagnostic state")
     if not {"output_grid_origin_s", "internal_dt_s", "output_dt_s", "solver_iterations", "scheme"} <= numerical.keys():
         raise ValueError("checkpoint is missing numerical time-grid parameters")
-    if numerical["scheme"] != ("implicit-compliant-material-nodes-2d-contact-v3" if is_2d else "implicit-compliant-material-nodes-v2"):
+    if numerical["scheme"] != ("implicit-compliant-material-nodes-equilibrium-prestress-v4" if has_equilibrium else ("implicit-compliant-material-nodes-2d-contact-v3" if is_2d else "implicit-compliant-material-nodes-v2")):
         raise ValueError("checkpoint integration scheme is incompatible")
     _number(numerical["internal_dt_s"], "numerical.internal_dt_s", .002, .25)
     _number(numerical["output_dt_s"], "numerical.output_dt_s", .02, 60)
@@ -236,8 +240,27 @@ def read_checkpoint(document):
         if numerical[key] != c.get(config_key):
             raise ValueError("checkpoint numerical settings do not match its configuration")
     _number(numerical["output_grid_origin_s"],"output_grid_origin_s",0,time)
+    equilibrium_verification = None
+    if has_equilibrium:
+        from .initial_equilibrium import validate_initialization_provenance
+        equilibrium_verification = validate_initialization_provenance(s["initialization_provenance"], c)
+        provenance=s["initialization_provenance"]
+        if s["initial_material_length_m"]!=provenance["initial_material_length_m"] or s["segment_target_m"]!=provenance["segment_target_m"]:
+            raise ValueError("checkpoint actual manufacturing references differ from the original equilibrium")
+        if not np.allclose(arrays["anchor"],provenance["initial_snapshot"]["positions"][-1],rtol=0,atol=1e-9):
+            raise ValueError("checkpoint fixed anchor differs from the initial equilibrium boundary")
+        if time==0:
+            snapshot=provenance["initial_snapshot"]
+            if not np.array_equal(arrays["positions"],np.asarray(snapshot["positions"])) or not np.array_equal(arrays["velocities"],np.asarray(snapshot["velocities"])) or s["paid_out_m"]!=0 or not np.allclose(arrays["last_segment_tensions_n"],snapshot["segment_tension_n"],rtol=1e-9,atol=1e-7):
+                raise ValueError("checkpoint time-zero state differs from its independently verified equilibrium")
+            if s["heave_phase_origin_s"]!=0 or s["heave_offset_z_m"]!=snapshot["positions"][0][2] or s["statistics"]["steps"]!=0 or s["last_contact_step_s"]!=0:
+                raise ValueError("checkpoint time-zero equilibrium cannot invent a heave clock or completed contact step")
+            for field in ("rest_lengths_m","node_material_m","node_mass_kg","node_dry_mass_kg","node_wet_weight_n","segment_ea_n"):
+                if not np.allclose(arrays[field],np.asarray(snapshot[field]),rtol=1e-10,atol=1e-8):
+                    raise ValueError("checkpoint time-zero material differs from its original equilibrium")
     return {"document":deepcopy(document),"config":deepcopy(c),"state":deepcopy(s),
-            "arrays":arrays,"time_s":time,"numerical":deepcopy(numerical)}
+            "arrays":arrays,"time_s":time,"numerical":deepcopy(numerical),
+            "initialization_verification":equilibrium_verification}
 
 
 def merge_resume_config(config):
