@@ -370,6 +370,12 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
         raise ValueError("voyage absolute end exceeds 1e9 seconds")
     if not saved:
         base["ship_plan_horizon_s"] = max(end, _num(base, "ship_plan_horizon_s", end, 0, 1e9))
+    initial_work_reservation = 0
+    if physical is None and "initial_equilibrium" in base:
+        from .initial_equilibrium import estimate_initial_equilibrium_work
+        initial_work_reservation = estimate_initial_equilibrium_work(project,base)["estimated_work_units"]
+        if initial_work_reservation >= max_work:
+            raise ValueError("voyage initial equilibrium work exceeds max_total_work_units; declare a sufficient total budget")
     frames, reports, warnings = [], [], {}
     status, reason, last = "completed", None, None
     chunk_count = 0; started_wall = time.monotonic()
@@ -422,7 +428,10 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
             stable_material = stable if stable_material is None else stable_material & stable
             internal_samples += 1; observed_end = value["time_s"]
         while True:
-            request["max_work_units"] = min(12_000_000, max_work-interval_work)
+            reservation = initial_work_reservation if physical is None else 0
+            request["max_work_units"] = min(12_000_000, max_work-interval_work-reservation)
+            if request["max_work_units"] < 1:
+                status, reason = "stopped", "initialization_work_budget"; result = None; break
             try:
                 result = simulate_lay(project, request, state_observer=observe if policy["enabled"] else None)
                 break
@@ -440,7 +449,7 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
             break
         last, physical = result, result["checkpoint"]
         chunk_count += 1; chunks += 1
-        chunk_work = result["solver"]["estimated_work_units"]
+        chunk_work = result["solver"].get("charged_normalized_work_units",result["solver"]["estimated_work_units"])
         work += chunk_work; interval_work += chunk_work
         for warning in result["warnings"]:
             warnings[warning["code"]] = warning
