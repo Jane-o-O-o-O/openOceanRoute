@@ -139,7 +139,7 @@ SLSQP 只寻找一个局部静止平衡候选；曲床可能有多个解，不�
 
 特意构造的双线性 ridge 例中，全部节点满足静力平衡并在床上，但中间直段穿床 1.2 m；实际 guard 拒绝。这项否定验收说明投影、节点接触和优化器 success 均不足以证明真实缆段已合理贴床。
 
-现 `simulate_lay` 的新鲜 2D 初态仍是水平触底悬链线再投影，保留 `slope_equilibrium=false` 与启动沉降告警。本模块尚未接入动态初态/checkpoint，不能把新的静力结果或可视帧当成完整可恢复动力状态。旧 `catenary/steady_state/span_analysis` 的二维 guard 与 `prepare_plan_voyage` 的平床/均匀初始区间限制保持。自动把变深规划航程映射为平衡初态、接续物料/边界、具有海流的真正准稳态和完整静摩擦历史仍需后续工作。
+冻结 0.5 所含 `simulate_lay` 默认新鲜 2D 初态仍是水平触底悬链线再投影，保留 `slope_equilibrium=false` 与启动沉降告警。其后开发新增显式 raw `initial_equilibrium`：真实调用本静力求解器并独立校核动态物料/力/整段几何，配合实际预应力修正的 v4 动力方案和 schema3 完整原始证明；仅支持初始 uniform w/EA、EI0、无已部署实体或流的正常支持平衡。详见 [INITIAL_EQUILIBRIUM_NOTES.md](INITIAL_EQUILIBRIUM_NOTES.md)。显示帧或用户提供的 accepted JSON 仍不能作为恢复状态。旧 `catenary/steady_state/span_analysis` 的二维 guard 保持；规划桥接由独立准备层处理，不能把一次无流初态验收称为整个变深航程准稳态。具有初始海流、弯曲、混合力学、已部署实体和完整静摩擦历史的平衡仍待后续工作。
 
 ## 6. 主来源与独立推导
 

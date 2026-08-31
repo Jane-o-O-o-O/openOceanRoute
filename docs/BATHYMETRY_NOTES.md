@@ -51,7 +51,7 @@ lambda += delta_lambda
 
 这是**速度级滑动/停止近似**，没有完整位置级静摩擦粘着互补求解，可能产生数值蠕动。位置约束修正不能由速度阻尼完整代表静摩擦，方法学区别见 [Bender/Müller/Macklin 2015 PBD 教程](https://mmacklin.com/EG2015PBD.pdf)。正常力是最后内部步冲量除以该步时长；碰撞峰值、粗糙结点法向和张力均必须比较步长/网格/迭代数，残差通过不能认证工程载荷。
 
-初态先沿初始船向反方向，在已知单元射线上求“水平触地点悬链线 layback 与位置”根，再把内部相交节点正常投影到床外。根搜索按网格交叉点/区间中点检查覆盖，最多 100 次 Brent 迭代；无足够范围或遇到缺测就失败。零底张力用船下垂直极限。结果的 `initialization.slope_equilibrium=false`：这是有真实物料/预应力的启动形状，**不是坡面静力平衡**；混合缆和附属体仍需要原有启动收敛分析。canonical checkpoint `depth_m` 是实际求得的初始触点深度。
+未指定显式平衡输入的兼容初态先沿初始船向反方向，在已知单元射线上求“水平触地点悬链线 layback 与位置”根，再把内部相交节点正常投影到床外。根搜索按网格交叉点/区间中点检查覆盖，最多 100 次 Brent 迭代；无足够范围或遇到缺测就失败。零底张力用船下垂直极限。结果的 `initialization.slope_equilibrium=false`：这是有真实物料/预应力的启动形状，**不是坡面静力平衡**；混合缆和附属体仍需要原有启动收敛分析。canonical checkpoint `depth_m` 是实际求得的初始触点深度。
 
 ## 输出与完整状态恢复
 
@@ -73,7 +73,7 @@ lambda += delta_lambda
 
 `summary.contact` 四项累计量：`max_contact_normal_force_n`、`max_contact_penetration_m`、`max_inward_contact_velocity_m_s`、`friction_dissipation_j`。`solver.contact` 记录 method、局部迭代上限、当前run实际正常投影扫数、实际双线性节点采样数 `actual_bilinear_node_queries_this_run`、穿透/内向速度容差和 friction_model。整体 `solver.converged` 同时要求既有轴向残差以及正常穿透/内向速度不大于 1e-8（m、m/s）；仍只代表这些数值守卫。
 
-2D 断点用原 schema 名、`schema_version=2`、model-v3、`numerical.scheme=implicit-compliant-material-nodes-2d-contact-v3`。整张 `seabed_grid` 冻结；恢复不可换网格、datum、来源或数值步长。保存原有所有真实位置/速度/自然长/物性/材料/命令/边界，另保存上列正常/摩擦冲量、实际法向、所属步长和四项累计接触统计。读取还校验实际节点覆盖、法向、接触mask、单侧性、切向/库仑限幅与运动学边界冲量，不由最后显示帧猜状态。旧 `schema_version=1/model-v2` 的无-grid平床/1D断点继续走原路径；不能假升级或在旧断点中添加 grid。
+兼容近似初始化的 2D 断点用原 schema 名、`schema_version=2`、model-v3、`numerical.scheme=implicit-compliant-material-nodes-2d-contact-v3`。整张 `seabed_grid` 冻结；恢复不可换网格、datum、来源或数值步长。保存原有所有真实位置/速度/自然长/物性/材料/命令/边界，另保存上列正常/摩擦冲量、实际法向、所属步长和四项累计接触统计。读取还校验实际节点覆盖、法向、接触mask、单侧性、切向/库仑限幅与运动学边界冲量，不由最后显示帧猜状态。旧 `schema_version=1/model-v2` 的无-grid平床/1D断点继续走原路径；不能假升级或在旧断点中添加 grid。
 
 ## 可执行小例、预算与限制
 
@@ -94,3 +94,7 @@ lambda += delta_lambda
 验证包含非均匀网格仿射与双线性解析值/梯度、真实跨单元投影、NoData与域外失败、跨/沿坡材料节点非穿透与法向速度、摩擦限幅/耗散与不同滑动几何、弯曲双线性格不同法向、完整中途断点连续轨迹一致、旧模型回归。一个显式 `EA=1e4 N`、坡 `z=-12+0.2x+0.1y`、16节点、2s、speed=payout=.2 的研究例：内部步 .04/.02/.01 s 的相邻最终位置差约 .00607/.00396 m，最终张力差约 .746/.225 N，均下降。不能把这个较柔弹性例套用于默认 EA=1e8；高刚度/放缆转态的正常力峰值和瞬时张力可能明显依赖步长，必须单独收敛研究。
 
 本轮只支持 `simulate_lay` 中真实 2D床场，catenary/steady_state/span_analysis 给 grid 明确拒绝；1D span仍需显式提取一条线。海况模块可把已有用户RAO船端升沉序列送入 dynamic，但任何 grid 加 constant-depth `wave_kinematics` 都拒绝，尚无变深波传播/折射。长航程允许连续完整状态块的范围由 voyage 管理；旧平床粗化不适用 grid。未实现缆径/段间连续碰撞、刚体附属体转动和实体接触、埋设/土体阻力、海底黏着、三维流固耦合、潮位自动校正、工程校准与全海区精度保证。
+
+## 冻结 0.5 之后：显式真实平衡初态
+
+开发中 `config.initial_equilibrium` 可以给出真正两个固定端及自然库存，重新调用二维离散静力并独立验收材料、完整段床面和受力，而非投影水平悬链线。新路径 model-v4/schema3 在实际预测位置施加质量加权预应力/正常支持修正并设置相应 XPBD 乘子；初态只假设 uniform w/EA、EI0、无初始流/实体，动态非零摩擦和后续材料/运动仍真实求解。恢复携带原始证明且不重求静力；无真正床接触时 TD 与底张力为 null。旧 v3/schema2 和默认近似初态保持。完整合同、预算和剩余缺口见 [INITIAL_EQUILIBRIUM_NOTES.md](INITIAL_EQUILIBRIUM_NOTES.md)。
