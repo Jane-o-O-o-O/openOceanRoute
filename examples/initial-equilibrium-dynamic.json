@@ -1,0 +1,77 @@
+{
+  "config": {
+    "depth_m": 20,
+    "wet_weight_n_m": 4,
+    "diameter_m": 0.02,
+    "ea_n": 100000.0,
+    "ei_n_m2": 0,
+    "mass_kg_m": 0.7298997321841252,
+    "nodes": 10,
+    "ship_speed_m_s": 0,
+    "payout_m_s": 0,
+    "heading_deg": 90,
+    "current_x_m_s": 0,
+    "current_y_m_s": 0,
+    "duration_s": 0.2,
+    "dt_s": 0.05,
+    "internal_dt_s": 0.01,
+    "solver_iterations": 24,
+    "seabed_friction": 0.4,
+    "damping_ratio": 0.03,
+    "initial_suspended_material_m": 0,
+    "save_checkpoints": true,
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -50,
+        0,
+        50
+      ],
+      "y_m": [
+        -50,
+        0,
+        50
+      ],
+      "z_m": [
+        [
+          -20,
+          -20,
+          -20
+        ],
+        [
+          -20,
+          -20,
+          -20
+        ],
+        [
+          -20,
+          -20,
+          -20
+        ]
+      ],
+      "source": {
+        "name": "explicit synthetic fixed-end equilibrium example; not a survey",
+        "horizontal_crs": "LOCAL_CARTESIAN_METRES",
+        "origin_projected_m": [
+          0,
+          0
+        ],
+        "vertical_datum": "synthetic heights already aligned to model sea z=0"
+      }
+    },
+    "initial_equilibrium": {
+      "schema": "oceanroute.dynamic.initial-equilibrium.v1",
+      "vessel_position_m": [
+        0,
+        0,
+        0
+      ],
+      "anchor_position_m": [
+        -15,
+        0,
+        -10
+      ],
+      "natural_length_m": 20
+    }
+  }
+}

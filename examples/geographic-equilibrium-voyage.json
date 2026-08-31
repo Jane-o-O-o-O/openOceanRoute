@@ -1,0 +1,108 @@
+{
+  "project": {
+    "crs": "EPSG:4326",
+    "route": {
+      "curve": "rhumb",
+      "slack_pct": 2.0,
+      "points": [
+        {
+          "id": "a",
+          "longitude": 0.0,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        },
+        {
+          "id": "b",
+          "longitude": 0.002694945852358564,
+          "latitude": 0.0,
+          "depth_m": 11.0
+        }
+      ],
+      "legs": [
+        {
+          "cable_type_id": "A"
+        }
+      ]
+    },
+    "cable_types": [
+      {
+        "id": "A",
+        "lay_speed_m_s": 0.5,
+        "wet_weight_n_m": 4.0,
+        "diameter_m": 0.02,
+        "cost_per_m": 1.0,
+        "ea_n": 100000.0,
+        "ei_n_m2": 0.0
+      }
+    ],
+    "bodies": [],
+    "name": "Explicit synthetic geographic equilibrium voyage; not a survey"
+  },
+  "config": {
+    "plan": {
+      "bottom_tension_n": 10.0,
+      "sample_spacing_m": 30.0
+    },
+    "duration_s": 0.1,
+    "simulation": {
+      "nodes": 10,
+      "internal_dt_s": 0.01,
+      "dt_s": 0.02,
+      "solver_iterations": 24
+    },
+    "voyage": {
+      "adaptive_mesh": {
+        "enabled": false
+      },
+      "chunk_duration_s": 0.04
+    },
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -200.0,
+        0.0,
+        200.0
+      ],
+      "y_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "z_m": [
+        [
+          -30.0,
+          -29.0,
+          -30.0
+        ],
+        [
+          -30.0,
+          -30.0,
+          -30.0
+        ],
+        [
+          -30.0,
+          -31.0,
+          -30.0
+        ]
+      ],
+      "source": {
+        "name": "explicit synthetic projected variable bed; not a survey",
+        "horizontal_crs": "EPSG:3857",
+        "origin_projected_m": [
+          0.0,
+          0.0
+        ],
+        "vertical_datum": "already aligned to model sea zero"
+      }
+    },
+    "equilibrium_start": {
+      "anchor": {
+        "longitude": 0.0,
+        "latitude": 0.0,
+        "z_model_m": -10.0
+      },
+      "vessel_z_m": 0.0,
+      "natural_length_m": 20.0
+    }
+  }
+}
