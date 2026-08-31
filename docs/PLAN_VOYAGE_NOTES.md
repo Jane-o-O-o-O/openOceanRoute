@@ -1,6 +1,8 @@
 # 规划、制造库存与连续敷设的显式映射
 
-2026-10-04，独立研究实现。`oceanroute/plan_voyage.py` 提供 `prepare_plan_voyage(project, config)`；HTTP为 `POST /api/shipplan/prepare-voyage`，请求 `{project,config}`。输出包括实际初步船舶计划、可提交给 `/api/voyage/jobs` 的完整 `config`、校验过的 `mapping`、警告和适用假设。它准备明确的解析初始窗口，不重建真实已敷状态。
+2026-10-04，独立研究实现。`oceanroute/plan_voyage.py` 提供 `prepare_plan_voyage(project, config)`；HTTP为 `POST /api/shipplan/prepare-voyage`，请求 `{project,config}`。输出包括实际初步船舶计划、可提交给 `/api/voyage/jobs` 的完整 `config`、校验过的 `mapping`、警告和适用假设。本文下述解析初态、定深平床和AEQD合同对应保留的旧schema1映射分支，不重建真实已敷状态。
+
+0.6另有显式地理二维床格与定端平衡分支：配对提供 `config.seabed_grid` 与 `config.equilibrium_start`，实际重基准床格/船锚/初值、独立求解初始自然库存并生成schema2映射。该分支允许有效变深剖面，原移动ShipPlan偏移仍为平床初估；并未支持初始异质w/EA、EI或已部署实体/流波。新合同见 [用户手册9.3](USER_MANUAL.md)、[初始化说明](INITIAL_EQUILIBRIUM_NOTES.md)、[地理与制造独立审核](PLAN_EQUILIBRIUM_REVIEW.md) 和 [设计文档](DESIGN.md)。不要把下文旧分支的自动解析初态用于新分支。
 
 ## 坐标、初始库存与放缆
 
