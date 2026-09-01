@@ -1,8 +1,8 @@
 # OceanRoute 软件设计文档
 
-版本 0.5 / 2026-10-04 / 与实际代码同步
+版本 0.6 / 2026-10-04 / 与实际代码同步
 
-本文对应0.5源码与编译界面，新增模块已整合到下述架构与合同。历史0.1至0.4包及冻结设计PDF独立保留。详细推导和专项范围见各模块NOTES，实际发行证据见 `RELEASE_NOTES.md`。
+本文对应0.6源码与编译界面，纳入投影点位编辑、二维真实平衡初态及地理制造窗口。历史0.1至0.5包、PDF和摘要独立保留；后端、浏览器、打包、安装和PDF证据分别核验，不能由开发门禁推定发行通过。详细推导和专项范围见各模块NOTES，实际发行证据见 `RELEASE_NOTES.md`。
 
 ## 1. 目标和依据
 
@@ -29,10 +29,11 @@ FastAPI 本地服务执行计算并提供编译后的 React/TypeScript 界面。
 | workspace_terrain.py | 新来源及全部目标路径的原子地形预览 | 查询、Path Link、共享实物量全部通过才返回完整候选 |
 | exchange.py、rpl_templates.py | RPL模板、剖面、GeoJSON、标准图形与报告 | 真实源行诊断、解析与显式应用分开 |
 | simulation.py | 悬链线、稳态、材料节点动态、静态悬空段 | 实际计算、帧、诊断，标记research |
-| static_bathymetry.py（slope_catenary / static_equilibrium） | 仿射坡床悬垂与双线性床定端静力 | 真实端力/长度、接触残力及完整直段验收，不自动产生动态初态 |
+| static_bathymetry.py（slope_catenary / static_equilibrium） | 仿射坡床悬垂与双线性床定端静力 | 真实端力/长度、接触残力及完整直段验收，静力结果不是恢复状态 |
+| initial_equilibrium.py | 原始定端输入到真实动力材料初态 | 实际重求静力、独立力/材料/完整弦验收与原始proof，限定初始同w/EA、EI0、零流和无已部署实体 |
 | catenary_calculator.py | B、T、顶部水平角及两种入水长度逆边界 | 有限域完整分支枚举、逐根原床验证、显式选择与失败语义 |
 | shipplan.py | 初始船舶/放缆计划、工况分支、张力搜索 | 调用真实模型，候选失败可审查 |
-| plan_voyage.py | 规划与制造库存到局部动力窗口 | 自然初始材料、地理指令、制造预算与保存一致性 |
+| plan_voyage.py、plan_equilibrium_frame.py | 规划与制造库存到局部动力窗口 | 显式地理床格共同重基准、初始自然库存、指令/制造/proof与保存一致性 |
 | checkpoints.py、sea.py | 完整动态状态、海况/RAO/Monte Carlo | 状态完整性、实际分支求解、研究假设 |
 | survey.py、repair.py | 实敷对账、回收/拖索/浮标研究 | 原设计不被观测覆盖、端力与适用条件明确 |
 | seismic.py | 真实稳态应答器算子、均匀水平流加权反演 | 明确ENU/材料映射/测量噪声；接受状态不同于优化收敛 |
@@ -45,7 +46,7 @@ FastAPI 本地服务执行计算并提供编译后的 React/TypeScript 界面。
 
 ## 3. 实体与里程
 
-当前开发版以 `Workspace(schema_version=2)` 作为一个工程的唯一来源，含名称、统一币种、共享 cable_types/layers/terrain_sources、多条 paths、多套 assemblies、显式 associations、active_path_id 和完整 saved_revision。每个 Cable Path 内嵌一个 schema1 Project，保留 route、profile、bodies、assembly_references、costs、rules、events 等原核字段。共享缆材/GIS/地形源和独立修订不保存在子实体中。选中路径经 materialize_path 注入共享资源和 workspace_context，复用原 core；路径ID即投影ID，路径名称与工程名称分开。子实体字段见 `CONTRACT.md`，完整开放容器合同见 [WORKSPACE_NOTES.md](WORKSPACE_NOTES.md)。
+当前以 `Workspace(schema_version=2)` 作为一个工程的唯一来源，含名称、统一币种、共享 cable_types/layers/terrain_sources、多条 paths、多套 assemblies、显式 associations、active_path_id 和完整 saved_revision。每个 Cable Path 内嵌一个 schema1 Project，保留 route、profile、bodies、assembly_references、costs、rules、events 等原核字段。共享缆材/GIS/地形源和独立修订不保存在子实体中。选中路径经 materialize_path 注入共享资源和 workspace_context，复用原 core；路径ID即投影ID，路径名称与工程名称分开。`paths=[]/active_path_id=null` 是合法空工作区，界面保留资源、库存与修订管理，不编造路径或物性。子实体字段见 `CONTRACT.md`，完整开放容器合同见 [WORKSPACE_NOTES.md](WORKSPACE_NOTES.md)。
 
 制造装配是以实物里程排序的 cable/body/reference 库存，不是另一个 Project。association 将一个路径与一套完整实物关联，role=deployment 或 alternative。每条路径最多一套装配，同一装配最多一个 deployment；alternative 必须有明确主投放路径。模型不自动分割库存或同时敷设同一实物两次。As-Laid 调查成果保持独立GIS/对账数据，当前路径kind只支持cable。
 
@@ -68,7 +69,11 @@ RoutePoint 是地理点和注释；RouteLeg 对应相邻点对，定义缆型、
 
 测地线调用 PROJ/pyproj WGS84 Geod；恒向线使用椭球等距纬度和子午弧。haversine 不是恒向算法。曲线加密显示，跨日期线 GeoJSON 分段，屏幕经度展开避免绕地球连线。
 
-map_projection复用显式水平转换操作，把已分析日期线分段曲线、点位及合法GIS拓扑实际投影到同一平面。投影边按明确顶点/工作预算加密，保留多边形孔洞及源长边语义。Leaflet用于地理底图；自定义平面使用真实投影坐标和原生轴刻度，原生英尺与米坐标通过单位比例计算局部物理尺度。投影画布提供平移、缩放与选点，位置编辑由WGS84地图或独立坐标预览工具承担；画布没有直接拖点/新增入口。请求与工程快照绑定，失效时不画旧层；显示选择不改变地理源、剖面签名或库存。精确范围与CRS单位限制见 `MAP_PROJECTION_NOTES.md`。
+map_projection复用显式水平转换操作，把已分析日期线分段曲线、点位及合法GIS拓扑实际投影到同一平面。投影边按明确顶点/工作预算加密，保留多边形孔洞及源长边语义。Leaflet用于地理底图；自定义平面使用真实投影坐标和原生轴刻度，原生英尺与米坐标通过单位比例计算局部物理尺度。显示投影不改变WGS84源或路线测地模型，也没有自动重投影在线瓦片/栅格底图。
+
+投影画布支持实际拖点、背景点击追加末端点和选点删除。目标X/Y真实反算WGS84；制造域存在时调用同一constraints/edit求解，再把实际约束后的点正算回目标投影，分别显示目标与实际坐标。Rigid允许明确移动，Clamped保持实际锚线位置，Fixed Sliding只允许实物KP编辑；制造域内结构增删必须先显式解除。追加明确缆型和分段模式，固定量缺省不补零，新点水深保持null。内部删点拒绝缆型/分段语义冲突，固定量求和，混合柔性量只使用当前有效分析。它不是任意段材料重划工具。
+
+转换与提交绑定完整workspace/draft、活跃路径、保存修订、CRS及编辑参数；改变输入、切换路径、取消或修订后，迟到结果不得应用。成功只先提交完整路径草稿和一次document撤销记录，再经原工作区制造事务校核，不直接修改共享库存。旧剖面失效或共享制造量分歧时保留草稿、隐藏旧分析/投影并拒绝保存；多路线地形重采样通过后才能原子应用完整工作区。详见 `MAP_PROJECTION_NOTES.md`、`DEVELOPMENT_0.6.md` 与第8节。
 
 有效剖面在区间边界插值，再对所有小段累计 `sqrt(ΔKP²+ΔDepth²)`，包含中间海岭/海谷；缺测不会静默变0或跨空区补算。点水深可形成有标签的线性近似，不证明中间海底已测。
 
@@ -104,13 +109,13 @@ RPL模板schema1明确固定宽度或分隔多行、索引起点、物理头部�
 
 共享多源库以有界内嵌文本/二进制资料形成稳定ID、内容SHA256与解释fingerprint；缓存实际解码网格/散点算子而非来源选择结果。按(-priority,id)逐点真实查询、NoData回退，同名垂直基准混采或明确筛选；输出真实来源、失败尝试、预算和方法声明。所有投影操作禁ballpark、最佳所需网格缺失拒绝。工作区顶层只保存一份库，子路径不私存；SQLite修订完整冻结源内容。库最多8源、单源8MiB、总12MiB/JSON16MiB，50k查询点；预算不足拒绝而非截断。
 
-coordinate_transforms以PROJ实际二维水平操作生成只读预览，原生轴单位和方向明确，区域操作和未知精度保持真实；任意坏点禁用整批应用。界面经正常路线/制造域事务应用，不绕过共享实体校核；原厂CSF和投影画布直接位置编辑仍有差距。
+coordinate_transforms以PROJ实际二维水平操作生成只读预览，原生轴单位和方向明确，区域操作和未知精度保持真实；任意坏点禁用整批应用。独立坐标预览和投影画布编辑均经正常路线/制造域事务应用，不绕过共享实体校核；原厂CSF、在线栅格重投影及原厂native坐标配置仍没有兼容证据。
 
 ## 7. 物理求解和施工计划
 
 二维静力由独立入口提供。slope_catenary先对完整床格拟合并逐点验证仿射平面，用正总底张力B及均匀自然米湿重求解弹性悬垂。沿向坡度m给出水平力 `H=B/sqrt(1+m²)`；材料坐标积分同时输出自然长度、伸长弧长和离散直段长，验证触点切向、端力、根残差及全曲线所在原床域。不可伸长极限只由显式EA=null选择；不求海底尾缆摩擦。
 
-static_equilibrium以船→锚固定边界、各段正自然长和有限EA求一个离散三维弹性静力候选。湿重按自然材料分配，自由节点力平衡与双线性床非穿透共同求解；声明粘着节点仅验证当前位置摩擦容量，不反演加载历史。求解后独立重建Hooke轴力、端反力、法向力及所需/实际摩擦和残力。逐段分割床单元边界，并检验双线性曲线的二次极值，节点不穿透不足以通过验收。不可用候选可保留有限形状供诊断，但accepted=false；未知格、越界及非法输入HTTP422，不投影形状掩盖残力。该入口没有海流、弯扭、混合材料、实体、土体或动态初态映射，详见 `STATIC_BATHYMETRY_NOTES.md`。
+static_equilibrium以船→锚固定边界、各段正自然长和有限EA求一个离散三维弹性静力候选。湿重按自然材料分配，自由节点力平衡与双线性床非穿透共同求解；声明粘着节点仅验证当前位置摩擦容量，不反演加载历史。求解后独立重建Hooke轴力、端反力、法向力及所需/实际摩擦和残力。逐段分割床单元边界，并检验双线性曲线的二次极值，节点不穿透不足以通过验收。不可用候选可保留有限形状供诊断，但accepted=false；未知格、越界及非法输入HTTP422，不投影形状掩盖残力。静力入口仍没有海流、弯扭、混合力学材料、实体或土体；其结果本身不是动态状态。显式动态初态由独立initial_equilibrium桥接重新求解并验收，见第7.2节与 `STATIC_BATHYMETRY_NOTES.md`。
 
 解析悬链线有解析几何/张力基准；稳态积分重力和法向流阻平衡；动态采用材料节点、惯性、轴向约束、阻力、附加质量及海床接触。EA/EI处理有具体数值意义，材料量、接触、张力及收敛随结果输出。内部积分步长和输出帧间隔分开，计算工作量显式限制。
 
@@ -128,13 +133,11 @@ estimate_current 只拟合共同的东/北向均匀海流。给定绝对标准�
 
 连续计算逐chunk恢复完整动态状态，检查整个内部步序列的海床接触/低速证据；只对远离边界/触地点/实体、同材料、零EI、近直线的平床元素合并。自然长度及材料积分不变，删除节点的动量按两邻实际质量增量转移；带符号应变及材料插值位置同时受限。原网格/候选网格短时双解比较所有原材料点的重构、速度、接触、张力/内部峰值与数值收敛，未通过则保留原状态。没有删除尾缆或引入新固定触地点。逐转移/probe阈值不构成累计航程误差界，完整公式、合同和实际独立审核见 `VOYAGE_NOTES.md`、`VOYAGE_PHYSICS_REVIEW.md`。
 
-prepare_plan_voyage先运行真实ShipPlan与SLD，把固定窗口投影到AEQD并保留原放缆率；投影端点决定局部船速/航向，采样弦差受明确容差约束。制造材料、初始自然长度和动态初态使用相同EA/预应力语义。默认从源计划库存足以容纳初始悬垂段的时刻开始，初始前缀不重复放出。每段制造坐标、路线KP和源/局部时间分别保存；不把初始锚强制贴到计划触地点。
+prepare_plan_voyage运行真实ShipPlan与SLD，保留原放缆率、实际制造区段与源时间窗；局部投影端点决定船速/航向，采样弦差受明确容差约束。未声明新地理平衡边界的原分支仍采用AEQD、定深平床和解析初态；显式seabed_grid/equilibrium_start分支采用真实地理重基准和独立平衡初态，见第7.3节。两条路径都保留自然库存、原/局部时间与制造坐标，初始前缀不重复放出，不把原锚强制贴到计划触地点。
 
-映射SHA256含原工程、完整源动态配置和区间预算，启动、检查点读取与每个保存分块校核实际材料船端位置/参数。恢复保存映射后，非空工程必须匹配原摘要，空工程显式使用保存快照；超过预备时间窗拒绝。现阶段只接受有效定深平床、同物性初始库存，未来可混合材料/转向，零长实体以形函数加载，有限长体拒绝；它不是实敷历史重建或复杂地形施工认证。HTTP为 `/api/shipplan/prepare-voyage`，详情见 `PLAN_VOYAGE_NOTES.md`。
+二维动态床采用完整双线性高度场及实际梯度法向：位置级单侧投影与速度级非穿透法向冲量，切向耗散限于mu乘实际法向冲量；并未求解完整静摩擦互补、土体或线段/有限体形状碰撞。NoData与出域拒绝，阶梯/垂壁不适用。原二维近似初态采用schema2/model-v3，新显式平衡初态采用schema3/model-v4；都保存完整网格、法向、冲量与累计诊断，旧schema1/model-v2路径保持兼容。二维网格不进入平床粗化；任何网格与当前Airy wave_kinematics组合拒绝，规定船端升沉仍可作为后续真实激励。
 
-二维动态床采用完整双线性高度场及实际梯度法向：位置级单侧投影与速度级非穿透法向冲量，切向耗散限于mu乘实际法向冲量；并未求解完整静摩擦互补、土体或线段/有限体形状碰撞。NoData与出域拒绝，阶梯/垂壁不适用。状态版本2/model-v3保存完整网格、法向、冲量与累计诊断，旧schema_version=1/model-v2路径保持兼容。二维网格不进入平床粗化。
-
-terrain_bathymetry把来源库真正查询到显式AEQD网格，用户声明海面高h后z=-depth-h；原始源基准、位移、库摘要、网格摘要和逐节点来源随结果保留。不能用的网格不填零且can_apply=false。该转换不推断潮位或变深ShipPlan初态，自动预备窗口仍保留平床限制。
+terrain_bathymetry把来源库真正查询到显式AEQD网格，用户声明海面高h后z=-depth-h；原始源基准、位移、库摘要、网格摘要和逐节点来源随结果保留。不能用的网格不填零且can_apply=false。该转换不推断潮位、自然库存或固定端边界；须再明确提供真实定端输入才能进入变深平衡初态。旧自动解析窗口仍保留平床限制。
 
 ### 7.1 四种悬链线边界与多解
 
@@ -157,6 +160,38 @@ root_policy为require_unique、enumerate、lowest_bottom_tension或highest_botto
 
 靠近临界峰值而浮点误差无法分辨根数、根迭代或评估预算耗尽时，root_enumeration_complete=false、accepted=false、selected=null，不宣称已完整求解。输入/预检预算违法HTTP422；实际数值失败为带诊断的拒绝结果。总工作/输出同时预检并核对最终真实JSON字节，完整结果保持有限。界面绑定完整参数/床格快照，连尚未blur的编辑也使旧图和下载失效；只绘selected.result的实际节点。
 
+### 7.2 二维真实平衡初态、预应力与完整恢复
+
+动态保留“水平悬链线/床面投影近似”的旧路径；新路径必须显式提供主配置seabed_grid及initial_equilibrium原始边界。该对象的schema为 `oceanroute.dynamic.initial-equilibrium.v1`，只含vessel_position_m、anchor_position_m、natural_length_m或rest_lengths_m、可选initial_positions_m与solver。主配置拥有物性和节点数，初始N为6..80，数组按船→固定端排列；初值只是可行优化种子，不是已通过结果。所有节点/船锚在同一局部东/北/上米坐标，z=0已对齐模型海面；datum标签不自动换基准。完整双线性变深场不拟合为平面，未知单元和出域不外推。船可在水下，固定最老端可悬空，端点不得穿床。
+
+初始活动自然材料区间当前必须同湿重w、同EA、EI=0，无已部署实体，恒定海流及每条current_profile样本均为零，wave_kinematics不支持。不同干质量、直径和拖曳系数可保留其真实动态积分；未放出的异质缆材/EI/实体可留待后来真实部署。这不是移动铺设准稳态：时刻0为命令施加前零速度快照，船动、放缆和规定升沉从首个真实内部步执行。静力取Ft=0，无加载历史重建；允许非负动态摩擦系数并不表示求得了历史粘着。
+
+initial_equilibrium先用实际resolved物性建立MaterialModel与自然材料积分，真实调用定端static_equilibrium，再从实际节点独立重构逐段Hooke张力、半段端湿重、质量/EA、床法向、单侧支持、节点/全局残力与互补条件。整条直弦逐格核对二次gap极值，初始化contact_tolerance_m限定1e-9..1e-8。优化success、外部accepted JSON、显示帧或投影后的水平缆形均不能替代验收。`POST /api/simulation/prepare-equilibrium-initial`接受config与可选project，真实求解但不积分、不生成checkpoint；实际启动仍按相同raw输入重求解与复核。静力界面转换只创建显式动态草稿，原静力节点作为优化初值，不能免检。
+
+自然段逐值保留，不用弦长/连续平均张力反算库存。设初始自然总长L、制造原点O，则节点材料从O+L递减至O，初始paid_out_m=0；L含床上段时也不是单纯悬垂长。segment_target_m=max(initial_rest)避免feed=0即拆分非均匀顶部段，原船z作为升沉基准，原锚不吸附到海床。无实际接触时touchdown、touchdown_node_index、bottom_tension_n为null，anchor_position_m与anchor_segment_tension_n另列；实际TD前段张力和固定端末段张力不是同一量。固定支持端反力包含该端半段湿重，不能等同段张力。
+
+新模型为 `material-lumped-mass-xpbd-cable-lay-v4`，scheme为 `implicit-compliant-material-nodes-equilibrium-prestress-v4`。每个内部步在真实payout/材料更新后，由旧实际几何计算T，令lambda_axial=-h²T，并实际施加h²M^-1F_axial位置修正。对当前真实接触的自由节点由内力/湿重计算非负N，令lambda_normal=h²N并实际施加M^-1lambda_normal*n，然后继续非线性约束、接触、速度和摩擦求解。只设lambda而不做力修正不成立；自由节点没有钉住，零命令也继续积分。旧冷起算法的scalar compliance微残差不等于实际节点力平衡保持。
+
+显式初态使用 `oceanroute.dynamic.checkpoint` schema3，保存当前完整动力状态与原始initialization_provenance，包括raw请求/整床摘要、初始位置/零速度、自然段、制造坐标、质量/湿重/EA、张力/法向力、端反力、残力和实际优化诊断。时间0的动态接触冲量为零，原静力N仅作为独立力证据，不乘虚构步长伪造积分。恢复独立复算原材料、力、完整直段及公开诊断，直接继续真实当前状态，不运行静力优化器、不从显示帧反猜速度。raw边界/物料/床格/数值设置冻结，合法未来控制不能改写初始历史；不能删proof降级。旧schema1/model-v2和schema2/model-v3保持原方案。checksum只是完整性检测，错误物料/受力即使重算checksum仍须被物理复核拒绝。
+
+主动态12M额度保持，初始化另有显式静力/材料/完整段预算，默认200M、上限2B；动态容量、输出容量和分层工作先预检再优化。solver.initialization_work分列本次新初始化、原始work、恢复proof校核及真实优化计数；charged_normalized_work_units只表示声明归一化额度，不是FLOPs、CPU时间或token费用。voyage首块仅加一次初始化收费，随后实际checkpoint恢复不再优化；调用框架重复校核/JSON/CRS/渲染不在solver额度中，另有输入容量限制。
+
+这些验收只证明声明离散研究模型的候选可用，不证明唯一、全局最低能量、加载可达性、海试精度或大运动/冲击/高EA峰值载荷收敛。初始不同w/EA与已部署点实体目前仅有下一步范围计划，尚未实现；EI/端力矩、有流静止或移动准稳态、历史摩擦、实体/段间连续尺寸接触及复杂床长航程仍待推进。精确合同及独立闭式固定点/真实actuation证据见 `INITIAL_EQUILIBRIUM_NOTES.md`、`EQUILIBRIUM_INITIAL_REVIEW.md`；下一步而非已完成功能见 `HETEROGENEOUS_INITIAL_SCOPE.md`。
+
+### 7.3 地理平衡窗口、制造库存与保存映射
+
+`POST /api/shipplan/prepare-voyage` 的新分支显式声明config.seabed_grid及equilibrium_start。后者含地理锚longitude/latitude/z_model_m、vessel_z_m、自然总长或逐段自然长、可选原床局部米坐标初值及solver。床源必须是真实米制east/north投影CRS；LOCAL无地理绑定、地理度数或英尺网格拒绝，不能补标签替代转换。z_model_m已相对模型海面，不是椭球高；初始物理适用条件仍按第7.2节实际校核。
+
+PlanBathymetryFrame把真实源计划开始船位及地理锚变换至原床投影，以实际船端投影位置作新原点。所有床x/y数组、seed、船锚进行共同真实平移，source.origin_projected_m同步更新；z和垂直声明不变。保留原床/重基准床摘要、原/新原点、平移量、实际坐标操作与缺测，没有仅改标签、重新采样平床或静默resize。投影米单位不意味着地面比例为1，当前动力在该局部投影米平面求解，不是全球球面缆动力。
+
+设窗口开始真实制造顶站K0、自然库存L，原点O=K0−L必须非负；初始船端为K0、固定端为O、初始新放缆为0。库存来自实际SLD区间，湿重/EA/质量及附属体与共享实物逐项相符；缺物性、库存不足和不支持有限体拒绝。L可以包含真实床接触段，不能在首块重复放出。以后材料顶站只随实际指令放缆积分增加，规划route KP、制造站位、源时间与本地动力时间分开保存。
+
+返回plan_mapping的schema为 `oceanroute.plan-voyage-mapping`、新分支schema_version=2；旧解析分支仍为1。保存原工程摘要、完整source_simulation、制造区段、初始库存/原点、源时间窗、真实局部指令、原床/地理重基准和实际初态预备proof。read_plan_mapping除checksum外重新核对原床到局部的真实转换、源输入、边界/自然长/初始top、控制与proof诊断，启动和每个保存分块都校核当前实际材料与时基。固定锚与计划目标TD的实际偏差保留为诊断，不把锚调整到目标，也不把悬空固定端当成TD。
+
+预备层真实求平衡并按独立额度记录，首次动力再从raw输入验收，后续分块继续真实状态；它不是把预备proof伪装成可恢复checkpoint。voyage外层checkpoint仍为schema1，内部物理状态可以为schema3；workspace schema2、plan mapping schema2和物理schema3含义不同。恢复非空工程必须匹配保存摘要，空工程显式用原快照；超出预备指令窗、改物性或错库存拒绝。总work不足、节点/覆盖/容量限制导致真实停止或失败，不暗中放宽额度或标completed。
+
+该分支解除的是显式变深床**初态**限制，ShipPlan船位/触地点偏移仍是局部平床first-cut，返回 `PLAN_OFFSETS_REMAIN_FLAT_LOCAL_FIRST_CUT`。不能以一次曲床平衡宣称整个移动施工计划已达到变床准稳态。二维床禁止旧平床粗化，复杂海区长航程和累计误差控制仍未验证。详细旧合同见 `PLAN_VOYAGE_NOTES.md`，新地理/库存独立审核见 `PLAN_EQUILIBRIUM_REVIEW.md` 与 `DEVELOPMENT_0.6.md`。
+
 ## 8. 保存、文件和界面一致性
 
 workspace_terrain接收合法旧工作区、新来源草稿及可选未提交路径草稿，在副本中完成全部目标真实查询、剖面绑定、Path Link/固定域校核和制造关系校核。来源摘要变化时，来源绑定和柔性底余缆路径不得漏选；共享装配须所有关联路径所需实物一致才更新一次，分歧不自动fork。preserve政策不允许量变。任一失败不返回部分workspace/project/analysis，只保留实际采样和拒绝诊断；全部通过后才能明确应用完整候选，并由原SQLite修订事务保存。完整输入签名含工作区修订、来源及所有草稿，任何改变使旧候选失效。默认50k站点、60M查询工作、32MiB输出另有硬上限和最终真实字节检查，详见 `WORKSPACE_TERRAIN_NOTES.md`。
@@ -171,11 +206,21 @@ HTTP 的 `POST /api/workspace/migrate`、`POST /api/workspace/action` 和 `POST 
 
 界面以完整workspace和活跃draft作为一个document状态；草稿经update_path校核后再物化，切换/保存/完整导出先提交草稿。共享关联拒绝时保留草稿，明确fork或撤销，不覆写合法库存。响应对应输入快照，防慢响应覆盖新状态；制造关系未通过时不允许保存为已接受工程。撤销/重做覆盖整个document，与数据库修订分开。各路径地图用同次分析的真实route_geometry与日期线segments；Seismic三维显示实际稳态节点和完整观测点，未测轴不伪造。
 
+App.applyProjectedEdit只接收当前完整document快照及当前路径ID对应的草稿，useWorkspaceDocument.flush通过update_path/auto_exclusive和完整shared校核提交；慢响应发现document已变即重新处理当前草稿，不用旧结果覆盖新状态。App.replaceWorkspaceCandidate对完整地形候选还核对workspace身份、saved_revision及草稿快照，全部通过才一次替换完整workspace并清draft。保存期间若仍有新草稿，返回的新saved_revision更新为当前修订基线而不覆写新编辑；多窗口旧修订失败保留草稿。共享库、装配、其他路径及未知扩展仍归完整source所有，不用活跃路径浅拷贝重建工作区。
+
+界面结构适配器只补足渲染必需的合法缺省结构，不编造湿重、EA、直径、测深或制造量；合法空工作区显示专用资源/修订页面。初态预备、静力转动态和地理窗口均与当前工程及完整raw输入绑定，修改输入后隐藏旧形状/禁旧下载，迟到成功或失败不替换当前证据。任务取消、恢复与checkpoint下载还绑定任务ID/请求序列；切任务后不得显示另一任务的取消/父子关系或状态下载。实际响应竞态与完整事务专项见 `PHYSICS_UI_INDEPENDENT_REVIEW.md`、`DEVELOPMENT_0.6.md`。
+
 Voyage后台单工作线程、最多四个运行/排队任务，以规范UUID定位有限JSON文件。文件fsync、随机独占临时文件、原子replace及POSIX目录fsync保护已完成chunk；重启从实际checkpoint/result校验并重建状态，坏status隔离。跨进程目录锁直到所有写者退出才释放，未启动的API对象惰性不抢锁。取消停于完整chunk，恢复建立新任务并保留parent_job_id；预算/容量停止与失败不伪装完成。默认保存任务250个、数据1GB，降低配额后仍可读/删旧任务；元数据64KB独立限制。主算/两个probe都在剩余工作预算预检，帧只保留真实采样。模型checkpoint带方法标识与SHA256，旧开发方法不兼容时拒恢复。HTTP合同与耐久测试见 `VOYAGE_NOTES.md`、`VOYAGE_JOB_REVIEW.md`；Windows/断电/网络盘尚无实机验证。
 
 ## 9. 验证与后续工程证据
 
 验证层次为解析/测地基准、材料/费用不变量、缺测/失效、文件生命周期、API集成及浏览器操作。覆盖日期线、剖面山谷、缆型转换点附加量、有限体跨度、平衡/接触和真实下载；通过测试不证明实海误差或未覆盖规模。
+
+0.6版本完整后端实际1200项通过，pytest记录56.28秒、进程wall time 57.024秒，0失败/跳过；源码摘要和完整输出保存在 `resources/validation/release_0.6_backend.json`。锚端距离标签修正前的发行复核中，同源编译浏览器74项实际通过，217.425038秒，单worker、retries=0、无失败/跳过/flaky；8份HTTP资源与当时编译文件逐字节一致。该轮保存在 `release_0.6_pre_anchor_label_browser.json`，不替代最终包对应的生产门禁。浏览器、HTTP资源、wheel/portable首装及PDF各有独立验收，具体对象、次数、时长和摘要由 `RELEASE_NOTES.md` 的实际发行记录给出，不能用后端或浏览器门禁推定安装/PDF通过。
+
+在此之前的独立开发门禁也有1200后端通过，完整wall time未记录；8767同源编译浏览器74项通过，216.018431秒，单worker、retries=0、无失败/跳过/flaky。它覆盖真实平衡初态/静力转动态、地理持久窗口/子任务恢复、投影编辑/修订冲突及迟到响应；8份实际HTTP静态资源与该次编译逐字节匹配，场景图例经真实浏览器边界断言和截图检查。证据为 `development_0.6_backend_validation.json`、`development_0.6_browser.json`、`development_0.6_served_assets.json` 和 `development_0.6_verified_runtime.json`。这些是历史开发证据，不与正式门禁相加，不替代新包首装；专项数量也已包含于各自总数。
+
+历史0.5及更早计数和冻结产物不替代本轮新源码，也不能被新门禁回写成历史包内容。Windows/Linux实机、断电/网络盘及现场原厂/工程精度仍没有验证；当前模型接受状态和本机数值/界面门禁不能作这些结论。
 
 0.5冻结源码的完整后端1113项通过，48.82秒，测试期间后端源码/测试/版本摘要不变。其中Calculator自有71项与独立33项已包含于1113，不再叠加；独立验证使用自然材料ODE/连续积分、公开平床图例、两种负坡导数顺序、最低EA大伸长、近峰多解、覆盖拒绝和实际HTTP。正式浏览器、PDF、wheel外目录运行及全新安装证据分别记录在 `RELEASE_NOTES.md`，不能以此后端结果代替。
 
