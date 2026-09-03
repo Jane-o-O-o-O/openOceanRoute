@@ -1,5 +1,46 @@
 # OceanRoute 验证与发行进度
 
+## 0.6阶段发行
+
+2026-10-04。0.6新增投影画布实际点位编辑、完整二维定端平衡动态初态、静力输入显式转动态草稿、地理计划/制造库存桥接及任务切换保护。提供含编译界面的源码便携包、wheel和版本PDF；完整原厂功能、原生文件、设备和海试精度仍未完成。0.1至0.5冻结发行物及历史摘要保持不变。
+
+### 新增行为与范围
+
+- 投影画布在CRS原生单位下实际拖点、末端追加和删除，真实反算WGS84，再经制造域和完整工作区事务核验；一次提交对应一次完整撤销。Fixed Sliding保留实物KP入口，制造域启用时结构增删拒绝，共享量变不静默fork。输入、路径、完整草稿或修订变化时丢弃迟到响应。
+- 定端初态使用完整床格、真实船锚端、自然库存或逐段自然长，独立求解并校核材料、受力及完整直段。零初速度进入实际预应力v4积分，schema3恢复复核原proof而不重跑静力；无接触TD和底张力为null，离床锚另列。初始活动区间仍限同湿重/EA、EI=0、无已部署实体/流/波，未来混材/实体部署不等于已实现异质初始平衡。
+- 静力转动态只生成显式草稿，节点仅作数值seed，动态按更严格容限重新求解，不把accepted或显示帧当checkpoint。
+- 地理床格、船锚和数值seed实际共同水平重基准，Z和声明垂直基准不变。schema2映射绑定初始自然库存、完整来源/物料/proof、计划控制和时间窗口；O=初始制造顶站−自然库存≥0，首块不重复投库存。原移动ShipPlan偏移仍是局部平床初估，不认证曲床目标跟随。schema2摘要明确标为“初始锚端与计划目标距离”，不把固定锚距离当实际触点误差。
+- cancel/resume/checkpoint迟到响应绑定实际任务ID，切换任务后不替换新任务证据、不下载旧断点；真实子任务保留在后台。
+
+步骤见 [用户手册](USER_MANUAL.md)，架构、力学和保存合同见 [设计文档](DESIGN.md)、[初始化说明](INITIAL_EQUILIBRIUM_NOTES.md) 和 [地理/制造独立审查](PLAN_EQUILIBRIUM_REVIEW.md)。两个随包JSON为明确合成API请求，不是现场测量、工作区文件或恢复状态。
+
+### 本版实际验证
+
+| 验证 | 实际结果 |
+|---|---|
+| 全部开发后端 | 1200通过，56.28秒；命令wall time 57.024秒 |
+| 最终同源生产浏览器 | 74通过，219.128260秒；8768、单worker、0失败/跳过/flaky/重试；已含锚端标签语义断言 |
+| 实际HTTP编译文件 | 8份文件与当前构建、内置静态资源、默认源码界面逐字节一致 |
+| wheel外源码目录 | 27模块真实wheel来源，旧/新API、初态、地理库存、关闭重开及子任务续算通过；2.254535秒，使用现有解释器依赖 |
+| 便携包全新首装 | 启动器创建全新环境、联网安装、HTTP界面/真实分析及两个新物理算例通过；隔离1200项后端66.54秒，整体101.53秒 |
+| 正式PDF | 用户手册14页、设计13页，全部27页实际渲染并交叉逐页视觉检查通过 |
+
+浏览器最终资源为 `index-0s_eXLiD.js` 与 `index-j8pAS7aI.css`。标签修正前74项217.425038秒保留为 `release_0.6_pre_anchor_label_browser.json`；发行前8767开发74项216.018431秒亦为独立历史记录，均不与最终74累计。独立初态19项、地理/制造26项已含于1200，投影6项、初态UI4项及任务响应3项已含于74，不再加总。
+
+实测macOS/Python3.13.9/Chrome。包仍要求Python3.10+和首次依赖联网，不是免Python的exe/app；Windows/Linux与Python3.10实机未验收。全新环境有一条测试客户端依赖弃用提醒，未影响运行。平台、真实依赖版本与完整输出保存在首装报告。
+
+报告为 `resources/validation/release_0.6_backend.json`、`release_0.6_browser.json`、`release_0.6_served_assets.json`、`release_0.6_wheel_smoke.json`、`release_0.6_portable_smoke.json` 和 `release_0.6_pdf_qa.json`。完整浏览器JSON逐项确认所有74个actual result一次passed，没有仅凭总摘要计数。
+
+### 发行对象与封装证据
+
+产物为 `outputs/releases/OceanRoute-0.6-portable.zip`、`oceanroute-0.6.0-py3-none-any.whl`、`output/pdf/OceanRoute_用户手册_0.6.pdf` 和 `OceanRoute_设计文档_0.6.pdf`。预览为 <http://127.0.0.1:8768>；解压后运行 `python3 launcher.py`（Windows用 `py launcher.py`），默认8765。第一份真实首装ZIP的大小/SHA和185份实际运行输入保存在 `release_0.6_initial_archive.json`。
+
+最终封装仅刷新文档、PDF、报告、截图和发行工具：169份运行/测试/界面/配置/新示例源码、8份编译资源、内置手册、启动器与旧示例共185份文件保持与真实首装包完全相同，见 `release_0.6_verified_runtime.json`。新ZIP收入本版63份截图/浏览器证据，不反复打入所有历史PNG；历史图片仍在源码仓库和相应冻结旧包，旧产物不被修改。原厂PDF、开发者数据库、缓存或环境不进入发行包。
+
+`scripts/audit_release.py`独立核对所需全部成员集合、规范路径/CRC、全部源码字节、wheel package精确集合/RECORD、ZIP与wheel同包内容、审计报告自身字节及19份历史产物。完整审计结果见 `release_0.6_artifact_audit.json`；外部 `outputs/releases/manifest-0.6.json`记录最终大小/SHA256，避免总包摘要自引用。`--verify-only`可在报告嵌入后只读核查，不改写证据。
+
+[异质初态方案](HETEROGENEOUS_INITIAL_SCOPE.md)仅为下一阶段准备，不是已实现能力。初始异质w/EA/点实体、EI/力矩、流波准稳态、摩擦加载历史、尺寸/刚体接触、复杂床长航程误差、原厂native/黄金基准与设备/现场比较仍待推进；accepted、守恒残差和内部work不能当作工程认证或Token费用。
+
 ## 0.5阶段发行
 
 2026-10-04。0.5新增真实投影地图、整工程地形更新、坡床/变深定端静力及四边界悬链线Calculator。提供源码便携包、内置界面的wheel和两份版本PDF；完整原厂功能、设备接入、原生文件及海试精度仍未完成。0.1至0.4包与0.4 PDF保持冻结。
