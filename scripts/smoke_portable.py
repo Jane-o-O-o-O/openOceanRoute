@@ -68,6 +68,33 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                 with urllib.request.urlopen(request, timeout=10) as response:
                     analysis = json.load(response)
                 assert analysis["summary"]["surface_length_m"] > 0
+                physical_examples = {}
+                if tuple(map(int, expected_version.split("."))) >= (0, 6, 0):
+                    # Execute the shipped inputs through the freshly installed
+                    # HTTP server, rather than trusting source-tree imports.
+                    for filename, endpoint in (
+                        ("initial-equilibrium-dynamic.json", "/api/simulation/dynamic"),
+                        ("geographic-equilibrium-voyage.json", "/api/shipplan/prepare-voyage"),
+                    ):
+                        payload = (checkout / "examples" / filename).read_bytes()
+                        request = urllib.request.Request(url + endpoint, payload,
+                                                         {"Content-Type": "application/json"})
+                        with urllib.request.urlopen(request, timeout=30) as response:
+                            result = json.load(response)
+                        if filename.startswith("initial-"):
+                            assert result["model"] == "material-lumped-mass-xpbd-cable-lay-v4"
+                            assert result["checkpoint"]["schema_version"] == 3
+                            assert result["initialization"]["source"] == "oceanroute.static_bathymetry.static_equilibrium"
+                            assert result["summary"]["paid_out_m"] == 0
+                            assert result["summary"]["initial_material_length_m"] == 20
+                            assert result["frames"][-1]["touchdown"] is None
+                        else:
+                            assert result["mapping"]["schema_version"] == 2
+                            assert result["mapping"]["initial_natural_length_m"] == 20
+                            assert result["config"]["simulation"]["initial_equilibrium"]
+                            assert result["mapping"]["initial_equilibrium_preparation"]["provenance"]
+                        physical_examples[filename] = {"endpoint": endpoint, "http_status": 200,
+                                                       "model": result["model"]}
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -99,6 +126,7 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                   "python": sys.version.split()[0], "clean_venv": True,
                   "launcher_install": True, "http_health": health,
                   "http_ui": True, "real_analysis": True,
+                  "synthetic_physical_http_examples": physical_examples,
                   "tests_output": tests.stdout.strip(), "versions": json.loads(versions),
                   "wall_time_s": round(time.monotonic() - started, 2)}
         if report is not None:

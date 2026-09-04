@@ -38,6 +38,7 @@ from oceanroute.api import create_app
 from oceanroute.storage import ProjectStore
 from oceanroute.voyage import read_voyage_checkpoint
 from oceanroute.checkpoints import read_checkpoint
+from oceanroute.plan_voyage import read_plan_mapping
 
 root = pathlib.Path.cwd().resolve()
 expected_version = sys.argv[1]
@@ -53,7 +54,8 @@ for name in ("oceanroute", "oceanroute.api", "oceanroute.storage",
              "oceanroute.bathymetry", "oceanroute.terrain_bathymetry",
              "oceanroute.map_projection", "oceanroute.workspace_terrain",
              "oceanroute.static_bathymetry",
-             "oceanroute.catenary_calculator"):
+             "oceanroute.catenary_calculator", "oceanroute.initial_equilibrium",
+             "oceanroute.plan_equilibrium_frame"):
     module = importlib.import_module(name)
     location = pathlib.Path(module.__file__).resolve()
     assert location.is_relative_to(root), (name, str(location), str(root))
@@ -94,6 +96,39 @@ def wait_completed(client, identifier, timeout_s=20):
             return job
         time.sleep(.02)
     raise AssertionError("Actual background job did not complete within the smoke deadline: " + identifier)
+
+
+def json_roundtrip(value):
+    # Persist/reload actual finite JSON rather than sharing in-memory arrays.
+    return json.loads(json.dumps(value, allow_nan=False))
+
+
+def assert_equilibrium_checkpoint(checkpoint, grid, origin_m, initial_length_m):
+    read_checkpoint(checkpoint)
+    assert checkpoint["schema_version"] == 3
+    assert checkpoint["model"] == "material-lumped-mass-xpbd-cable-lay-v4"
+    assert checkpoint["numerical"]["scheme"] == "implicit-compliant-material-nodes-equilibrium-prestress-v4"
+    assert checkpoint["config"]["seabed_grid"] == grid
+    state = checkpoint["state"]
+    proof = state["initialization_provenance"]
+    assert proof["schema"] == "oceanroute.dynamic.initial-equilibrium.provenance.v1"
+    assert proof["verification"]["accepted"] and proof["solver"]["accepted"] and proof["solver"]["converged"]
+    assert proof["loading_history_reconstructed"] is False
+    assert proof["initial_time_s"] == proof["initial_paid_out_m"] == 0
+    assert math.isclose(proof["initial_material_length_m"], initial_length_m, abs_tol=1e-10)
+    assert math.isclose(state["initial_material_length_m"], initial_length_m, abs_tol=1e-10)
+    assert math.isclose(sum(state["rest_lengths_m"]), initial_length_m+state["paid_out_m"], abs_tol=1e-9)
+    assert math.isclose(state["node_material_m"][-1], origin_m, abs_tol=1e-10)
+    assert math.isclose(state["node_material_m"][0], origin_m+initial_length_m+state["paid_out_m"], abs_tol=1e-9)
+    return proof
+
+
+def assert_same_physical_state(actual, expected):
+    # Retain the strict existing 2D continuation tolerances for the new model.
+    for key in ("positions", "velocities", "rest_lengths_m", "node_material_m", "node_mass_kg",
+                "node_seabed_normal", "node_contact_normal_impulse_n_s", "node_contact_friction_impulse_n_s"):
+        assert np.allclose(np.asarray(actual["state"][key]), np.asarray(expected["state"][key]),
+                           rtol=1e-9, atol=1e-8), key
 
 
 store_path = root / "data" / "smoke.sqlite3"
@@ -404,6 +439,90 @@ with TestClient(app) as client:
     assert 2 < curved_result["summary"]["contact_nodes"] < 18
     assert curved_result["segment_clearance"]["minimum_clearance_m"] >= -1e-6
 
+    # A wholly embedded fixed-end research case uses the actual raw initializer,
+    # not examples from the checkout or a trusted accepted/display-node object.
+    # The explicit fixed anchor is 10m ABOVE the bed and therefore is not TD.
+    equilibrium_grid = {"schema": "oceanroute.bathymetry.v1", "x_m": [-50., 0., 50.],
+        "y_m": [-50., 0., 50.], "z_m": [[-20., -20., -20.] for _ in range(3)],
+        "source": {"name": "explicit synthetic wheel fixed-end case; not a survey",
+        "horizontal_crs": "LOCAL_CARTESIAN_METRES", "origin_projected_m": [0., 0.],
+        "vertical_datum": "synthetic heights already aligned to model sea z=0"}}
+    equilibrium_simulation = {"seabed_grid": equilibrium_grid, "depth_m": 20.,
+        "wet_weight_n_m": 4., "diameter_m": .02, "ea_n": 100000., "ei_n_m2": 0.,
+        "mass_kg_m": .7298997321841252, "nodes": 11, "ship_speed_m_s": 0., "payout_m_s": 0.,
+        "heading_deg": 90., "current_x_m_s": 0., "current_y_m_s": 0.,
+        "duration_s": .2, "dt_s": .05, "internal_dt_s": .01, "solver_iterations": 24,
+        "seabed_friction": .4, "damping_ratio": .03, "initial_suspended_material_m": 7.,
+        "checkpoint_times_s": [0., .1],
+        "initial_equilibrium": {"schema": "oceanroute.dynamic.initial-equilibrium.v1",
+            "vessel_position_m": [0., 0., 0.], "anchor_position_m": [-15., 0., -10.],
+            "natural_length_m": 20.}}
+    equilibrium_project = {"schema_version": 1, "crs": "EPSG:4326",
+        "name": "synthetic API envelope; geometry is not inferred as a dynamic initial state",
+        "route": {"points": [{"longitude": 0., "latitude": 0., "depth_m": 20.},
+                             {"longitude": .001, "latitude": 0., "depth_m": 20.}]},
+        "cable_types": [], "bodies": []}
+    fixed_preparation = post_json(client, "/api/simulation/prepare-equilibrium-initial", {
+        "project": equilibrium_project, "config": equilibrium_simulation})
+    assert fixed_preparation["provenance"]["verification"]["accepted"]
+    assert fixed_preparation["solver"]["accepted"] and fixed_preparation["solver"]["converged"]
+    assert math.isclose(sum(fixed_preparation["rest_lengths_m"]), 20., abs_tol=1e-12)
+    assert math.isclose(fixed_preparation["initial_material_length_m"], 20., abs_tol=1e-12)
+    assert fixed_preparation["positions"][0] == [0., 0., 0.]
+    assert fixed_preparation["positions"][-1] == [-15., 0., -10.]
+    fixed_full = post_json(client, "/api/simulation/dynamic", {"project": {}, "config": equilibrium_simulation})
+    assert fixed_full["model"] == "material-lumped-mass-xpbd-cable-lay-v4"
+    assert fixed_full["solver"]["converged"]
+    fixed_proof = assert_equilibrium_checkpoint(fixed_full["checkpoint"], equilibrium_grid, 7., 20.)
+    assert fixed_full["initialization"] == fixed_proof
+    fixed_first = fixed_full["frames"][0]
+    assert fixed_first["time_s"] == fixed_first["paid_out_m"] == 0
+    assert fixed_first["node_material_m"][0] == 27. and fixed_first["node_material_m"][-1] == 7.
+    assert np.allclose(fixed_first["nodes"], fixed_preparation["positions"], rtol=0, atol=1e-9)
+    assert np.allclose(fixed_first["node_velocity_m_s"], 0, rtol=0, atol=0)
+    assert np.allclose(fixed_first["node_contact_normal_impulse_n_s"], 0, rtol=0, atol=0)
+    assert all(frame["touchdown_detected"] is False and frame["touchdown"] is None
+               and frame["touchdown_node_index"] is None and frame["bottom_tension_n"] is None
+               and frame["anchor_position_m"] == [-15., 0., -10.]
+               and frame["anchor_segment_tension_n"] > 0 for frame in fixed_full["frames"])
+    # Reconstruct wet loads and Hooke forces directly from public geometry and
+    # natural lengths. No static/dynamic helper supplies the expected forces.
+    fixed_rest = np.asarray(fixed_proof["initial_snapshot"]["rest_lengths_m"])
+    fixed_halves = np.r_[fixed_rest[0]/2, (fixed_rest[:-1]+fixed_rest[1:])/2, fixed_rest[-1]/2]
+    assert np.allclose(fixed_first["node_wet_weight_n"], 4*fixed_halves, rtol=0, atol=1e-10)
+    assert np.allclose(fixed_first["node_dry_mass_kg"], equilibrium_simulation["mass_kg_m"]*fixed_halves,
+                       rtol=0, atol=1e-10)
+    fixed_delta = np.diff(np.asarray(fixed_first["nodes"]), axis=0)
+    fixed_chords = np.linalg.norm(fixed_delta, axis=1)
+    fixed_tension = 100000.*np.maximum(fixed_chords/fixed_rest-1, 0)
+    assert np.allclose(fixed_first["segment_tension_n"], fixed_tension, rtol=1e-9, atol=1e-7)
+    fixed_internal = np.zeros_like(np.asarray(fixed_first["nodes"]))
+    fixed_internal[:-1] += fixed_tension[:, None]*fixed_delta/fixed_chords[:, None]
+    fixed_internal[1:] -= fixed_tension[:, None]*fixed_delta/fixed_chords[:, None]
+    fixed_internal[:, 2] -= 4*fixed_halves
+    assert np.max(np.linalg.norm(fixed_internal[1:-1], axis=1)) <= fixed_proof["verification"]["force_tolerance_n"]+1e-7
+    assert fixed_proof["verification"]["minimum_node_clearance_m"] > 0
+    assert fixed_full["summary"]["paid_out_m"] == 0
+    assert fixed_full["summary"]["material_balance_residual_m"] < 1e-9
+    fixed_saved = json_roundtrip(next(cp for cp in fixed_full["checkpoints"] if cp["time_s"] == .1))
+    assert_equilibrium_checkpoint(fixed_saved, equilibrium_grid, 7., 20.)
+    fixed_resumed = post_json(client, "/api/simulation/dynamic", {
+        "project": {}, "config": {"resume_state": fixed_saved, "duration_s": .1}})
+    assert_same_physical_state(fixed_resumed["checkpoint"], fixed_full["checkpoint"])
+    assert fixed_resumed["checkpoint"]["state"]["initialization_provenance"] == fixed_proof
+    fixed_resume_work = fixed_resumed["solver"]["initialization_work"]
+    assert fixed_resume_work["static_optimizer_run_this_call"] is False
+    assert fixed_resume_work["estimated_work_units_this_run"] == 0
+    assert fixed_resume_work["checkpoint_proof_verification_work_this_run"] > 0
+    invalid_initializer = deepcopy(equilibrium_simulation)
+    invalid_initializer["initial_equilibrium"]["accepted"] = True
+    reject_json(client, "/api/simulation/dynamic", {"config": invalid_initializer})
+    invalid_initializer = deepcopy(equilibrium_simulation)
+    invalid_initializer["initial_equilibrium"]["solver"] = {"max_work_units": 1}
+    insufficient_initial_work = reject_json(client, "/api/simulation/prepare-equilibrium-initial", {
+        "project": equilibrium_project, "config": invalid_initializer})
+    assert "declared max_work_units" in json.dumps(insufficient_initial_work), insufficient_initial_work
+
     # Make a real source-derived mechanical grid. The explicit sea-surface
     # height h=.75 in the source datum must translate 12m depth to z=-12.75m.
     # This is a small aligned synthetic case, not a tidal model or shipplan
@@ -565,6 +684,117 @@ with TestClient(app) as client:
         assert "saved planning mapping" in json.dumps(rejected), rejected
     reject_json(client, "/api/voyage/run", {"project": stale_project, "config": prepared["config"]})
 
+    # Separate geographic, variable-bed preparation. These payloads are embedded
+    # here because examples are intentionally not shipped in the wheel. Natural
+    # stock20 is already active; only the new plan payout may advance its top KP.
+    geographic_project = deepcopy(planned_project)
+    geographic_project["name"] = "Explicit synthetic wheel geographic equilibrium; not a survey"
+    geographic_project["route"]["points"][-1]["depth_m"] = 11.
+    geographic_project["cable_types"][0]["ea_n"] = 100000.
+    geographic_grid = {"schema": "oceanroute.bathymetry.v1", "x_m": [-200., 0., 200.],
+        "y_m": [-100., 0., 100.], "z_m": [[-30., -29., -30.], [-30., -30., -30.], [-30., -31., -30.]],
+        "source": {"name": "explicit synthetic wheel projected variable bed; not a survey",
+        "horizontal_crs": "EPSG:3857", "origin_projected_m": [11., -7.],
+        "vertical_datum": "synthetic heights already aligned to model sea z=0"}}
+    geographic_config = {"plan": {"bottom_tension_n": 10., "sample_spacing_m": 30.},
+        "duration_s": .12, "simulation": {"nodes": 10, "internal_dt_s": .01,
+        "dt_s": .02, "solver_iterations": 24},
+        "voyage": {"adaptive_mesh": {"enabled": False}, "chunk_duration_s": .02,
+        "max_total_work_units": 120000000, "max_chunks": 16,
+        "max_output_frames": 32, "max_mesh_records": 16},
+        "seabed_grid": geographic_grid,
+        "equilibrium_start": {"anchor": {"longitude": math.degrees(14./6378137),
+        "latitude": 0., "z_model_m": -10.}, "vessel_z_m": -2., "natural_length_m": 20.}}
+    geographic_prepared = post_json(client, "/api/shipplan/prepare-voyage", {
+        "project": geographic_project, "config": geographic_config})
+    geographic_mapping = geographic_prepared["mapping"]
+    assert geographic_mapping["schema_version"] == 2
+    assert geographic_mapping["initial_state"] == "verified-discrete-equilibrium-zero-velocity"
+    read_plan_mapping(json_roundtrip(geographic_mapping))
+    assert geographic_mapping["source_plan_start_s"] > 0
+    assert geographic_mapping["manufacturing_origin_m"] == 0
+    assert math.isclose(geographic_mapping["initial_natural_length_m"], 20., abs_tol=1e-10)
+    assert math.isclose(geographic_mapping["initial_manufacturing_top_m"], 20., abs_tol=1e-10)
+    # Derive the actual starting geographic vessel from the public equatorial
+    # instruction and declared stock, then use the analytic Mercator formula.
+    # Neither tested frame/CRS helper generates this expected origin or shift.
+    initial_instruction = next(row for row in geographic_prepared["plan"]["instructions"]
+        if row["cable_start_m"] <= 20. <= row["cable_end_m"] and row["cable_end_m"] > row["cable_start_m"])
+    initial_fraction = (20.-initial_instruction["cable_start_m"])/(initial_instruction["cable_end_m"]-initial_instruction["cable_start_m"])
+    geographic_instruction_distance = 6378137.*abs(math.radians(
+        initial_instruction["vessel_end"][0]-initial_instruction["vessel_start"][0]))
+    assert initial_instruction["speed_m_s"] == .5 and geographic_instruction_distance > 0
+    # Depth-dependent layback changes the vessel-track length: 2% route slack
+    # is not by itself a .51m/s vessel payout. Use the independently measured
+    # equatorial track and this interval's actual manufacturing stock instead.
+    geographic_expected_rate = (initial_instruction["cable_end_m"]-initial_instruction["cable_start_m"])*.5/geographic_instruction_distance
+    geographic_start_lon = initial_instruction["vessel_start"][0]+initial_fraction*(
+        initial_instruction["vessel_end"][0]-initial_instruction["vessel_start"][0])
+    assert initial_instruction["vessel_start"][1] == initial_instruction["vessel_end"][1] == 0.
+    geographic_absolute = np.array([6378137.*math.radians(geographic_start_lon), 0.])
+    geographic_shift = geographic_absolute-np.array([11., -7.])
+    terrain_frame = geographic_mapping["terrain_frame"]
+    assert terrain_frame["horizontal_crs"] == "EPSG:3857" and terrain_frame["vertical_translation_m"] == 0
+    assert terrain_frame["original_grid"] == geographic_grid
+    assert np.allclose(terrain_frame["origin_projected_m"], geographic_absolute, rtol=0, atol=1e-8)
+    assert np.allclose(terrain_frame["translation_from_original_local_m"], geographic_shift, rtol=0, atol=1e-8)
+    rebased_grid = geographic_prepared["config"]["simulation"]["seabed_grid"]
+    assert np.allclose(rebased_grid["x_m"], np.asarray(geographic_grid["x_m"])-geographic_shift[0], rtol=0, atol=1e-8)
+    assert np.allclose(rebased_grid["y_m"], np.asarray(geographic_grid["y_m"])-geographic_shift[1], rtol=0, atol=1e-8)
+    assert rebased_grid["z_m"] == geographic_grid["z_m"]
+    assert np.ptp(np.asarray(rebased_grid["z_m"])) == 2., "the variable bed must not be flattened"
+    assert np.allclose(rebased_grid["source"]["origin_projected_m"], geographic_absolute, rtol=0, atol=1e-8)
+    geographic_initial = geographic_prepared["config"]["simulation"]["initial_equilibrium"]
+    assert geographic_initial["vessel_position_m"] == [0., 0., -2.]
+    assert np.allclose(geographic_initial["anchor_position_m"],
+                       [14.-geographic_absolute[0], 0., -10.], rtol=0, atol=1e-8)
+    assert math.isclose(geographic_mapping["initial_target_touchdown_residual_m"],
+        math.dist(geographic_mapping["initial_anchor_xy_m"], geographic_mapping["planned_start_touchdown_xy_m"]), abs_tol=1e-9)
+    assert geographic_mapping["initial_equilibrium_preparation"]["provenance"]["verification"]["accepted"]
+    assert "PLAN_OFFSETS_REMAIN_FLAT_LOCAL_FIRST_CUT" in {row["code"] for row in geographic_prepared["warnings"]}
+    geographic_full = post_json(client, "/api/voyage/run", {
+        "project": geographic_project, "config": geographic_prepared["config"]})
+    assert geographic_full["status"] == "completed" and geographic_full["plan_mapping"] == geographic_mapping
+    assert geographic_full["chunks"][0]["solver"]["initialization_work"]["static_optimizer_run_this_call"] is True
+    assert all(row["solver"]["initialization_work"]["static_optimizer_run_this_call"] is False
+               and row["solver"]["initialization_work"]["estimated_work_units_this_run"] == 0
+               for row in geographic_full["chunks"][1:])
+    geographic_physical = geographic_full["checkpoint"]["physical_checkpoint"]
+    geographic_proof = assert_equilibrium_checkpoint(geographic_physical, rebased_grid, 0., 20.)
+    assert geographic_full["frames"][0]["paid_out_m"] == 0
+    assert math.isclose(geographic_full["frames"][0]["material_length_m"], 20., abs_tol=1e-10)
+    assert math.isclose(geographic_full["frames"][0]["node_material_m"][0], 20., abs_tol=1e-10)
+    assert all(frame["touchdown"] is None and frame["bottom_tension_n"] is None
+               and frame["touchdown_detected"] is False and frame["ship"][2] == -2.
+               for frame in geographic_full["frames"])
+    geographic_payout = geographic_mapping["final_manufacturing_top_m"]-20.
+    assert geographic_payout > 0 and math.isclose(geographic_payout, geographic_expected_rate*.12, abs_tol=1e-9)
+    assert math.isclose(geographic_full["summary"]["paid_out_m"], geographic_payout, abs_tol=1e-9)
+    assert abs(geographic_full["summary"]["material_balance_residual_m"]) < 1e-8
+    geographic_job = post_json(client, "/api/voyage/jobs", {"project": geographic_project,
+        "config": {**geographic_prepared["config"], "duration_s": .06}})
+    geographic_parent_id = geographic_job["id"]
+    wait_completed(client, geographic_parent_id)
+    geographic_parent_checkpoint = json_roundtrip(get_json(client,
+        "/api/voyage/jobs/"+geographic_parent_id+"/checkpoint"))
+    read_voyage_checkpoint(geographic_parent_checkpoint)
+    assert geographic_parent_checkpoint["plan_mapping"] == geographic_mapping
+    assert_equilibrium_checkpoint(geographic_parent_checkpoint["physical_checkpoint"], rebased_grid, 0., 20.)
+    assert math.isclose(geographic_parent_checkpoint["physical_checkpoint"]["state"]["paid_out_m"], geographic_expected_rate*.06, abs_tol=1e-9)
+    for change in ("geometry", "properties"):
+        stale_geographic_project = deepcopy(geographic_project)
+        if change == "geometry":
+            stale_geographic_project["route"]["points"][-1]["latitude"] += .001
+        else:
+            stale_geographic_project["cable_types"][0]["ea_n"] *= 2
+        rejected = reject_json(client, "/api/voyage/run", {"project": stale_geographic_project,
+            "config": {"resume_state": geographic_parent_checkpoint, "duration_s": .02}})
+        assert "saved planning mapping" in json.dumps(rejected), rejected
+    unbound_geographic = deepcopy(geographic_config)
+    unbound_geographic["seabed_grid"]["source"]["horizontal_crs"] = "LOCAL_CARTESIAN_METRES"
+    unbound_geographic["seabed_grid"]["source"]["origin_projected_m"] = [0., 0.]
+    reject_json(client, "/api/shipplan/prepare-voyage", {"project": geographic_project, "config": unbound_geographic})
+
 # A second app in the same directory proves lifespan released the writer lock
 # and completed jobs, including the planning map, reload from durable files.
 with TestClient(create_app(ProjectStore(store_path))) as reopened:
@@ -632,6 +862,36 @@ with TestClient(create_app(ProjectStore(store_path))) as reopened:
     reject_json(reopened, "/api/voyage/run", {"project": planned_project,
         "config": {"resume_state": prepared_resumed["checkpoint"], "duration_s": 1}})
 
+    # The new mapping and complete original/rebased terrain survive actual
+    # writer shutdown. The child resumes real state, never static display nodes.
+    assert get_json(reopened, "/api/voyage/jobs/"+geographic_parent_id)["status"] == "completed"
+    recovered_geographic = get_json(reopened, "/api/voyage/jobs/"+geographic_parent_id+"/checkpoint")
+    assert recovered_geographic == geographic_parent_checkpoint
+    assert recovered_geographic["plan_mapping"]["terrain_frame"]["original_grid"] == geographic_grid
+    assert recovered_geographic["physical_checkpoint"]["config"]["seabed_grid"] == rebased_grid
+    geographic_continuation = post_json(reopened, "/api/voyage/jobs/"+geographic_parent_id+"/resume", {
+        "duration_s": .06, "chunk_duration_s": .02})
+    geographic_child_id = geographic_continuation["id"]
+    assert wait_completed(reopened, geographic_child_id)["parent_job_id"] == geographic_parent_id
+    geographic_resumed = get_json(reopened, "/api/voyage/jobs/"+geographic_child_id+"/result")
+    assert geographic_resumed["summary"]["start_time_s"] == .06 and geographic_resumed["summary"]["end_time_s"] == .12
+    assert geographic_resumed["plan_mapping"] == geographic_mapping
+    assert all(row["solver"]["initialization_work"]["static_optimizer_run_this_call"] is False
+               and row["solver"]["initialization_work"]["estimated_work_units_this_run"] == 0
+               and row["solver"]["initialization_work"]["checkpoint_proof_verification_work_this_run"] > 0
+               for row in geographic_resumed["chunks"])
+    assert math.isclose(geographic_resumed["summary"]["paid_out_m"], geographic_payout, abs_tol=1e-9)
+    assert abs(geographic_resumed["summary"]["material_balance_residual_m"]) < 1e-8
+    geographic_final_checkpoint = geographic_resumed["checkpoint"]["physical_checkpoint"]
+    assert_equilibrium_checkpoint(geographic_final_checkpoint, rebased_grid, 0., 20.)
+    assert_same_physical_state(geographic_final_checkpoint, geographic_physical)
+    assert geographic_final_checkpoint["state"]["initialization_provenance"] == recovered_geographic["physical_checkpoint"]["state"]["initialization_provenance"]
+    assert all(frame["touchdown"] is None and frame["bottom_tension_n"] is None
+               and frame["touchdown_detected"] is False for frame in geographic_resumed["frames"])
+    read_voyage_checkpoint(json_roundtrip(geographic_resumed["checkpoint"]))
+    reject_json(reopened, "/api/voyage/run", {"project": geographic_project,
+        "config": {"resume_state": geographic_resumed["checkpoint"], "duration_s": .02}})
+
 print(json.dumps(finite({
     "version": oceanroute.__version__, "wheel_module": str(oceanroute.__file__),
     "isolated_modules": modules, "assets": len(assets), "manual": True,
@@ -689,6 +949,32 @@ print(json.dumps(finite({
                           "curved_accepted": curved_result["accepted"],
                           "contact_nodes": curved_result["summary"]["contact_nodes"],
                           "minimum_segment_clearance_m": curved_result["segment_clearance"]["minimum_clearance_m"]},
+    "initial_equilibrium": {"source": "explicit embedded synthetic fixed-end case, not a survey",
+                            "raw_preparation_verified": True, "dynamic_model": fixed_full["model"],
+                            "physical_checkpoint_schema_version": 3, "initial_natural_length_m": 20.,
+                            "initial_manufacturing_origin_m": 7., "initial_manufacturing_top_m": 27.,
+                            "initial_paid_out_m": 0., "off_bed_anchor_not_touchdown": True,
+                            "independent_hooke_force_and_half_weight_reconstruction": True,
+                            "max_initial_free_node_force_residual_n": float(np.max(np.linalg.norm(fixed_internal[1:-1], axis=1))),
+                            "raw_accepted_object_rejected": True, "insufficient_initial_budget_rejected": True,
+                            "json_checkpoint_resume_matches_uninterrupted_state": True,
+                            "resume_static_optimizer_run": fixed_resume_work["static_optimizer_run_this_call"],
+                            "resume_proof_verification_work": fixed_resume_work["checkpoint_proof_verification_work_this_run"]},
+    "geographic_equilibrium_plan": {"source": "embedded synthetic projected variable bed, not a survey",
+                                   "mapping_schema_version": 2, "physical_checkpoint_schema_version": 3,
+                                   "horizontal_crs": "EPSG:3857", "analytic_mercator_origin_checked": True,
+                                   "complete_terrain_translation_checked": True, "model_heights_preserved": True,
+                                   "translation_from_original_local_m": terrain_frame["translation_from_original_local_m"],
+                                   "initial_natural_length_m": 20., "initial_manufacturing_top_m": 20.,
+                                   "initial_manufacturing_origin_m": 0., "initial_paid_out_m": 0.,
+                                   "paid_out_m": geographic_resumed["summary"]["paid_out_m"],
+                                   "initial_inventory_not_repaid": True, "off_bed_anchor_not_touchdown": True,
+                                   "durable_mapping_and_full_terrain_reopened": True,
+                                   "resume_start_s": .06, "resume_end_s": .12,
+                                   "resume_matches_uninterrupted_state": True, "resume_does_not_reoptimize_static_state": True,
+                                   "stale_geometry_rejected": True, "stale_physics_rejected": True,
+                                   "unbound_local_geographic_frame_rejected": True, "prepared_window_overrun_rejected": True,
+                                   "planned_moving_offsets_remain_flat_local_first_cut": True},
     "terrain_sources": {"source": "explicit_synthetic_XYZ_and_Surfer_hole",
                         "sources": len(normalized_sources["sources"]),
                         "query_depths_m": [row["depth_m"] for row in terrain_samples],
