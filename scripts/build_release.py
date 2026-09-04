@@ -65,7 +65,9 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
         if any(package.read(name) != path.read_bytes() for name, path in expected.items()):
             raise RuntimeError("Wheel package bytes differ from current source/static/manual")
     archive = output / f"OceanRoute-{label}-portable.zip"
-    roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", "web/artifacts", "resources/validation"]
+    # Ship this release's reviewed screenshots; older releases retain their
+    # own evidence without duplicating every historical image in each bundle.
+    roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", f"web/artifacts/release-{label}", "resources/validation"]
     files = ["README.md", "pyproject.toml", "launcher.py", "web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts", "web/playwright.config.ts"]
     files += documents
     files += ["resources/research/manual_findings.md", "resources/research/website_findings.md",

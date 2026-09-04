@@ -1,5 +1,6 @@
 """Render the maintained manual and design sources to inspectable Chinese PDFs."""
 import argparse
+import json
 from pathlib import Path
 import re
 from xml.sax.saxutils import escape
@@ -24,7 +25,7 @@ STYLES = {
     "title": ParagraphStyle("title", fontName="OceanCJK", fontSize=28, leading=40, textColor=INK, spaceAfter=16, wordWrap="CJK"),
     "h2": ParagraphStyle("h2", fontName="OceanCJK", fontSize=15, leading=24, textColor=TEAL, spaceBefore=14, spaceAfter=10, wordWrap="CJK", keepWithNext=True),
     "h3": ParagraphStyle("h3", fontName="OceanCJK", fontSize=11.5, leading=20, textColor=TEAL, spaceBefore=10, spaceAfter=8, wordWrap="CJK", keepWithNext=True),
-    "body": ParagraphStyle("body", fontName="OceanCJK", fontSize=10, leading=17, textColor=INK, spaceAfter=9, wordWrap="CJK"),
+    "body": ParagraphStyle("body", fontName="OceanCJK", fontSize=10, leading=17, textColor=INK, spaceAfter=9, wordWrap="CJK", allowWidows=False, allowOrphans=False),
     "small": ParagraphStyle("small", fontName="OceanCJK", fontSize=8.5, leading=14, textColor=MUTED, spaceAfter=8, wordWrap="CJK"),
     "code": ParagraphStyle("code", fontName="OceanCJK", fontSize=8.3, leading=13, textColor=INK, leftIndent=8, rightIndent=8, backColor=colors.HexColor("#EDF4F6"), borderPadding=8, spaceAfter=12, wordWrap="CJK"),
     "cell": ParagraphStyle("cell", fontName="OceanCJK", fontSize=8.5, leading=12, textColor=INK, wordWrap="CJK"),
@@ -39,6 +40,22 @@ def inline(text):
     text = re.sub(r"\*\*(.+?)\*\*", r'<b>\1</b>', text)
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: m[1] if m[1] == m[2] else f"{m[1]} ({m[2]})", text)
     return text
+
+
+def structured_json(value, level=0):
+    """Put object fields on separate lines and keep small scalar arrays intact."""
+    if isinstance(value, dict) and value:
+        prefix = " " * (level + 2)
+        rows = [prefix + json.dumps(k, ensure_ascii=False) + ": " + structured_json(v, level + 2)
+                for k, v in value.items()]
+        return "{\n" + ",\n".join(rows) + "\n" + " " * level + "}"
+    if isinstance(value, list) and value:
+        compact = json.dumps(value, ensure_ascii=False, allow_nan=False)
+        if all(not isinstance(v, (dict, list)) for v in value) and len(compact) <= 80:
+            return compact
+        prefix = " " * (level + 2)
+        return "[\n" + ",\n".join(prefix + structured_json(v, level + 2) for v in value) + "\n" + " " * level + "]"
+    return json.dumps(value, ensure_ascii=False, allow_nan=False)
 
 
 def table(lines, design=False):
@@ -96,7 +113,10 @@ def append_paragraph_group(story, paragraphs, source_line=""):
     while story and isinstance(story[-1], Paragraph) and story[-1].style.name in {"h2", "h3"}:
         headings.insert(0, story.pop())
     flowables = headings + paragraphs
-    group = flowables[0] if len(flowables) == 1 else KeepTogether(flowables)
+    # Keep ordinary short paragraphs intact so references or the final word do
+    # not become an isolated page-top line. Long prose may still split normally.
+    group = (flowables[0] if len(flowables) == 1 and len(source_line) > 600
+             else KeepTogether(flowables))
     group.oceanroute_flowables = flowables
     group.source_line = source_line
     story.append(group)
@@ -134,6 +154,10 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             while index < len(lines) and not lines[index].strip().startswith("```"):
                 block.append(lines[index]); index += 1
             index += 1
+            if language == "json":
+                # Field-per-line formatting keeps quoted JSON keys intact in
+                # rendered text rather than depending on automatic word wrap.
+                block = structured_json(json.loads("\n".join(block))).splitlines()
             if language == "mermaid" and design:
                 story.extend([relations(), Spacer(1, 8)])
             else:
