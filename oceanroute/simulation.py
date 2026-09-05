@@ -446,19 +446,52 @@ class _MaterialModel:
         return np.r_[segment_totals[0]/2, (segment_totals[:-1]+segment_totals[1:])/2, segment_totals[-1]/2]
 
     def loads(self, rest):
-        coordinates = self.origin + np.r_[np.cumsum(rest[::-1])[::-1], 0.]
+        rest = np.asarray(rest, dtype=float)
+        if rest.ndim != 1 or len(rest) == 0 or not np.isfinite(rest).all() or np.min(rest) <= 0:
+            raise ValueError("material natural lengths must be finite and positive")
+        relative_coordinates = np.r_[np.cumsum(rest[::-1])[::-1], 0.]
+        coordinates = self.origin + relative_coordinates
         self.validate_coverage(float(coordinates[0]))
         if len(self.rows) == 1:
             totals = rest[:, None]*self.values[0]
         else:
-            integrals = self._integral(coordinates)
-            totals = integrals[:-1]-integrals[1:]
+            # Integrate only each element's local overlap. Subtracting large
+            # material-prefix totals loses short soft/light elements after a
+            # long stiff/heavy predecessor (even at exactly representable KP).
+            # Keep all overlaps relative to O. Adding O to a short suffix first
+            # rounds away precision even if the declared boundary float itself
+            # is exact. Subtraction of nearby declared endpoints from O keeps
+            # their actual binary value and does not invent survey precision.
+            lower = relative_coordinates[1:, None]
+            starts, ends = self.starts-self.origin, self.ends-self.origin
+            overlap = np.maximum(np.minimum(rest[:, None], ends[None, :]-lower)
+                                 - np.maximum(0., starts[None, :]-lower), 0.)
+            # A fully contained element uses its prescribed natural length,
+            # rather than a rounded difference of two absolute coordinates.
+            full = (starts[None, :] <= lower) & (ends[None, :]-lower >= rest[:, None])
+            overlap[full] = np.broadcast_to(rest[:, None], overlap.shape)[full]
+            covered = np.sum(overlap, axis=1)
+            if not np.allclose(covered, rest, rtol=1e-10, atol=0):
+                raise ValueError("material overlap integration does not cover each natural element")
+            totals = np.array([[math.fsum(float(overlap[i,j]*self.values[j,k]) for j in range(len(self.rows))
+                                         if overlap[i,j] > 0) for k in range(7)] for i in range(len(rest))])
+        if not np.isfinite(totals).all() or np.any(totals[:, :3] <= 0) or np.any(totals[:, 4] <= 0):
+            raise ValueError("material local mass/weight/compliance integrals must be finite and positive")
         effective = totals[:, 1]+self.added*totals[:, 2]
         mass = self._nodes(effective)
         dry = self._nodes(totals[:, 1])
         weight = self._nodes(totals[:, 0])
+        cable_weight = weight.copy()
         drag = .5*self.rho*self._nodes(totals[:, 3])
         segment_ea = rest/totals[:, 4]
+        if not np.isfinite(segment_ea).all() or np.any(segment_ea < min(r['ea_n'] for r in self.rows)*(1-1e-10)) or np.any(segment_ea > max(r['ea_n'] for r in self.rows)*(1+1e-10)):
+            raise ValueError("material harmonic EA is outside finite declared stiffness bounds")
+        if len(self.rows)>1:
+            stiffness = np.array([r['ea_n'] for r in self.rows])
+            local_min = np.min(np.where(overlap>0,stiffness[None,:],np.inf),axis=1)
+            local_max = np.max(np.where(overlap>0,stiffness[None,:],0.),axis=1)
+            if np.any(segment_ea < local_min*(1-1e-10)) or np.any(segment_ea > local_max*(1+1e-10)):
+                raise ValueError("material harmonic EA is outside the actual local overlap stiffness bounds")
         segment_ei = totals[:, 5]/rest
         left, right = segment_ei[:-1], segment_ei[1:]
         bend_ei = np.zeros(len(rest)-1)
@@ -467,20 +500,21 @@ class _MaterialModel:
             rest[:-1][bending_active]/left[bending_active] + rest[1:][bending_active]/right[bending_active])
         body_drag = np.zeros(len(rest)+1)
         body_weights = []
+        body_wet_contributions = []
         for body in self.bodies:
-            coordinate = body["material_m"]
+            coordinate = body["material_m"]-self.origin
             weights = np.zeros(len(rest)+1)
             if body["length_m"] == 0:
-                if coordinates[-1]-1e-8 <= coordinate <= coordinates[0]+1e-8:
-                    j = min(len(rest)-1, max(0, np.searchsorted(-coordinates, -coordinate, side="right")-1))
-                    top_fraction = np.clip((coordinate-coordinates[j+1])/rest[j], 0, 1)
+                if relative_coordinates[-1]-1e-8 <= coordinate <= relative_coordinates[0]+1e-8:
+                    j = min(len(rest)-1, max(0, np.searchsorted(-relative_coordinates, -coordinate, side="right")-1))
+                    top_fraction = np.clip((coordinate-relative_coordinates[j+1])/rest[j], 0, 1)
                     weights[j], weights[j+1] = top_fraction, 1-top_fraction
             else:
-                lower = np.maximum(coordinates[1:], coordinate)
-                upper = np.minimum(coordinates[:-1], coordinate+body["length_m"])
+                lower = np.maximum(relative_coordinates[1:], coordinate)
+                upper = np.minimum(relative_coordinates[:-1], coordinate+body["length_m"])
                 overlap = np.maximum(upper-lower, 0)
                 top_share = np.where(overlap>0,
-                    ((upper-coordinates[1:])**2-(lower-coordinates[1:])**2)/(2*rest), 0)
+                    ((upper-relative_coordinates[1:])**2-(lower-relative_coordinates[1:])**2)/(2*rest), 0)
                 top_share = np.maximum(top_share, 0)
                 weights[:-1] += top_share/body["length_m"]
                 weights[1:] += (overlap-top_share)/body["length_m"]
@@ -490,11 +524,23 @@ class _MaterialModel:
             weight += weights*body["wet_weight_n"]
             body_drag += .5*self.rho*body["drag_coefficient"]*body["drag_area_m2"]*weights
             body_weights.append(weights)
+            body_wet_contributions.append(weights*body["wet_weight_n"])
+        body_wet_weight = np.array([math.fsum(float(row[i]) for row in body_wet_contributions)
+                                    for i in range(len(rest)+1)])
+        weight = np.array([math.fsum((float(cable_weight[i]),float(body_wet_weight[i])))
+                           for i in range(len(rest)+1)])
+        if not np.isfinite(mass).all() or np.min(mass) <= 0 or not np.isfinite(weight).all():
+            raise ValueError("material/body nodal loads must be finite with positive effective mass")
+        absolute_load_scale = math.fsum(float(x) for x in totals[:,0]) + math.fsum(
+            float(np.sum(shares))*abs(body['wet_weight_n']) for body,shares in zip(self.bodies,body_weights))
         return {"coordinates": coordinates, "mass": mass, "dry_mass": dry, "weight": weight,
                 "drag": drag, "body_drag": body_drag, "ea": segment_ea, "ei": bend_ei,
                 "segment_ei": segment_ei,
                 "segment_weight": totals[:, 0]/rest, "segment_diameter": totals[:, 6]/rest,
-                "body_weights": body_weights}
+                "body_weights": body_weights,
+                "segment_cable_wet_weight_n": totals[:,0], "segment_compliance_m_n": totals[:,4],
+                "node_cable_wet_weight_n": cable_weight, "node_body_wet_weight_n": body_wet_weight,
+                "absolute_load_scale_n": absolute_load_scale}
 
     def body_frames(self, positions, loads, contact):
         output = []
@@ -730,7 +776,7 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                           ("node_wet_weight_n","weight"),("segment_ea_n","ea"),("segment_wet_weight_n_m","segment_weight"),
                           ("segment_diameter_m","segment_diameter"),("segment_ei_n_m2","segment_ei"),
                           ("node_cable_drag_factor","drag"),("node_body_drag_factor","body_drag")):
-            if not np.allclose(local[key],saved["arrays"][field],rtol=1e-10,atol=1e-8):
+            if not np.allclose(local[key],saved["arrays"][field],rtol=0 if field=="node_material_m" else 1e-10,atol=1e-8):
                 raise ValueError("checkpoint material properties do not match its saved actual state")
         actual_contact = (p[:,2]<=bed(p)+1e-8).tolist()
         if actual_contact != saved["state"]["contact_mask"]:
@@ -743,13 +789,20 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     frame_estimate = math.ceil(duration / output_dt) + len(checkpoint_times) + 2
     if predicted_nodes > 256:
         raise ValueError("payout would exceed 256 material nodes; reduce duration/payout or initial nodes")
-    material_work = len(material_model.bodies) if payout_total else 0
+    material_work = (len(material_model.bodies)+
+                     (10*len(material_model.rows) if len(material_model.rows)>1 else 0)) if payout_total else 0
     work_estimate = (step_estimate*predicted_nodes*(iterations+material_work)
                      + frame_estimate*predicted_nodes*len(material_model.bodies)
                      +step_estimate*predicted_nodes*6*(int(np.count_nonzero(waves.amplitudes)) if waves is not None else 0))
     equilibrium_dynamics = initialization_provenance is not None or equilibrium_blueprint is not None
+    current_equilibrium_dynamics = (equilibrium_dynamics and
+        c["initial_equilibrium"]["schema"] == "oceanroute.dynamic.initial-equilibrium.v2")
     if equilibrium_dynamics:
-        work_estimate += step_estimate*predicted_nodes*3
+        work_estimate += step_estimate*predicted_nodes*(8*iterations+30 if current_equilibrium_dynamics else 3)
+    if current_equilibrium_dynamics:
+        # Current/tangent, quadratic coefficients, directional 3x3 inverse and
+        # output force fields are actual work, separate from static proof work.
+        work_estimate += frame_estimate*predicted_nodes*30+10*len(c.get("current_profile", []))
     if grid is not None:
         # Each of <=16 local sweeps samples both before and after correction.
         # Also bound other per-step/frame queries, 64 initial projection sweeps
@@ -784,9 +837,25 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
         raise ValueError("checkpoint configuration must be finite serializable JSON") from error
     # Motion/profile tables are repeated in a portable standalone checkpoint;
     # the node-count budget alone would not bound the resulting response size.
-    provenance_volume_bound = (20000+800*n) if equilibrium_blueprint is not None else (len(json.dumps(initialization_provenance,ensure_ascii=False,allow_nan=False).encode("utf-8")) if initialization_provenance is not None else 0)
-    if (configuration_bytes+provenance_volume_bound+predicted_nodes*1024+len(plan)*256+3000)*checkpoint_estimate>16000000:
+    provenance_volume_bound = equilibrium_blueprint["provenance_volume_upper_bound_bytes"] if equilibrium_blueprint is not None else (len(json.dumps(initialization_provenance,ensure_ascii=False,allow_nan=False).encode("utf-8")) if initialization_provenance is not None else 0)
+    standalone_volume_bound = configuration_bytes+provenance_volume_bound+predicted_nodes*1024+len(plan)*256+3000
+    if standalone_volume_bound > 2000000:
+        raise ValueError("standalone checkpoint JSON volume exceeds 2 MB; shorten declarations or motion/profile tables")
+    if standalone_volume_bound*checkpoint_estimate>16000000:
         raise ValueError("saved checkpoint JSON volume exceeds 16 MB; select fewer save times or shorten motion/profile tables")
+    # Body identifiers are actual repeated frame metadata, not unit-cost
+    # labels. Include their escaped UTF-8 byte length as well as bounded finite
+    # numeric fields, every node/frame, duplicated proof and saved checkpoints.
+    try:
+        body_frame_metadata_bound = sum(len(json.dumps({"id":body["id"]},ensure_ascii=False,
+            separators=(",",":")).encode("utf-8"))+1000 for body in material_model.bodies)
+    except (TypeError,ValueError,UnicodeEncodeError,OverflowError,RecursionError) as error:
+        raise ValueError("inline body frame metadata must be finite UTF-8 JSON") from error
+    response_volume_bound = int(frame_estimate*(8192+predicted_nodes*(4096 if current_equilibrium_dynamics else 2048)+body_frame_metadata_bound)
+        +standalone_volume_bound*(1+(checkpoint_estimate if save_all or checkpoint_times else 0))
+        +provenance_volume_bound+configuration_bytes+20000)
+    if response_volume_bound > 64000000:
+        raise ValueError("dynamic response JSON volume exceeds 64 MB; reduce frames/nodes or repeated metadata")
     initialization_work = 0
     if equilibrium_blueprint is not None:
         from .initial_equilibrium import resolve_initial_equilibrium
@@ -817,10 +886,28 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             result["initialization"] = {"method":"horizontal-touchdown catenary back-ray root then local normal projection", "touchdown_depth_m":e["depth"], "max_normal_projection_displacement_m":initial_projection, "slope_equilibrium":False}
             result["warnings"].append(_warning("INITIAL_BATHYMETRY_APPROXIMATION", "The fresh catenary has horizontal touchdown rather than slope equilibrium; interior intersections are normally projected and require a startup settling analysis."))
     if initialization_provenance is not None:
-        result["model"] = "material-lumped-mass-xpbd-cable-lay-v4"
+        result["model"] = ("material-lumped-mass-xpbd-cable-lay-v5" if current_equilibrium_dynamics else
+                           "material-lumped-mass-xpbd-cable-lay-v4")
         result["initialization"] = deepcopy(initialization_provenance)
         result["assumptions"][7] = "Fresh initialization independently solves and verifies a fixed-end natural-material equilibrium before actuation; continuation restores the actual saved dynamic state without rerunning the static optimizer."
-        result["warnings"].append(_warning("STATIC_INITIAL_EQUILIBRIUM_RESEARCH", "Initial equilibrium assumes uniform wet-weight/EA, zero bending and no initially deployed body/current. Frictional loading history is not inferred. Subsequent vessel/feed/heave controls and newly paid material create actual dynamic transients."))
+        initial_loading = ("Actual piecewise material, point loads and declared steady-current cable/body drag are independently solved and verified. "
+            if current_equilibrium_dynamics else
+            "Actual piecewise wet-weight/EA and deployed zero-length point loads are independently solved and verified. "
+            if initialization_provenance['schema'].endswith('provenance.v2') else
+            "The original initial proof uses uniform wet-weight/EA and no initially deployed body. ")
+        result["warnings"].append(_warning("STATIC_INITIAL_EQUILIBRIUM_RESEARCH", initial_loading+
+            ("Initial bending and wave loads are absent; " if current_equilibrium_dynamics else "Initial bending/current/wave loads are absent; ")+
+            "finite-length deployed bodies and frictional loading history are not reconstructed. Subsequent vessel/feed/heave/current controls and newly paid material create actual dynamic transients."))
+    if current_equilibrium_dynamics:
+        from .hydrodynamics import canonical_initial_fluid, HydrodynamicField
+        from .current_dynamics import (current_predictor, stretch_project_blocks,
+                                       bend_project_blocks, project_contact_blocks)
+        # Current controls may legitimately change on resume. The initializer
+        # independently verifies its frozen historical fluid in the raw/proof;
+        # this is the actual fluid to apply to the future dynamic interval.
+        current_fluid = canonical_initial_fluid(c)
+        current_field = HydrodynamicField(current_fluid)
+        result["assumptions"].append("v5 freezes old-state secant direction and quadratic drag magnitudes for each directional semi-implicit step. Axial, bending and contact increments use the same positive 3x3 drag-mass inverse; this is not a fully implicit nonlinear fluid or rod solver.")
     if np.any(local["ei"] > 0) or any(row["ei_n_m2"] > 0 for row in material_model.rows):
         result["assumptions"].append("Bending uses a discrete secant tangent-difference energy; it is an approximate isotropic beam, not a full finite-rotation rod.")
     result["material_coordinate_convention"] = "Material coordinate increases from fixed oldest seabed endpoint toward vessel; initial_suspended_material_m is the bottom origin; vessel coordinate advances by payout."
@@ -847,7 +934,7 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
     if waves is not None:
         result["assumptions"].append("Constant-depth Airy particle velocities modify relative drag. Kinematics above mean sea level are capped at surface values; full cable immersion remains assumed.")
         result["warnings"].append(_warning("LINEAR_WAVE_DRAG_ONLY","Wave acceleration/inertia, breaking, radiation/diffraction, changing immersion and vessel response are not solved; user linear kinematics enter drag only."))
-    numerical = {"scheme":("implicit-compliant-material-nodes-equilibrium-prestress-v4" if equilibrium_dynamics else ("implicit-compliant-material-nodes-2d-contact-v3" if grid is not None else "implicit-compliant-material-nodes-v2")),"output_grid_origin_s":output_origin,
+    numerical = {"scheme":("implicit-compliant-material-nodes-current-equilibrium-prestress-v5" if current_equilibrium_dynamics else "implicit-compliant-material-nodes-equilibrium-prestress-v4" if equilibrium_dynamics else ("implicit-compliant-material-nodes-2d-contact-v3" if grid is not None else "implicit-compliant-material-nodes-v2")),"output_grid_origin_s":output_origin,
                  "internal_dt_s":internal_dt,"output_dt_s":output_dt,"solver_iterations":iterations}
     frames,checkpoints = [],[]
     stats = saved["state"]["statistics"] if saved else {}
@@ -898,6 +985,13 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                         "segment_tension_n":last_tensions.tolist(), "touchdown_detected":bool(len(contact))})
             if not len(contact):
                 row.update({"touchdown":None,"touchdown_node_index":None,"bottom_tension_n":None})
+        if current_equilibrium_dynamics:
+            loading = current_field.loads(p, v, local)
+            row.update({"node_fluid_velocity_m_s":loading["node_current_m_s"].tolist(),
+                        "node_cable_drag_force_n":loading["node_cable_drag_force_n"].tolist(),
+                        "node_body_drag_force_n":loading["node_body_drag_force_n"].tolist(),
+                        "node_total_drag_force_n":loading["node_total_drag_force_n"].tolist(),
+                        "node_cable_tangent":loading["node_tangent"].tolist()})
         if grid is not None:
             _, normals = grid.surface(p)
             row.update({"node_seabed_z_m": bottoms.tolist(), "node_seabed_normal":normals.tolist(),
@@ -983,29 +1077,36 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             mass = local["mass"]
             inv_mass = 1 / mass
             inv_mass[[0, -1]] = 0
-            tangent = np.gradient(p, axis=0)
-            tangent /= np.maximum(np.linalg.norm(tangent, axis=1)[:, None], 1e-12)
-            fluid=currents(p)+(waves.velocity(p,time+h) if waves is not None else 0)
-            relative = fluid - v
-            normal = relative - np.sum(relative*tangent, axis=1)[:, None] * tangent
-            coefficient = local["drag"]
-            normal_speed = np.linalg.norm(normal, axis=1)
-            # Semi-implicit normal drag avoids explicit quadratic-drag instability.
-            drag_factor = h * coefficient * normal_speed / mass
-            v += drag_factor[:, None] * normal / (1 + drag_factor[:, None])
-            if np.any(local["body_drag"]):
-                body_relative = fluid-v
-                body_speed = np.linalg.norm(body_relative, axis=1)
-                body_factor = h*local["body_drag"]*body_speed/mass
-                v += body_factor[:, None]*body_relative/(1+body_factor[:, None])
-            v[:, 2] -= h * local["weight"] / mass
+            if current_equilibrium_dynamics:
+                loading = current_field.loads(old, v, local)
+                old_bed, old_normal = grid.surface(old)
+                v, inverse_blocks, multipliers, contact_multipliers = current_predictor(
+                    old, v, rest, local, loading, old_bed, old_normal, h)
+            else:
+                tangent = np.gradient(p, axis=0)
+                tangent /= np.maximum(np.linalg.norm(tangent, axis=1)[:, None], 1e-12)
+                fluid=currents(p)+(waves.velocity(p,time+h) if waves is not None else 0)
+                relative = fluid - v
+                normal = relative - np.sum(relative*tangent, axis=1)[:, None] * tangent
+                coefficient = local["drag"]
+                normal_speed = np.linalg.norm(normal, axis=1)
+                # Original v2/v3/v4 split remains exact for old checkpoints.
+                drag_factor = h * coefficient * normal_speed / mass
+                v += drag_factor[:, None] * normal / (1 + drag_factor[:, None])
+                if np.any(local["body_drag"]):
+                    body_relative = fluid-v
+                    body_speed = np.linalg.norm(body_relative, axis=1)
+                    body_factor = h*local["body_drag"]*body_speed/mass
+                    v += body_factor[:, None]*body_relative/(1+body_factor[:, None])
+                v[:, 2] -= h * local["weight"] / mass
             p += h * v
             p[0], p[-1] = ship, anchor
-            multipliers = np.zeros(len(rest))
+            if not current_equilibrium_dynamics:
+                multipliers = np.zeros(len(rest))
             bend_multipliers = np.zeros((len(p)-2, 3))
-            if grid is not None:
+            if grid is not None and not current_equilibrium_dynamics:
                 contact_multipliers = np.zeros(len(p))
-            if equilibrium_dynamics:
+            if equilibrium_dynamics and not current_equilibrium_dynamics:
                 # Warm multipliers must carry their actual positional force
                 # kick. Merely assigning lambda would omit/double prestress.
                 # Current Hooke forces are recomputed after any real payout;
@@ -1028,11 +1129,18 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                 p += inv_mass[:,None]*contact_multipliers[:,None]*old_normal
                 p[0],p[-1] = ship,anchor
             for _ in range(iterations):
-                _stretch_project(p, inv_mass, rest, local["ea"], h, multipliers)
+                if current_equilibrium_dynamics:
+                    stretch_project_blocks(p, inverse_blocks, rest, local["ea"], h, multipliers)
+                else:
+                    _stretch_project(p, inv_mass, rest, local["ea"], h, multipliers)
                 if np.any(local["ei"] > 0):
-                    _bend_project(p, inv_mass, rest, local["ei"], h, bend_multipliers)
+                    if current_equilibrium_dynamics:
+                        bend_project_blocks(p, inverse_blocks, rest, local["ei"], h, bend_multipliers)
+                    else:
+                        _bend_project(p, inv_mass, rest, local["ei"], h, bend_multipliers)
                 if grid is not None:
-                    sweeps, _ = grid.project(p, inv_mass, contact_multipliers)
+                    sweeps, _ = (project_contact_blocks(grid, p, inverse_blocks, contact_multipliers)
+                                 if current_equilibrium_dynamics else grid.project(p, inv_mass, contact_multipliers))
                     contact_projection_sweeps += sweeps
                 else:
                     p[1:-1, 2] = np.maximum(p[1:-1, 2], bed(p)[1:-1])
@@ -1141,6 +1249,11 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
                               "internal_dt_cap_s": internal_dt, "max_compliance_residual_m": worst_residual,
                               "effective_internal_dt_cap_s":effective_cap,
                               "estimated_work_units": work_estimate,
+                              "json_volume_bounds":{"standalone_checkpoint_bytes":int(standalone_volume_bound),
+                                  "saved_checkpoint_batch_bytes":int(standalone_volume_bound*checkpoint_estimate),
+                                  "full_response_bytes":response_volume_bound,
+                                  "full_response_limit_bytes":64000000,
+                                  "basis":"conservative preflight using complete configuration/proof and escaped UTF-8 repeated body metadata, bounded nodes/frames/checkpoints; actual serialized size checked before return"},
                               "spatial_residual_tolerance_m": tolerance}})
     if initialization_provenance is not None:
         result["solver"]["initialization_work"] = {"estimated_work_units_this_run":initialization_work,
@@ -1154,6 +1267,8 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             "max_work_units":initialization_provenance["solver"]["max_work_units"]}
         result["solver"]["charged_normalized_work_units"] = work_estimate+initialization_work
     if save_all or checkpoint_times:
+        if len(json.dumps(checkpoints,ensure_ascii=False,allow_nan=False,separators=(",",":")).encode("utf-8")) > 16000000:
+            raise ValueError("saved checkpoint JSON batch exceeds 16 MB despite preflight; select fewer save times")
         result["checkpoints"] = checkpoints
     if grid is not None:
         result["summary"]["contact"] = dict(contact_stats)
@@ -1166,9 +1281,26 @@ def simulate_lay(project: dict, config: dict, *, state_observer=None) -> dict:
             "unit":"normalized node-constraint iteration/material/wave terms plus bilinear node queries; not FLOPs",
             "additional_bilinear_node_query_upper_bound":contact_work_bound,
             "bilinear_queries_per_node_constraint_iteration_cap":32,
-            "additional_prestress_node_force_units_per_step":3 if equilibrium_dynamics else 0,
+            "additional_prestress_node_force_units_per_step":(30 if current_equilibrium_dynamics else 3) if equilibrium_dynamics else 0,
             "additional_prestress_bilinear_queries_per_node_step":1 if equilibrium_dynamics else 0,
             "coverage":"includes dynamics, output/checkpoint queries, bounded initial normal projection and back-ray search; excludes CRS validation, JSON encoding and rendering, whose input/output sizes are separately bounded"}
+    if current_equilibrium_dynamics:
+        result["solver"]["current_integration"] = {
+            "scheme":numerical["scheme"],
+            "predictor":"combined old axial, submerged weight, current drag and unilateral normal support",
+            "constraint_metric":"positive per-node inverse of M*I + h*(Kc*|P(U-v)|*P + Kb*|U-v|*I)",
+            "warmstart":"old physical axial/normal forces already included in predictor; multipliers apply increments only",
+            "fluid_policy":"actual future controls used per interval; original initial fluid remains frozen in raw/proof",
+            "additional_node_force_units_per_step":30,
+            "constraint_block_work_factor_per_iteration":9,
+            "additional_node_output_units_per_frame":30,
+            "limitations":"old-state drag direction/magnitudes and local iterated contact are a semi-implicit split; no fully implicit fluid/rod, friction loading history or field calibration"}
+    try:
+        result_bytes = len(json.dumps(result,ensure_ascii=False,allow_nan=False,separators=(",",":")).encode("utf-8"))
+    except (TypeError,ValueError,UnicodeEncodeError,OverflowError,RecursionError) as error:
+        raise ValueError("dynamic response must contain finite UTF-8 JSON") from error
+    if result_bytes > 64000000:
+        raise ValueError("dynamic response JSON exceeds 64 MB despite preflight; reduce output size")
     return result
 
 
