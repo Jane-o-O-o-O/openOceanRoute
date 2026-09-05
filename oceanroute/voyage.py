@@ -403,12 +403,22 @@ def run_voyage(project, config, *, on_chunk=None, should_cancel=None):
                 if available <= 0:
                     status, reason = "stopped", "mesh_capacity"; break
                 step = min(step, available*parsed["state"]["segment_target_m"]/max_payout*.9)
-            # A conservative work bound includes insertion, outputs, and bodies.
+            # Reserve local interval integration when material feeds. The
+            # shared operator integrates overlaps without large-prefix loss;
+            # its N x M work belongs to the same dynamic chunk budget.
             iterations = settings["solver_iterations"]
             dt = min(settings["internal_dt_s"], settings["dt_s"])
             estimated_nodes = min(256, current_count+math.ceil(max_payout*step/parsed["state"]["segment_target_m"])+2)
-            contact_work = 32*iterations+8 if "seabed_grid" in settings else 0
-            step = min(step, 10_000_000*dt/(estimated_nodes*(iterations+len(settings.get("inline_bodies", []))+1+contact_work)),
+            body_count = len(settings.get("inline_bodies", []))
+            material_count = len(settings.get("material_segments", []))
+            material_work = body_count+(10*material_count if material_count>1 else 0) if max_payout else 0
+            equilibrium = "initial_equilibrium" in settings
+            current_equilibrium = (equilibrium and settings["initial_equilibrium"].get("schema") ==
+                                   "oceanroute.dynamic.initial-equilibrium.v2")
+            contact_work = 32*iterations+(9 if equilibrium else 8) if "seabed_grid" in settings else 0
+            constraint_work = iterations*(9 if current_equilibrium else 1)
+            force_work = (30 if current_equilibrium else 3) if equilibrium else 0
+            step = min(step, 10_000_000*dt/(estimated_nodes*(constraint_work+material_work+body_count+1+force_work+contact_work)),
                        25000*dt, 1900*settings["dt_s"])
             request = {"resume_state": physical, "duration_s": step}
         else:

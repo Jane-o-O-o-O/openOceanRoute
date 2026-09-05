@@ -1,7 +1,8 @@
 """Auditable conversion of manufacturing stock and a ship plan to a lay window.
 
-This prepares an explicitly analytical initial state, not a reconstruction of
-an actual vessel/cable state. Manufacturing and route coordinates remain distinct.
+This prepares an explicit discrete equilibrium or an analytical initial state,
+not a reconstruction of installation history. Manufacturing and route
+coordinates remain distinct.
 """
 from __future__ import annotations
 
@@ -90,7 +91,8 @@ def read_plan_mapping(document, *, simulation=None, physical=None):
         vessel_raw = request.get("vessel_position_m")
         if any(not isinstance(v, list) or len(v) != count for v, count in ((anchor_geo,2),(origin_geo,2),(anchor_raw,3),(vessel_raw,3))):
             raise ValueError("equilibrium planning requires complete geographic and local boundaries")
-        options = {"anchor": {"longitude": anchor_geo[0], "latitude": anchor_geo[1], "z_model_m": anchor_raw[2]},
+        options = {"schema": request.get("schema"),
+                   "anchor": {"longitude": anchor_geo[0], "latitude": anchor_geo[1], "z_model_m": anchor_raw[2]},
                    "vessel_z_m": vessel_raw[2], **{k: deepcopy(request[k]) for k in ("natural_length_m", "rest_lengths_m", "solver") if k in request}}
         nodes = _integer(source, "nodes", 16, 6, 80)
         material_length = initial_equilibrium_length(options, nodes)
@@ -102,6 +104,12 @@ def read_plan_mapping(document, *, simulation=None, physical=None):
         if not isinstance(original, dict) or frame.get("original_grid_sha256") != frame_digest(original):
             raise ValueError("equilibrium planning original bed provenance mismatch")
         actual_frame = PlanBathymetryFrame(original, {"longitude": origin_geo[0], "latitude": origin_geo[1]}, options, nodes)
+        if request.get("schema") != actual_frame.request["schema"]:
+            raise ValueError("equilibrium planning initial schema differs from its geographic declaration")
+        if request.get("schema") == "oceanroute.dynamic.initial-equilibrium.v2":
+            from .hydrodynamics import canonical_initial_fluid
+            if request.get("initial_fluid") != canonical_initial_fluid(source):
+                raise ValueError("equilibrium planning historical initial fluid differs from its actual source controls")
         expected_frame = actual_frame.metadata()
         for key in ("method", "horizontal_crs", "original_origin_projected_m", "origin_projected_m", "translation_from_original_local_m", "vertical_datum", "vertical_translation_m"):
             if frame.get(key) != expected_frame[key]:
@@ -303,8 +311,12 @@ def prepare_plan_voyage(project: dict, config: dict) -> dict:
         raise ValueError("initial manufacturing prefix is not yet available")
     initial_rows = [r for r in materials if r["start_m"] < at_start["material_m"]-1e-8 and r["end_m"] > origin_material+1e-8]
     physical_keys = set(first)-{"id", "start_m", "end_m"}
-    initial_keys = {"wet_weight_n_m", "ea_n", "ei_n_m2"} if equilibrium_mode else physical_keys
-    if not initial_rows or any(any(row[k] != first[k] for k in initial_keys) for row in initial_rows):
+    if not initial_rows:
+        raise ValueError("initial manufacturing inventory has no mapped cable material")
+    # The explicit initializer owns the actual interval integration, zero-EI
+    # scope and point-load checks. Its static solve uses the same loads as the
+    # dynamic state. The legacy analytic catenary still has a homogeneous law.
+    if not equilibrium_mode and any(any(row[k] != first[k] for k in physical_keys) for row in initial_rows):
         raise ValueError("analytical initial suspended interval crosses different material properties; supply an independently reconstructed initial state")
     bodies = []
     for body in analysis["bodies"]:
@@ -376,6 +388,12 @@ def prepare_plan_voyage(project: dict, config: dict) -> dict:
     if frame is not None:
         simulation["seabed_grid"] = deepcopy(frame.grid)
         simulation["initial_equilibrium"] = deepcopy(frame.request)
+        if frame.request["schema"] == "oceanroute.dynamic.initial-equilibrium.v2":
+            from .hydrodynamics import canonical_initial_fluid
+            # The caller explicitly selected current equilibrium. Record the
+            # actual mapped controls in the raw historical request, rather
+            # than inventing a separate average or compass current.
+            simulation["initial_equilibrium"]["initial_fluid"] = canonical_initial_fluid(simulation)
         simulation["depth_m"] = -float(frame.field.evaluate(np.array([[0., 0.]]), gradient=False)[0])
         from .initial_equilibrium import resolve_initial_equilibrium
         equilibrium_preview = resolve_initial_equilibrium(project, simulation)
@@ -437,7 +455,8 @@ def prepare_plan_voyage(project: dict, config: dict) -> dict:
                 "assumptions": ["The complete known bilinear bed is used without flattening or extension. All horizontal axes/endpoints/seeds receive the same real translation in its projected metre CRS.",
                                 "The explicit fixed anchor may be off bed and is not forced to the planned route touchdown; its geographic residual is reported separately.",
                                 "Natural active inventory may include both suspended and bed-contact cable; route KP, manufacturing station, inventory and new payout remain distinct.",
-                                "Initial equilibrium requires homogeneous wet weight/EA, zero bending, no initial bodies/flow/waves; the real initializer enforces these scope and force checks.",
+                                ("The explicitly selected v2 initial branch solves the actual declared steady-current node cable/body drag and uses v5 directional integration; initial bending/waves and finite rods remain unsupported. " if frame.request["schema"] == "oceanroute.dynamic.initial-equilibrium.v2" else "The v1 initial branch uses zero initial flow, zero bending and no waves. ")+
+                                "Both initial branches preserve actual material intervals and zero-length point loads with independent force verification; finite-length bodies require a separate rod/carrier model.",
                                 "Preparation and fresh voyage startup each solve/check the declared raw initial inputs and report initialization budgets. Checkpoint resume preserves the validated physical state without solving initialization again."]}
     return {"model": "explicit-manufacturing-geographic-plan-voyage-preparation-v1", "validation_status": "research",
             "config": voyage, "mapping": context, "plan": plan,
