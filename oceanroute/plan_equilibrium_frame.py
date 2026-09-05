@@ -34,10 +34,13 @@ def initial_equilibrium_length(options, nodes):
     """Read declared material length, never estimate it from drawn geometry."""
     if not isinstance(options, dict):
         raise ValueError("equilibrium_start must be an object")
-    allowed = {"anchor", "vessel_z_m", "natural_length_m", "rest_lengths_m",
+    allowed = {"schema", "anchor", "vessel_z_m", "natural_length_m", "rest_lengths_m",
                "initial_positions_m", "solver"}
     if set(options)-allowed or not {"anchor", "vessel_z_m"} <= options.keys():
         raise ValueError("equilibrium_start requires anchor/vessel_z_m and only declared material/solver inputs")
+    if options.get("schema", "oceanroute.dynamic.initial-equilibrium.v1") not in (
+        "oceanroute.dynamic.initial-equilibrium.v1", "oceanroute.dynamic.initial-equilibrium.v2"):
+        raise ValueError("equilibrium_start.schema requires an explicit supported initial-equilibrium v1 or v2")
     if isinstance(nodes, bool) or not isinstance(nodes, int) or not 6 <= nodes <= 80:
         raise ValueError("equilibrium planning requires 6 to 80 material nodes")
     fields = [key for key in ("natural_length_m", "rest_lengths_m") if key in options]
@@ -87,7 +90,7 @@ class PlanBathymetryFrame:
         anchor_xy = self.project(anchor["longitude"], anchor["latitude"])
         anchor_z = finite_number(anchor["z_model_m"], "anchor.z_model_m", minimum=-12000, maximum=0)
         vessel_z = finite_number(options["vessel_z_m"], "vessel_z_m", minimum=-12000, maximum=0)
-        self.request = {"schema": "oceanroute.dynamic.initial-equilibrium.v1",
+        self.request = {"schema": options.get("schema", "oceanroute.dynamic.initial-equilibrium.v1"),
                         "vessel_position_m": [0., 0., vessel_z],
                         "anchor_position_m": [*anchor_xy, anchor_z]}
         self.anchor_wgs84 = [anchor["longitude"], anchor["latitude"]]
