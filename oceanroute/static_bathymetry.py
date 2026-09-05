@@ -317,6 +317,16 @@ def static_equilibrium(config: dict) -> dict:
     to the nonnegative normal/Coulomb cone. This is a conditional equilibrium,
     not an inferred as-laid friction history or a steady translating cable.
     """
+    return _static_equilibrium_core(config)
+
+
+def _static_equilibrium_core(config: dict, *, segment_ea_n=None,
+                             node_wet_weight_n=None, load_scale_n=None) -> dict:
+    """Internal material statics; the public scalar input contract is unchanged.
+
+    Coefficients are supplied only by the independently validated natural
+    material operator, never by an accepted-result JSON or a public request.
+    """
     c = _config(config)
     if any(not isinstance(k, str) for k in c):
         raise ValueError("static_equilibrium config keys must be strings")
@@ -363,6 +373,21 @@ def static_equilibrium(config: dict) -> dict:
     weight = _num(c, "wet_weight_n_m", 4., 1e-6, 20000)
     ea = _num(c, "ea_n", 1e6, 100, 1e12)
     nodal_weight = np.r_[rest[0]/2, (rest[:-1]+rest[1:])/2, rest[-1]/2]*weight
+    material_loading = segment_ea_n is not None or node_wet_weight_n is not None or load_scale_n is not None
+    if material_loading:
+        if segment_ea_n is None or node_wet_weight_n is None or load_scale_n is None:
+            raise ValueError("internal static material core requires EA, nodal weight and absolute load scale together")
+        ea = np.asarray(segment_ea_n, dtype=float)
+        nodal_weight = np.asarray(node_wet_weight_n, dtype=float)
+        if ea.shape != (n-1,) or not np.isfinite(ea).all() or np.any(ea < 100) or np.any(ea > 1e12*(1+1e-10)):
+            raise ValueError("internal static segment EA must be finite positive declared material stiffness")
+        if nodal_weight.shape != (n,) or not np.isfinite(nodal_weight).all():
+            raise ValueError("internal static nodal wet weight must be a finite signed load")
+        load_scale = _num({"v":load_scale_n}, "v", 1., 0., 2.2e10)
+        if load_scale + 1e-7 < float(np.sum(np.abs(nodal_weight))):
+            raise ValueError("internal static absolute load scale cannot hide signed load cancellation")
+    else:
+        load_scale = weight*natural_length
     policy = c.get("contact_policy", "frictionless")
     if policy not in ("frictionless", "prescribed_stick"):
         raise ValueError("contact_policy must be frictionless or prescribed_stick")
@@ -388,7 +413,7 @@ def static_equilibrium(config: dict) -> dict:
         sticking[i] = point
     force_absolute = _num(c, "force_tolerance_n", .01, 1e-6, 1)
     force_relative = _num(c, "relative_force_tolerance", 1e-5, 1e-9, 1e-3)
-    force_tolerance = max(force_absolute, force_relative*max(1., weight*natural_length))
+    force_tolerance = max(force_absolute, force_relative*max(1., load_scale))
     contact_tolerance = _num(c, "contact_tolerance_m", 1e-6, 1e-9, 1e-4)
     max_iterations = _integer(c, "max_solver_iterations", 300, 1, 600)
     max_evaluations = _integer(c, "max_function_evaluations", 2000, 1, 10000)
@@ -424,7 +449,7 @@ def static_equilibrium(config: dict) -> dict:
     else:
         positions[free, 2] = np.maximum(positions[free, 2], seed_bed[free])
     scale = max(natural_length, float(np.linalg.norm(vessel-anchor)), .001)
-    energy_scale = max(weight*natural_length*scale, 1e-6)
+    energy_scale = max(load_scale*scale, 1e-6)
     template = positions.copy()
     evaluations = 0
     cache = None
@@ -545,7 +570,7 @@ def static_equilibrium(config: dict) -> dict:
         "Endpoint supports are separate external boundary forces, including discretized endpoint weight; they are not reported as seabed friction."])
     if not accepted:
         result["warnings"].append(_warning("STATIC_EQUILIBRIUM_NOT_ACCEPTED", "The best available finite shape failed an independent equilibrium/geometry/budget check; it must not initialize a claimed balanced installation.", "error"))
-    if np.max(tension)/ea > .05:
+    if np.max(tension/ea) > .05:
         result["warnings"].append(_warning("LARGE_LINEAR_AXIAL_STRAIN", "Axial strain exceeds 5%; the assumed linear elastic law needs an independent material-validity check."))
     frame = {"time_s": 0., "ship": vessel.tolist(), "nodes": positions.tolist(),
              "node_material_m": material.tolist(), "node_contact_mask": contact.tolist(),
@@ -570,7 +595,7 @@ def static_equilibrium(config: dict) -> dict:
         "summary": {"natural_length_m": natural_length, "geometric_chord_length_m": float(lengths.sum()),
                     "wet_weight_total_n": float(nodal_weight.sum()), "top_tension_n": float(tension[0]),
                     "bottom_tension_n": float(tension[-1]), "max_tension_n": float(tension.max()),
-                    "maximum_axial_strain": float(tension.max()/ea), "contact_nodes": int(np.sum(contact)),
+                    "maximum_axial_strain": float(np.max(tension/ea)), "contact_nodes": int(np.sum(contact)),
                     "max_normal_contact_force_n": float(normal_force.max()),
                     "axial_elastic_energy_j": elastic, "submerged_gravity_potential_j": potential,
                     "total_potential_energy_j": energy, "total_force_balance_n": total_balance.tolist()},
@@ -588,4 +613,12 @@ def static_equilibrium(config: dict) -> dict:
                    "max_segment_samples": max_segment_samples,
                    "bathymetry_node_queries": int(grid.queried_nodes),
                    "work_basis": "bounded dense-solver iteration times free variables cubed, evaluation times variables squared plus nodal operations, and final chord samples; normalized units, not literal FLOPs"}})
+    if material_loading:
+        result["model"] = "2d-seabed-material-tension-only-discrete-static-v2"
+        result["assumptions"][1] = "Actual segment harmonic EA and signed nodal material/point weights; linear tensile-only axial elasticity, zero bending/torsion, no current or moving boundary."
+        result["segment_ea_n"] = ea.tolist()
+        result["summary"]["absolute_load_scale_n"] = load_scale
+        result["summary"]["positive_nodal_wet_load_n"] = float(np.sum(np.maximum(nodal_weight,0)))
+        result["summary"]["negative_nodal_wet_load_n"] = float(np.sum(np.minimum(nodal_weight,0)))
+        result["solver"]["absolute_load_scale_n"] = load_scale
     return result
