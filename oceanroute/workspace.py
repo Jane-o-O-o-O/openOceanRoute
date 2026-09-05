@@ -128,7 +128,12 @@ def _normalize_items(items, types):
         else:
             normalized.update(body_kind=str(item.get("body_kind", "body")), cost=finite_number(item.get("cost", 0), "body.cost", minimum=0))
             properties = _object(item.get("properties", {}), "body.properties")
-            normalized["properties"] = {k: finite_number(v, k, minimum=0) for k, v in properties.items() if k in BODY_PROPERTIES}
+            # Net submerged weight is signed: buoyancy may exceed gravity.
+            # Inertia and geometry remain nonnegative physical quantities.
+            normalized["properties"] = {
+                k: finite_number(v, k, minimum=None if k == "wet_weight_n" else 0)
+                for k, v in properties.items() if k in BODY_PROPERTIES
+            }
         output.append(normalized)
     _unique(output, "assembly.items")
     output.sort(key=lambda i: (i["start_m"], i["kind"] == "cable", i["end_m"], i["id"]))
