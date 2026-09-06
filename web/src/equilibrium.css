@@ -2,3 +2,9 @@
 .scene-legend{right:17px;flex-wrap:wrap;font-size:10px;line-height:1.5;background:#f7fbfbd9;padding:4px 8px;border-radius:4px}
 
 .voyage-layout .scene-host,.sea-layout .scene-host,.repair-layout .scene-host,.seismic-layout .scene-host{height:100%}
+.equilibrium-diagnostics .panel-heading{flex-wrap:wrap;gap:6px}.equilibrium-diagnostics .panel-heading small{font-size:10px;color:#607d88}.equilibrium-diagnostics .table-wrap{max-width:100%;margin-top:10px;overflow:auto}.equilibrium-diagnostics table{font-size:11px;min-width:760px}.equilibrium-diagnostics th{white-space:nowrap}.equilibrium-diagnostics td{vertical-align:top;white-space:nowrap;font-variant-numeric:tabular-nums}.equilibrium-diagnostics .equilibrium-fractions{white-space:normal;min-width:220px;max-width:420px;line-height:1.7;overflow-wrap:anywhere}.equilibrium-initial-settings .secondary-button{max-width:100%;white-space:normal;line-height:1.6}.equilibrium-diagnostics .equilibrium-loading-note{margin:12px 0}.equilibrium-force-nodes table{min-width:1380px}
+
+.equilibrium-fluid-history{margin:14px 0;padding:12px;border:1px solid #bfd6df;background:#f5fafb;border-radius:5px}.equilibrium-fluid-history .chart-meta{margin:10px 0;line-height:1.7}.equilibrium-fluid-profile table{min-width:430px}.equilibrium-fluid-nodes table{min-width:1560px}.equilibrium-fluid-nodes td:nth-child(2),.equilibrium-fluid-nodes td:nth-child(3),.equilibrium-fluid-nodes td:nth-child(n+6){white-space:normal;min-width:190px;line-height:1.6;overflow-wrap:anywhere}
+
+/* Canvas is appended after the DOM legend; keep truthful model labels above it. */
+.scene-legend{z-index:2}
