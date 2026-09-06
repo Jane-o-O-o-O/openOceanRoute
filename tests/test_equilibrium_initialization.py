@@ -106,9 +106,9 @@ def test_inertia_and_diameter_may_vary_when_true_initial_force_law_is_uniform():
     ({'current_x_m_s':.01},'zero initial current'),
     ({'current_profile':[{'depth_m':0,'x_m_s':0},{'depth_m':100,'x_m_s':.01}]},'every current_profile'),
     ({'ei_n_m2':1},'zero EI'),
-    ({'inline_bodies':[{'material_m':45,'mass_kg':1,'wet_weight_n':1}]},'initially loaded'),
-    ({'material_segments':[{'start_m':0,'end_m':50,'wet_weight_n_m':4,'ea_n':1e4},{'start_m':50,'end_m':200,'wet_weight_n_m':5,'ea_n':1e4}]},'uniform wet weight'),
-    ({'material_segments':[{'start_m':0,'end_m':50,'wet_weight_n_m':4,'ea_n':1e4},{'start_m':50,'end_m':200,'wet_weight_n_m':4,'ea_n':2e4}]},'uniform wet weight'),
+    ({'inline_bodies':[{'material_m':45,'length_m':1,'mass_kg':1,'wet_weight_n':1}]},'finite'),
+    ({'material_segments':[{'start_m':0,'end_m':50,'wet_weight_n_m':4,'ea_n':1e4},{'start_m':50,'end_m':200,'wet_weight_n_m':5,'ea_n':1e4,'ei_n_m2':1}]},'zero EI'),
+    ({'material_segments':[{'start_m':0,'end_m':50,'wet_weight_n_m':4,'ea_n':1e4,'ei_n_m2':1},{'start_m':50,'end_m':200,'wet_weight_n_m':4,'ea_n':2e4}]},'zero EI'),
 ])
 def test_unsupported_initial_force_laws_are_rejected_without_flattening(change,match):
     c,*_=analytic_config(**change)

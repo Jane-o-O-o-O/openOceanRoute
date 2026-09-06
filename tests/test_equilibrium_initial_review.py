@@ -221,9 +221,9 @@ def test_exact_resume_uses_saved_material_and_provenance_without_second_initiali
 
 @pytest.mark.parametrize("change", [
     {"ei_n_m2": 1.}, {"current_x_m_s": .1},
-    {"inline_bodies": [{"id": "initial-point", "material_m": 40., "mass_kg": 1., "wet_weight_n": 2.}]},
+    {"inline_bodies": [{"id": "initial-rod", "material_m": 40., "length_m": 1., "mass_kg": 1., "wet_weight_n": 2.}]},
     {"material_segments": [{"start_m": 0., "end_m": 50., "wet_weight_n_m": 4., "ea_n": 10000.},
-                            {"start_m": 50., "end_m": 100., "wet_weight_n_m": 5., "ea_n": 10000.}]},
+                            {"start_m": 50., "end_m": 100., "wet_weight_n_m": 5., "ea_n": 10000., "ei_n_m2": 1.}]},
 ])
 def test_incompatible_initial_physics_is_rejected_instead_of_faking_static_equilibrium(change):
     with pytest.raises(ValueError):
