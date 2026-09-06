@@ -1,0 +1,186 @@
+{
+  "project": {},
+  "config": {
+    "nodes": 13,
+    "wet_weight_n_m": 4.0,
+    "diameter_m": 0.02,
+    "mass_kg_m": 1.2,
+    "ea_n": 10000.0,
+    "ei_n_m2": 0.0,
+    "initial_suspended_material_m": 37.0,
+    "material_segments": [
+      {
+        "start_m": 0.0,
+        "end_m": 45.3,
+        "wet_weight_n_m": 4.0,
+        "ea_n": 10000.0,
+        "mass_kg_m": 1.2
+      },
+      {
+        "start_m": 45.3,
+        "end_m": 62.0,
+        "wet_weight_n_m": 7.0,
+        "ea_n": 24000.0,
+        "mass_kg_m": 1.8
+      }
+    ],
+    "inline_bodies": [
+      {
+        "id": "point",
+        "material_m": 51.7,
+        "length_m": 0.0,
+        "mass_kg": 10.0,
+        "wet_weight_n": -30.0
+      }
+    ],
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "y_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "z_m": [
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ]
+      ],
+      "source": {
+        "name": "synthetic no-contact refinement bed",
+        "horizontal_crs": "LOCAL_CARTESIAN_METRES",
+        "origin_projected_m": [
+          0.0,
+          0.0
+        ],
+        "vertical_datum": "model sea zero"
+      }
+    },
+    "initial_equilibrium": {
+      "schema": "oceanroute.dynamic.initial-equilibrium.v1",
+      "vessel_position_m": [
+        0.0,
+        0.0,
+        -2.0
+      ],
+      "anchor_position_m": [
+        -21.704111382123614,
+        0.0,
+        -12.040754523170204
+      ],
+      "rest_lengths_m": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0
+      ],
+      "initial_positions_m": [
+        [
+          0.0,
+          0.0,
+          -2.0
+        ],
+        [
+          -1.543406969671243,
+          0.0,
+          -3.297490792503625
+        ],
+        [
+          -3.1579552553364167,
+          0.0,
+          -4.504096544657398
+        ],
+        [
+          -4.844276525536306,
+          0.0,
+          -5.606950655368125
+        ],
+        [
+          -6.601292530477952,
+          0.0,
+          -6.5920509621387415
+        ],
+        [
+          -8.375563758824036,
+          0.0,
+          -7.545426035503372
+        ],
+        [
+          -10.12262542714148,
+          0.0,
+          -8.548239433117585
+        ],
+        [
+          -11.937702466874022,
+          0.0,
+          -9.420686463549027
+        ],
+        [
+          -13.815926271840446,
+          0.0,
+          -10.153819822087588
+        ],
+        [
+          -15.750774566239095,
+          0.0,
+          -10.772971276295156
+        ],
+        [
+          -17.71324444544159,
+          0.0,
+          -11.29629657741582
+        ],
+        [
+          -19.699230118290203,
+          0.0,
+          -11.719973520956858
+        ],
+        [
+          -21.704111382123614,
+          0.0,
+          -12.040754523170204
+        ]
+      ],
+      "solver": {
+        "max_solver_iterations": 300,
+        "max_function_evaluations": 2000,
+        "force_tolerance_n": 1e-06,
+        "relative_force_tolerance": 1e-09
+      }
+    },
+    "ship_speed_m_s": 0.0,
+    "payout_m_s": 0.0,
+    "current_x_m_s": 0.0,
+    "current_y_m_s": 0.0,
+    "seabed_friction": 0.0,
+    "damping_ratio": 0.0,
+    "internal_dt_s": 0.002,
+    "dt_s": 0.02,
+    "duration_s": 0.08,
+    "solver_iterations": 32
+  }
+}

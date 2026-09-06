@@ -1,0 +1,210 @@
+{
+  "project": {
+    "crs": "EPSG:4326",
+    "route": {
+      "curve": "rhumb",
+      "slack_pct": 2.0,
+      "points": [
+        {
+          "id": "a",
+          "longitude": 0.0,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        },
+        {
+          "id": "b",
+          "longitude": 8.983152841195215e-05,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        },
+        {
+          "id": "c",
+          "longitude": 0.002694945852358564,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        }
+      ],
+      "legs": [
+        {
+          "cable_type_id": "A"
+        },
+        {
+          "cable_type_id": "B"
+        }
+      ]
+    },
+    "cable_types": [
+      {
+        "id": "A",
+        "lay_speed_m_s": 0.5,
+        "wet_weight_n_m": 4.0,
+        "diameter_m": 0.02,
+        "cost_per_m": 1.0,
+        "ea_n": 10000.0,
+        "ei_n_m2": 0.0,
+        "mass_kg_m": 1.2
+      },
+      {
+        "id": "B",
+        "lay_speed_m_s": 0.5,
+        "wet_weight_n_m": 7.0,
+        "diameter_m": 0.03,
+        "cost_per_m": 2.0,
+        "ea_n": 24000.0,
+        "ei_n_m2": 0.0,
+        "mass_kg_m": 1.8
+      }
+    ],
+    "bodies": [
+      {
+        "id": "point",
+        "kp_m": 15.0,
+        "cable_kp_m": 15.3,
+        "length_m": 0.0,
+        "mass_kg": 10.0,
+        "wet_weight_n": -50.0,
+        "drag_area_m2": 0.1
+      }
+    ]
+  },
+  "config": {
+    "plan": {
+      "bottom_tension_n": 10.0,
+      "sample_spacing_m": 30.0
+    },
+    "start_time_s": 65.83715213630566,
+    "duration_s": 0.08,
+    "simulation": {
+      "nodes": 8,
+      "internal_dt_s": 0.002,
+      "dt_s": 0.02,
+      "solver_iterations": 32,
+      "current_x_m_s": 1.7,
+      "current_y_m_s": -1.3,
+      "water_density_kg_m3": 1025.0,
+      "damping_ratio": 0.0,
+      "current_profile": [
+        {
+          "depth_m": 0.0,
+          "x_m_s": 0.2,
+          "y_m_s": -0.15
+        },
+        {
+          "depth_m": 40.0,
+          "x_m_s": 0.55,
+          "y_m_s": 0.25
+        }
+      ]
+    },
+    "voyage": {
+      "adaptive_mesh": {
+        "enabled": false
+      },
+      "chunk_duration_s": 0.04
+    },
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -200.0,
+        0.0,
+        200.0
+      ],
+      "y_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "z_m": [
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ]
+      ],
+      "source": {
+        "name": "mixed-material geographic test bed",
+        "horizontal_crs": "EPSG:3857",
+        "origin_projected_m": [
+          11.0,
+          -7.0
+        ],
+        "vertical_datum": "model sea zero"
+      }
+    },
+    "equilibrium_start": {
+      "anchor": {
+        "longitude": -0.00011634365938954728,
+        "latitude": 0.00017135354547159,
+        "z_model_m": -11.942751650871967
+      },
+      "vessel_z_m": -2.0,
+      "rest_lengths_m": [
+        12.0,
+        2.0,
+        3.0,
+        1.0,
+        4.0,
+        2.0,
+        3.0
+      ],
+      "initial_positions_m": [
+        [
+          0.861616956721754,
+          28.134923398271116,
+          -2.0
+        ],
+        [
+          -9.290421558104617,
+          27.13525989300173,
+          -8.47962672769366
+        ],
+        [
+          -11.224145346881892,
+          26.97048022919141,
+          -9.012394138152986
+        ],
+        [
+          -14.110234681531363,
+          26.74540385843126,
+          -9.869908766567873
+        ],
+        [
+          -15.047798331723223,
+          26.678856403689387,
+          -10.230453627994423
+        ],
+        [
+          -18.929476059426054,
+          26.411222361718657,
+          -11.3063139489653
+        ],
+        [
+          -20.927751654823737,
+          26.27656044524433,
+          -11.640395124327295
+        ],
+        [
+          -23.951316920270465,
+          26.07498942754788,
+          -11.942751650871967
+        ]
+      ],
+      "schema": "oceanroute.dynamic.initial-equilibrium.v2",
+      "solver": {
+        "force_tolerance_n": 1e-06,
+        "relative_force_tolerance": 1e-09,
+        "contact_tolerance_m": 1e-08
+      }
+    }
+  }
+}

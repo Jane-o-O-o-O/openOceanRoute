@@ -1,0 +1,246 @@
+{
+  "project": {},
+  "config": {
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "y_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "z_m": [
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ]
+      ],
+      "source": {
+        "name": "independent synthetic steady-flow audit; not bathymetric survey",
+        "horizontal_crs": "LOCAL_CARTESIAN_METRES",
+        "origin_projected_m": [
+          0.0,
+          0.0
+        ],
+        "vertical_datum": "synthetic model sea zero"
+      }
+    },
+    "nodes": 8,
+    "wet_weight_n_m": 4.0,
+    "ea_n": 10000.0,
+    "ei_n_m2": 0.0,
+    "diameter_m": 0.02,
+    "mass_kg_m": 1.2,
+    "water_density_kg_m3": 1025.0,
+    "added_mass_coefficient": 0.7,
+    "drag_coefficient": 1.2,
+    "initial_suspended_material_m": 37.0,
+    "ship_speed_m_s": 0.0,
+    "payout_m_s": 0.0,
+    "current_x_m_s": 1.7,
+    "current_y_m_s": -1.3,
+    "heading_deg": 90.0,
+    "seabed_friction": 0.6,
+    "damping_ratio": 0.0,
+    "duration_s": 0.08,
+    "dt_s": 0.02,
+    "internal_dt_s": 0.002,
+    "solver_iterations": 32,
+    "material_segments": [
+      {
+        "id": "lower",
+        "start_m": 0.0,
+        "end_m": 40.5,
+        "wet_weight_n_m": 2.5,
+        "ea_n": 8000.0,
+        "mass_kg_m": 0.9,
+        "diameter_m": 0.018,
+        "drag_coefficient": 0.8,
+        "ei_n_m2": 0.0
+      },
+      {
+        "id": "middle",
+        "start_m": 40.5,
+        "end_m": 50.75,
+        "wet_weight_n_m": 5.0,
+        "ea_n": 14000.0,
+        "mass_kg_m": 1.4,
+        "diameter_m": 0.025,
+        "drag_coefficient": 1.5,
+        "ei_n_m2": 0.0
+      },
+      {
+        "id": "upper",
+        "start_m": 50.75,
+        "end_m": 120.0,
+        "wet_weight_n_m": 3.0,
+        "ea_n": 45000.0,
+        "mass_kg_m": 1.2,
+        "diameter_m": 0.02,
+        "drag_coefficient": 1.1,
+        "ei_n_m2": 0.0
+      }
+    ],
+    "inline_bodies": [
+      {
+        "id": "anchor",
+        "material_m": 37.0,
+        "mass_kg": 1.0,
+        "wet_weight_n": 3.0,
+        "length_m": 0.0,
+        "drag_area_m2": 0.005,
+        "drag_coefficient": 1.2
+      },
+      {
+        "id": "buoyant-off-node",
+        "material_m": 39.25,
+        "mass_kg": 0.4,
+        "wet_weight_n": -25.0,
+        "length_m": 0.0,
+        "drag_area_m2": 0.04,
+        "drag_coefficient": 1.1
+      },
+      {
+        "id": "upper-point",
+        "material_m": 58.75,
+        "mass_kg": 0.8,
+        "wet_weight_n": 4.0,
+        "length_m": 0.0,
+        "drag_area_m2": 0.02,
+        "drag_coefficient": 0.9
+      },
+      {
+        "id": "vessel",
+        "material_m": 64.0,
+        "mass_kg": 2.0,
+        "wet_weight_n": 1.0,
+        "length_m": 0.0,
+        "drag_area_m2": 0.015,
+        "drag_coefficient": 1.4
+      }
+    ],
+    "checkpoint_times_s": [
+      0.04
+    ],
+    "current_profile": [
+      {
+        "depth_m": 0.0,
+        "x_m_s": 0.2,
+        "y_m_s": -0.15
+      },
+      {
+        "depth_m": 40.0,
+        "x_m_s": 0.55,
+        "y_m_s": 0.25
+      }
+    ],
+    "initial_equilibrium": {
+      "schema": "oceanroute.dynamic.initial-equilibrium.v2",
+      "vessel_position_m": [
+        3.0,
+        -4.0,
+        -2.0
+      ],
+      "anchor_position_m": [
+        -21.326785871124553,
+        -5.881173282354469,
+        -13.24359451148662
+      ],
+      "rest_lengths_m": [
+        12.0,
+        2.0,
+        3.0,
+        1.0,
+        4.0,
+        2.0,
+        3.0
+      ],
+      "initial_positions_m": [
+        [
+          3.0,
+          -4.0,
+          -2.0
+        ],
+        [
+          -6.926736543207163,
+          -4.85576656456495,
+          -8.772312385140896
+        ],
+        [
+          -8.720377271754723,
+          -4.99459839200882,
+          -9.676565871429705
+        ],
+        [
+          -11.508786529654124,
+          -5.202068945543647,
+          -10.855495528413499
+        ],
+        [
+          -12.460634390594661,
+          -5.270923970947582,
+          -11.18993987100623
+        ],
+        [
+          -16.361267241367518,
+          -5.545668915017098,
+          -12.220870840278453
+        ],
+        [
+          -18.35514990336174,
+          -5.683064217836948,
+          -12.550212785675296
+        ],
+        [
+          -21.326785871124553,
+          -5.881173282354469,
+          -13.24359451148662
+        ]
+      ],
+      "initial_fluid": {
+        "schema": "oceanroute.initial-fluid.v1",
+        "operator": "node-secant-normal-cable-and-isotropic-body-drag-v1",
+        "water_density_kg_m3": 1025.0,
+        "current_m_s": [
+          1.7,
+          -1.3,
+          0.0
+        ],
+        "current_profile": [
+          {
+            "depth_m": 0.0,
+            "x_m_s": 0.2,
+            "y_m_s": -0.15
+          },
+          {
+            "depth_m": 40.0,
+            "x_m_s": 0.55,
+            "y_m_s": 0.25
+          }
+        ],
+        "depth_reference": "max(-model_z_m,0)",
+        "profile_extrapolation": "hold_endpoints"
+      },
+      "solver": {
+        "force_tolerance_n": 1e-06,
+        "relative_force_tolerance": 1e-09,
+        "contact_tolerance_m": 1e-08
+      }
+    }
+  }
+}

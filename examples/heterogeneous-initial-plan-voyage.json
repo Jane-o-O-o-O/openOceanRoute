@@ -1,0 +1,188 @@
+{
+  "project": {
+    "crs": "EPSG:4326",
+    "route": {
+      "curve": "rhumb",
+      "slack_pct": 2.0,
+      "points": [
+        {
+          "id": "a",
+          "longitude": 0.0,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        },
+        {
+          "id": "b",
+          "longitude": 8.983152841195215e-05,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        },
+        {
+          "id": "c",
+          "longitude": 0.002694945852358564,
+          "latitude": 0.0,
+          "depth_m": 10.0
+        }
+      ],
+      "legs": [
+        {
+          "cable_type_id": "A"
+        },
+        {
+          "cable_type_id": "B"
+        }
+      ]
+    },
+    "cable_types": [
+      {
+        "id": "A",
+        "lay_speed_m_s": 0.5,
+        "wet_weight_n_m": 4.0,
+        "diameter_m": 0.02,
+        "cost_per_m": 1.0,
+        "ea_n": 10000.0,
+        "ei_n_m2": 0.0,
+        "mass_kg_m": 1.2
+      },
+      {
+        "id": "B",
+        "lay_speed_m_s": 0.5,
+        "wet_weight_n_m": 7.0,
+        "diameter_m": 0.03,
+        "cost_per_m": 2.0,
+        "ea_n": 24000.0,
+        "ei_n_m2": 0.0,
+        "mass_kg_m": 1.8
+      }
+    ],
+    "bodies": [
+      {
+        "id": "point",
+        "kp_m": 15.0,
+        "cable_kp_m": 15.3,
+        "length_m": 0.0,
+        "mass_kg": 10.0,
+        "wet_weight_n": -50.0,
+        "drag_area_m2": 0.1
+      }
+    ]
+  },
+  "config": {
+    "plan": {
+      "bottom_tension_n": 10.0,
+      "sample_spacing_m": 30.0
+    },
+    "start_time_s": 64.10005433747617,
+    "duration_s": 0.08,
+    "simulation": {
+      "nodes": 8,
+      "internal_dt_s": 0.002,
+      "dt_s": 0.02,
+      "solver_iterations": 32
+    },
+    "voyage": {
+      "adaptive_mesh": {
+        "enabled": false
+      },
+      "chunk_duration_s": 0.04
+    },
+    "seabed_grid": {
+      "schema": "oceanroute.bathymetry.v1",
+      "x_m": [
+        -200.0,
+        0.0,
+        200.0
+      ],
+      "y_m": [
+        -100.0,
+        0.0,
+        100.0
+      ],
+      "z_m": [
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ],
+        [
+          -100.0,
+          -100.0,
+          -100.0
+        ]
+      ],
+      "source": {
+        "name": "mixed-material geographic test bed",
+        "horizontal_crs": "EPSG:3857",
+        "origin_projected_m": [
+          11.0,
+          -7.0
+        ],
+        "vertical_datum": "model sea zero"
+      }
+    },
+    "equilibrium_start": {
+      "anchor": {
+        "longitude": 0.00011527105886312938,
+        "latitude": 0.0,
+        "z_model_m": -11.47154912761924
+      },
+      "vessel_z_m": -2.0,
+      "rest_lengths_m": [
+        12.0,
+        2.0,
+        3.0,
+        1.0,
+        4.0,
+        2.0,
+        3.0
+      ],
+      "initial_positions_m": [
+        [
+          26.99687179851837,
+          7.0,
+          -2.0
+        ],
+        [
+          16.553517836447654,
+          7.0,
+          -8.08499424189987
+        ],
+        [
+          14.603499006095019,
+          7.0,
+          -8.584199062470145
+        ],
+        [
+          11.698705491975073,
+          7.0,
+          -9.408514910810407
+        ],
+        [
+          10.757465093285042,
+          7.0,
+          -9.765558768713491
+        ],
+        [
+          6.86481499413928,
+          7.0,
+          -10.834739995945528
+        ],
+        [
+          4.862027146474993,
+          7.0,
+          -11.168537970556242
+        ],
+        [
+          1.8319155758450272,
+          7.0,
+          -11.47154912761924
+        ]
+      ]
+    }
+  }
+}
