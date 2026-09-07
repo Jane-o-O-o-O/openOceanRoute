@@ -1,6 +1,50 @@
 # OceanRoute 验证与发行进度
 
-## 0.6阶段发行
+## 0.7阶段发行
+
+2026-10-04。0.7新增异质自然材料与有符号零长度点载荷的实际初始平衡、稳恒水平流/深度剪切流定端平衡、方向质量块v5动力与历史流场恢复，并扩展地理施工窗口和初态界面。本版后端、生产浏览器、wheel来源、全新安装及31页PDF验收已实际完成；最终归档的成员、源码、路径/CRC和wheel内容审计也已通过，首装验收与归档检查分别保存真实证据。完整原厂复现仍未完成；下方0.1至0.6章节均为相应冻结版本的历史记录。
+
+### 新增行为与范围
+
+- 原始初态v1现在支持活动自然区间内的分段湿重/EA、不同阻力物性及已部署零长度点实体。材料积分以制造原点O为相对基准，保留每段柔度，将每段总缆湿重的一半分配到两端节点，并按自然材料份额分摊点载荷；负湿重可提供浮力，干质量仍单独用于惯性。点载荷分摊不表示已求解连续集中力折角或完整刚体运动。
+- 原始初态v2明确冻结完整`initial_fluid`，用实际节点切向、法向缆阻力及各向同性点阻力求解零速度定端平衡。深度表覆盖恒流并按端点值保持，不把平均拖曳、零流解或冷起沉降当作稳恒海流初态；完整双线性床、法向支持及整段不穿床均须验收。
+- v5采用方向相关3×3质量/阻力块和实际旧受力的合并预测，再投影约束增量。原始v2对应proof v3、checkpoint schema4；旧v1/proof v1或v2/schema3/v4保持原方案，真实旧版检查点亦经续算复核，不因未来海流自动升级。
+- 恢复保留初始历史流场、原材料/床格/边界和受力证明；合法未来恒流或深度表override只改变后续响应。制造站用绝对容差复核，重签摘要不能代替物理核验。初始速度为零，船速/放缆命令从实际积分步施加；固定离床锚与无接触null触底结果分开显示。
+- schema2地理施工映射增加异质/海流初态支持。完整格轴、船锚及数值seed共同真实水平重基准，模型Z和垂直声明不变；O=船端制造顶站−初始自然库存≥0，首次及续算不重复放出既有库存。移动ShipPlan偏移仍是局部平床初估，不认证曲床目标跟随。
+- 初态界面可明确载入合成分层流例、重新声明当前初始流场、查看材料/流速/阻力逐节点证据及恢复历史声明；输入变化使旧结果失效。新增`examples/current-initial-dynamic.json`和`examples/current-initial-plan-voyage.json`是完整合成API请求，不是实测、工程文件或checkpoint。
+
+操作与合同见 [用户手册](USER_MANUAL.md)、[异质材料核心](HETEROGENEOUS_MATERIAL_CORE_NOTES.md)、[稳恒流核心](CURRENT_EQUILIBRIUM_CORE_NOTES.md)、[历史流恢复](CURRENT_INITIALIZATION_NOTES.md)、[海流界面](CURRENT_INITIAL_UI_NOTES.md) 及 [独立初态审查](CURRENT_INITIAL_INDEPENDENT_REVIEW.md)。
+
+### 本版实际验证
+
+| 验证 | 实际结果 |
+|---|---|
+| 完整后端 | 1438通过，65.33秒；命令wall time 65.895489秒；119份输入未变 |
+| 最终同源生产浏览器 | 80项全部一次passed，233.031036秒；8770、单worker、零跳过/失败/flaky/重试；91份输入未变 |
+| 实际HTTP编译资源 | 8份资源与8770/8771、当前/发行/默认/内置界面逐字节一致 |
+| wheel外源码目录 | 旧27+新3共30模块真实wheel来源、真实API及持久关闭重开/子任务续算通过；旧流程3.131585秒、新流程1.786254秒，分列记录 |
+| 便携包全新首装 | 新虚拟环境联网安装、HTTP界面/分析及6个合成JSON通过；其中4个实际执行prepare/完整计算/分段与JSON续算，六个关键状态数组一致 |
+| 首装隔离后端 | 1438通过，80.79秒；整个安装与验收117.22秒 |
+| 正式PDF | 手册16页、设计15页；全部31页实际逐页视觉检查通过，字形与页面结构检查另有记录 |
+| 初次安装包运行输入 | 212份运行/测试/界面/示例等输入与首装对象逐字节一致；最终归档成员亦与当前冻结字节一致 |
+
+wheel为805,041字节，SHA256 `366b25ac2817ed40c45f755f4f8e4b61c27e79edbb9ce7f7af2a735b2333e489`。wheel smoke在源码之外提取加载，但依赖来自当前解释器，**不是全新安装**；全新环境证据由便携包首装报告单独提供。实测macOS/Python3.13.9/Chrome。首装回归有一条测试客户端依赖弃用提醒，未影响运行；Windows/Linux、Python3.10实机和免Python安装器未验收。
+
+实际报告为`resources/validation/release_0.7_backend.json`、`release_0.7_browser.json`、`release_0.7_browser_execution.json`、`release_0.7_wheel_smoke.json`、`release_0.7_portable_smoke.json`、`release_0.7_manual_visual_review.json`、`release_0.7_design_visual_review.json`及`release_0.7_pdf_character_bounds.json`。后台/浏览器输入分别冻结于`release_0.7_backend_inputs.json`和`release_0.7_browser_inputs.json`；完整浏览器记录确认80个actual result均仅一次passed。新增专项已经包含在上述总集中，不累计开发阶段、重复复核或旧版本数量。
+
+最终8资源HTTP证据见`release_0.7_served_assets.json`，31页PDF汇总见`release_0.7_pdf_qa.json`。`release_0.7_verified_runtime.json`独立核对119/91/212份输入、wheel53个包文件/58个RECORD成员及24项历史基线均一致；该报告没有重跑测试/安装，也不包含最终ZIP成员审计。
+
+独立空间细化实际运行四组非零流、混材及正/负点载荷的12/24/48段对照，使用分段连续自然坐标ODE与独立离散牵引根；四组端点位移差均随本次网格细化减小。各网格共享底牵引/自然库存，但船端位置不同，**不是共同固定端BVP或接触/剪切流的空间收敛证明**。另外两组独立连续时间力ODE对照记录0.008→0.004→0.002秒步长的实际误差减小。证据见`development_0.7_current_continuous.json`、`development_0.7_current_time_refinement.json`及 [细化范围](CURRENT_REFINEMENT_NOTES.md)，均非海试精度界。
+
+### 发行对象与最终归档检查
+
+产物为`outputs/releases/OceanRoute-0.7-portable.zip`、`outputs/releases/oceanroute-0.7.0-py3-none-any.whl`、`output/pdf/OceanRoute_用户手册_0.7.pdf`和`output/pdf/OceanRoute_设计文档_0.7.pdf`。最终预览为 <http://127.0.0.1:8771>，正式浏览器验收对象为8770；历史0.6预览8768保留。解压后执行`python3 launcher.py`（Windows用`py launcher.py`），默认8765，仍需Python3.10+及首次依赖联网。
+
+真实首装ZIP及212份输入摘要见`release_0.7_initial_archive.json`。最终封装可刷新文档、PDF、验证记录、截图和发行工具，212份运行对象保持与首装输入相同；未收入原厂PDF、开发者数据库、缓存或虚拟环境。`scripts/audit_release.py`实际核对完整成员集合、规范路径/CRC、当前源码字节、wheel精确53份包文件/58项RECORD、ZIP与wheel同包内容及24项历史基线，结果通过；真实报告为`resources/validation/release_0.7_artifact_audit.json`。报告内嵌后采用不写文件的`--verify-only`复核完整成员和报告自身字节，外部清单记录最终对象。最终大小与总包SHA256由压缩包外`outputs/releases/manifest-0.7.json`记录，避免自引用。
+
+局部非线性平衡不保证任意seed或复杂曲床可达；N18曲床直线冷起耗尽默认评估预算的真实失败仍拒绝，不暗增预算或回退零流。初始EI/力矩、波浪与移动准稳态、有限杆/6DOF、加载历史摩擦、尺寸接触、完整维修动态、复杂床长航程误差、原厂native/设备和现场对照仍未完成。accepted、守恒残差、空间/时间细化和内部work均不代表原厂等效、工程认证或Token费用。
+
+## 冻结0.6阶段发行
 
 2026-10-04。0.6新增投影画布实际点位编辑、完整二维定端平衡动态初态、静力输入显式转动态草稿、地理计划/制造库存桥接及任务切换保护。提供含编译界面的源码便携包、wheel和版本PDF；完整原厂功能、原生文件、设备和海试精度仍未完成。0.1至0.5冻结发行物及历史摘要保持不变。
 

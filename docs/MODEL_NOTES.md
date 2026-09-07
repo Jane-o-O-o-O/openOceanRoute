@@ -251,6 +251,8 @@ assert continued["frames"][-1]["time_s"] == 3.375
 
 任意保存时刻会使积分在该时刻截断一个内部步。与采用相同保存边界的连续运行比较，续算仅有浮点舍入差；如果拿未设置该保存边界的运行作比较，新增的短内部步可能产生正常数值离散差异，应做时间步加密分析。断点是独立研究仿真的状态，不能当作真实施工传感器同步或实船实时监控。
 
-## 9. 冻结 0.5 之后的真实二维平衡初态开发
+## 9. 0.7 的显式二维平衡初态
 
-显式 raw `initial_equilibrium` 会重求二维固定端自然长静力、独立重构实际动态力/物料/整段床面，并使用带真实预应力位置修正的 model-v4/schema3。默认无该字段仍走上文兼容近似；旧断点继续原方案。此初态当前限制在 uniform w/EA、EI0、无初始流或已部署实体；不是移动准稳态或完整静摩擦历史。初始库存不重复计作 payout，固定支持不自动当 TD；真实无接触时新路径 TD/底张力为 null。完整合同、分层收费和未完成范围参见 [INITIAL_EQUILIBRIUM_NOTES.md](INITIAL_EQUILIBRIUM_NOTES.md)。
+显式 raw `initial_equilibrium` 会重求二维固定端自然长静力、独立重构实际动态力/物料/整段床面，并使用带真实预应力位置修正的 model-v4/schema3。默认无该字段仍走上文兼容近似；旧断点继续原方案。raw1 初态支持实际分段湿重/EA 和有符号零长度点载荷，仍要求 EI=0 和初始流场为零。raw2 明确声明 initial_fluid，支持水平恒流或深度剪切流，使用 provenance3、model-v5 与 checkpoint schema4；固定端零初速度下真实重算非保守拖曳及二维床法向支持。方向质量块把缆/点拖曳、轴力、湿重和预应力支持一致合并；其冻结当步系数近似不是全隐式流体或移动准稳态。有限杆、初始 EI/波浪和完整静摩擦加载历史仍拒绝。初始库存不重复计作 payout，固定支持不自动当 TD；真实无接触时新路径 TD/底张力为 null。完整合同、分层收费和未完成范围参见 [INITIAL_EQUILIBRIUM_NOTES.md](INITIAL_EQUILIBRIUM_NOTES.md)。
+
+0.7 的稳定材料积分、流场合同、预算及版本恢复详见 [异质核心说明](HETEROGENEOUS_MATERIAL_CORE_NOTES.md)、[海流核心说明](CURRENT_EQUILIBRIUM_CORE_NOTES.md) 和 [海流初态保存说明](CURRENT_INITIALIZATION_NOTES.md)。旧 v2/v3/v4 分支保持原积分语义；未来流命令不改写历史 raw 初始流。
