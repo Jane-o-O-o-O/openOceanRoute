@@ -161,11 +161,23 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             if language == "mermaid" and design:
                 story.extend([relations(), Spacer(1, 8)])
             else:
-                story.append(Paragraph("<br/>".join(inline(v).replace(" ", "&#160;") for v in block), STYLES["code"]))
+                code = Paragraph("<br/>".join(inline(v).replace(" ", "&#160;") for v in block), STYLES["code"])
+                # Short formula/code blocks fit on one page; preserve them as
+                # a unit. Long examples still split instead of overflowing.
+                story.append(KeepTogether([code]) if len(block) <= 12 else code)
         elif line.startswith("|"):
             block = [line]
             while index < len(lines) and lines[index].strip().startswith("|"):
                 block.append(lines[index]); index += 1
+            # A short table introduction must travel with the following table
+            # header, just as a list introduction travels with its first item.
+            if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+                lead = story.pop()
+                paragraphs = getattr(lead, "oceanroute_flowables", [lead])
+                # ReportLab excludes KeepTogether containers themselves from
+                # keepWithNext collection, so expose the leading paragraphs.
+                paragraphs[-1].keepWithNext = True
+                story.extend(paragraphs)
             story.extend([table(block, design), Spacer(1, 9)])
         elif line.startswith("## "):
             story.append(Paragraph(inline(line[3:]), STYLES["h2"]))

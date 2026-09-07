@@ -95,6 +95,36 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                             assert result["mapping"]["initial_equilibrium_preparation"]["provenance"]
                         physical_examples[filename] = {"endpoint": endpoint, "http_status": 200,
                                                        "model": result["model"]}
+                if tuple(map(int, expected_version.split("."))) >= (0, 7, 0):
+                    for filename, geographic in (("heterogeneous-initial-dynamic.json", False),
+                                                  ("heterogeneous-initial-plan-voyage.json", True),
+                                                  ("current-initial-dynamic.json", False),
+                                                  ("current-initial-plan-voyage.json", True)):
+                        source = json.loads((checkout/"examples"/filename).read_text())
+                        def post(path, value):
+                            request = urllib.request.Request(url+path, json.dumps(value, allow_nan=False).encode(),
+                                                             {"Content-Type": "application/json"})
+                            with urllib.request.urlopen(request, timeout=30) as response:
+                                return json.load(response)
+                        prepared = post("/api/shipplan/prepare-voyage" if geographic else
+                                        "/api/simulation/prepare-equilibrium-initial", source)
+                        config = prepared["config"] if geographic else source["config"]
+                        endpoint = "/api/voyage/run" if geographic else "/api/simulation/dynamic"
+                        result = post(endpoint, {"project": source["project"], "config": config})
+                        checkpoint = result["checkpoint"]["physical_checkpoint"] if geographic else result["checkpoint"]
+                        current = filename.startswith("current-")
+                        assert checkpoint["schema_version"] == (4 if current else 3)
+                        proof = checkpoint["state"]["initialization_provenance"]
+                        assert proof["schema"].endswith(".v3" if current else ".v2")
+                        assert proof["verification"]["accepted"]
+                        first = post(endpoint, {"project": source["project"], "config": {**config, "duration_s": .04}})
+                        resumed = post(endpoint, {"project": {}, "config": {"resume_state": first["checkpoint"], "duration_s": .04}})
+                        final = resumed["checkpoint"]["physical_checkpoint"] if geographic else resumed["checkpoint"]
+                        for key in ("positions", "velocities", "rest_lengths_m", "node_material_m", "node_mass_kg", "node_wet_weight_n"):
+                            assert final["state"][key] == checkpoint["state"][key], (filename, key)
+                        physical_examples[filename] = {"endpoint": endpoint, "http_status": 200,
+                            "model": checkpoint["model"], "proof_schema": proof["schema"],
+                            "split_json_resume_exact_six_arrays": True, "requests": 4}
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)

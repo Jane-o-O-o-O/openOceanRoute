@@ -1003,6 +1003,96 @@ print(json.dumps(finite({
 '''
 
 
+CURRENT_SMOKE_CODE = r'''
+from copy import deepcopy
+import importlib
+import json
+from pathlib import Path
+import time
+import numpy as np
+from fastapi.testclient import TestClient
+from oceanroute.api import create_app
+from oceanroute.storage import ProjectStore
+from oceanroute.checkpoints import read_checkpoint
+
+root=Path.cwd().resolve()
+modules={}
+for name in ('oceanroute.hydrodynamics','oceanroute.current_equilibrium','oceanroute.current_dynamics'):
+    module=importlib.import_module(name)
+    path=Path(module.__file__).resolve()
+    assert path.is_relative_to(root)
+    modules[name]=str(path.relative_to(root))
+def post(client,path,value):
+    response=client.post(path,json=value)
+    assert response.status_code==200,(path,response.status_code,response.text[:1200])
+    value=response.json();json.dumps(value,allow_nan=False);return value
+def get(client,path):
+    response=client.get(path);assert response.status_code==200,response.text;return response.json()
+def wait(client,identifier):
+    deadline=time.monotonic()+20
+    while time.monotonic()<deadline:
+        status=get(client,'/api/voyage/jobs/'+identifier)
+        if status['status'] not in ('queued','running','cancelling'):
+            assert status['status']=='completed',status
+            return get(client,'/api/voyage/jobs/'+identifier+'/checkpoint')
+        time.sleep(.02)
+    raise AssertionError('current durable task timed out')
+keys=('positions','velocities','rest_lengths_m','node_material_m','node_mass_kg','node_wet_weight_n')
+results={}
+database=root/'data/current-smoke.sqlite3'
+started=time.monotonic()
+with TestClient(create_app(ProjectStore(database))) as client:
+    for filename in ('heterogeneous-initial-dynamic.json','heterogeneous-initial-plan-voyage.json',
+                     'current-initial-dynamic.json','current-initial-plan-voyage.json'):
+        source=json.loads((root/'examples'/filename).read_text())
+        geographic='plan-voyage' in filename
+        prepared=post(client,'/api/shipplan/prepare-voyage' if geographic else
+                      '/api/simulation/prepare-equilibrium-initial',source)
+        config=prepared['config'] if geographic else source['config']
+        endpoint='/api/voyage/run' if geographic else '/api/simulation/dynamic'
+        whole=post(client,endpoint,{'project':source['project'],'config':config})
+        first=post(client,endpoint,{'project':source['project'],'config':{**config,'duration_s':.04}})
+        continued=post(client,endpoint,{'project':{},'config':{'resume_state':first['checkpoint'],'duration_s':.04}})
+        a=whole['checkpoint']['physical_checkpoint'] if geographic else whole['checkpoint']
+        b=continued['checkpoint']['physical_checkpoint'] if geographic else continued['checkpoint']
+        current=filename.startswith('current-')
+        assert a['schema_version']==b['schema_version']==(4 if current else 3)
+        proof=a['state']['initialization_provenance']
+        assert proof['schema'].endswith('.v3' if current else '.v2')
+        assert proof['verification']['accepted']
+        for key in keys:assert a['state'][key]==b['state'][key],(filename,key)
+        assert proof==b['state']['initialization_provenance']
+        read_checkpoint(a);read_checkpoint(b)
+        results[filename]={'schema_version':a['schema_version'],'model':a['model'],
+                           'proof_schema':proof['schema'],'actual_requests':4,'six_arrays_exact':True}
+        if filename=='current-initial-dynamic.json':
+            historical=deepcopy(first['checkpoint']['state']['initialization_provenance'])
+            changed=post(client,endpoint,{'project':{},'config':{'resume_state':first['checkpoint'],
+                'duration_s':.04,'current_profile':[{'depth_m':0.,'x_m_s':-.3,'y_m_s':.2},
+                                                {'depth_m':40.,'x_m_s':.1,'y_m_s':-.2}]}})
+            assert changed['checkpoint']['state']['initialization_provenance']==historical
+            assert changed['frames'][-1]['node_fluid_velocity_m_s']!=whole['frames'][-1]['node_fluid_velocity_m_s']
+            assert not np.allclose(changed['checkpoint']['state']['positions'],a['state']['positions'],rtol=0,atol=1e-8)
+            results[filename]['future_profile_changes_physics_and_preserves_history']=True
+        if filename=='current-initial-plan-voyage.json':
+            geo_expected=a;geo_project=source['project']
+            job=post(client,'/api/voyage/jobs',{'project':geo_project,'config':{**config,'duration_s':.04}})
+            parent=wait(client,job['id'])
+            (root/'data/current-parent.json').write_text(json.dumps(parent,allow_nan=False))
+with TestClient(create_app(ProjectStore(database))) as client:
+    parent=get(client,'/api/voyage/jobs/'+job['id']+'/checkpoint')
+    assert parent==json.loads((root/'data/current-parent.json').read_text())
+    child=post(client,'/api/voyage/jobs/'+job['id']+'/resume',{'duration_s':.04})
+    final=wait(client,child['id'])['physical_checkpoint']
+    for key in keys:assert final['state'][key]==geo_expected['state'][key],key
+    assert final['state']['initialization_provenance']==geo_expected['state']['initialization_provenance']
+    assert final['schema_version']==4
+print(json.dumps({'status':'passed','isolated_modules':modules,'examples':results,
+    'durable_geographic_owner_reopen_json_child_resume':True,'elapsed_s':time.monotonic()-started,
+    'scope':'extracted wheel with existing interpreter dependencies and explicitly copied synthetic source JSON; true ASGI lifecycle, not clean installation or field equivalence'},allow_nan=False))
+'''
+
+
 def smoke(wheel: Path, report_path: Path | None = None) -> dict:
     wheel = wheel.resolve()
     with tempfile.TemporaryDirectory(prefix="oceanroute-wheel-") as directory:
@@ -1033,6 +1123,18 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
         if completed.stderr:
             print(completed.stderr, file=sys.stderr, end="")
         report = json.loads(completed.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 7, 0):
+            examples = destination / "examples"
+            examples.mkdir()
+            for name in ("heterogeneous-initial-dynamic.json", "heterogeneous-initial-plan-voyage.json",
+                         "current-initial-dynamic.json", "current-initial-plan-voyage.json"):
+                payload = (Path(__file__).resolve().parents[1]/"examples"/name).read_bytes()
+                (examples/name).write_bytes(payload)
+            current = subprocess.run([sys.executable, "-c", CURRENT_SMOKE_CODE], cwd=destination,
+                                     env=environment, check=True, capture_output=True, text=True, timeout=120)
+            if current.stderr:
+                print(current.stderr, file=sys.stderr, end="")
+            report["heterogeneous_and_current_equilibrium"] = json.loads(current.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size
