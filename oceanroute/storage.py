@@ -11,6 +11,8 @@ import sqlite3
 from typing import Iterator
 from uuid import uuid4
 
+from .sqlite_lifecycle import managed_connection
+
 
 class ProjectStore:
     def __init__(self, path: str | Path | None = None):
@@ -34,17 +36,8 @@ class ProjectStore:
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
-        con = sqlite3.connect(self.path, timeout=15)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode=WAL")
-        try:
+        with managed_connection(self.path) as con:
             yield con
-            con.commit()
-        except Exception:
-            con.rollback()
-            raise
-        finally:
-            con.close()
 
     def list(self) -> list[dict]:
         with self.connection() as con:
