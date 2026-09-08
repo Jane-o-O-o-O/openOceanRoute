@@ -98,6 +98,7 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "projects", "name": "工程保存 / 修订恢复", "status": "implemented", "note": "本地 SQLite 事务与历史快照"},
             {"id": "workspace", "name": "多路径工程 / 共享制造装配", "status": "implemented", "note": "schema2路径、共享缆库、库存与互斥替代关系；按唯一实物核算采购"},
             {"id": "exchange", "name": "开放格式交换", "status": "implemented", "note": "CSV、GeoJSON、KML、DXF、SVG、HTML 报告"},
+            {"id": "s57", "name": "S-57 原生海图导入", "status": "implemented", "note": "原生海图与连续更新、对象类目录和参考GIS图层；保留测深值及海图基准，不自动作为工程测深或航海产品"},
             {"id": "tools", "name": "分缆 / 余缆模板 / 拆分合并", "status": "implemented", "note": "实际工程变换、制造量与有限附属体同步"},
             {"id": "constraints", "name": "Rigid / Clamped / Sliding 域约束", "status": "implemented", "note": "独立显式Path Link域，冲突拒绝；不支持的变换需重新配置"},
             {"id": "assembly", "name": "制造清单 / 实制装配回写", "status": "implemented", "note": "独立CSV、明确映射预览，非原厂装配格式"},
@@ -386,6 +387,52 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     @app.post("/api/import/geojson")
     def import_geojson(payload: dict):
         return exchange.import_geojson(str(payload.get("text", "")), str(payload.get("name", "导入图层")), str(payload.get("kind", "survey")))
+
+    async def _s57_upload(file: UploadFile, config_json: str, operation: str):
+        import asyncio
+        from .s57 import inspect_s57, catalog_s57, import_s57
+
+        if len(config_json.encode("utf-8")) > 32 * 1024:
+            raise ValueError("S-57 导入设置超过32 KiB")
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError(f"S-57 设置包含重复字段：{key}")
+                result[key] = value
+            return result
+
+        def nonfinite(value):
+            raise ValueError(f"S-57 设置包含非有限数值：{value}")
+
+        try:
+            config = json.loads(config_json, object_pairs_hook=unique_object,
+                                parse_constant=nonfinite)
+            if not isinstance(config, dict):
+                raise ValueError("S-57 设置须为JSON对象")
+            json.dumps(config, allow_nan=False, ensure_ascii=False).encode("utf-8")
+        except (ValueError, TypeError, RecursionError) as exc:
+            raise ValueError(f"S-57 设置无效：{exc}") from exc
+        data = await file.read(128 * 1024 * 1024 + 1)
+        if len(data) > 128 * 1024 * 1024:
+            raise ValueError("S-57 上传超过128 MiB")
+        operation_fn = {"inspect": inspect_s57, "catalog": catalog_s57,
+                        "import": import_s57}[operation]
+        return await asyncio.to_thread(operation_fn, data, filename=file.filename or "",
+                                       config=config)
+
+    @app.post("/api/import/s57/inspect")
+    async def s57_inspect(file: UploadFile = File(...), config_json: str = Form("{}")):
+        return await _s57_upload(file, config_json, "inspect")
+
+    @app.post("/api/import/s57/catalog")
+    async def s57_catalog(file: UploadFile = File(...), config_json: str = Form("{}")):
+        return await _s57_upload(file, config_json, "catalog")
+
+    @app.post("/api/import/s57")
+    async def s57_import(file: UploadFile = File(...), config_json: str = Form("{}")):
+        return await _s57_upload(file, config_json, "import")
 
     @app.post("/api/import/project")
     def import_project(payload: dict):
