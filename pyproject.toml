@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oceanroute"
-version = "0.7.0"
+version = "0.8.0"
 description = "Independent submarine cable route planning and research simulation"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
   "shapely>=2,<3",
   "python-multipart>=0.0.9,<1",
   "pyshp>=2.3,<3",
+  "pyogrio>=0.12,<1",
 ]
 
 [project.optional-dependencies]
