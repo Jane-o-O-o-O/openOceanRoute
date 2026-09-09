@@ -10,9 +10,9 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
-import sqlite3
 
 from .workspace import WorkspaceError, validate_workspace
+from .sqlite_lifecycle import managed_connection
 
 
 class WorkspaceRevisionConflict(WorkspaceError):
@@ -60,18 +60,8 @@ class WorkspaceStore:
 
     @contextmanager
     def connection(self):
-        con = sqlite3.connect(self.path, timeout=15)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA foreign_keys=ON")
-        con.execute("PRAGMA journal_mode=WAL")
-        try:
+        with managed_connection(self.path, foreign_keys=True) as con:
             yield con
-            con.commit()
-        except Exception:
-            con.rollback()
-            raise
-        finally:
-            con.close()
 
     @staticmethod
     def _read(con, workspace_id):

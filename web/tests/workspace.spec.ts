@@ -20,14 +20,21 @@ test('planning results agree with the backend and fixed cable survives a coordin
 });
 
 test('new project saves twice, reopens and restores a revision',async({page,request})=>{
-  await page.goto('/');await ready(page);await page.getByRole('button',{name:'新建',exact:true}).click();await ready(page);
-  await page.getByRole('button',{name:'工程设置',exact:true}).click();
-  const name='UI regression '+Date.now();await page.getByLabel('工程名称',{exact:true}).fill(name);await page.getByLabel('工程名称',{exact:true}).blur();await ready(page);
+  await page.goto('/');await ready(page);
+  // Delay only delivery of the real migrate response to exercise the loading boundary.
+  let release!:()=>void,arrived!:(workspace:any)=>void;const held=new Promise<void>(r=>release=r),nativeReady=new Promise<any>(r=>arrived=r);
+  await page.route('**/api/workspace/migrate',async route=>{const actual=await route.fetch();expect(actual.status(),await actual.text()).toBe(200);arrived((await actual.json()).workspace);await held;await route.fulfill({response:actual})});
+  const createdResponse=page.waitForResponse(r=>r.url().endsWith('/api/workspace/migrate')&&r.request().method()==='POST');await page.getByRole('button',{name:'新建',exact:true}).click();const created=await nativeReady;
+  await expect(page.locator('.document-loading-overlay')).toBeVisible();await expect(page.locator('.calculation-status')).toHaveText('正在载入工作区');expect(await page.locator('.application').evaluate((el:HTMLElement)=>el.closest('[inert]')!==null)).toBe(true);
+  release();expect((await createdResponse).status()).toBe(200);await expect(page.locator('.document-loading-overlay')).not.toBeVisible();await ready(page);await page.unroute('**/api/workspace/migrate');await expect(page.locator('.project-title strong')).toHaveText('未命名海缆工程');
+  await page.getByRole('button',{name:'工程设置',exact:true}).click();await expect(page.getByLabel('工程编号',{exact:true})).toHaveValue(created.id);
+  let releaseRename!:()=>void,arrivedRename!:()=>void;const renameHeld=new Promise<void>(r=>releaseRename=r),renameNativeReady=new Promise<void>(r=>arrivedRename=r);await page.route('**/api/workspace/action',async route=>{if(route.request().postDataJSON()?.config?.action!=='update_metadata'){await route.continue();return}const actual=await route.fetch();expect(actual.status(),await actual.text()).toBe(200);arrivedRename();await renameHeld;await route.fulfill({response:actual})});
+  const name='UI regression '+Date.now(),renamedResponse=page.waitForResponse(r=>r.url().endsWith('/api/workspace/action')&&r.request().postDataJSON()?.config?.action==='update_metadata'&&r.request().postDataJSON()?.config?.name===name);await page.getByLabel('工程名称',{exact:true}).fill(name);await page.getByLabel('工程名称',{exact:true}).blur();await renameNativeReady;await expect(page.getByRole('button',{name:'打开',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'修订历史',exact:true})).toBeDisabled();releaseRename();const renamed=await renamedResponse;expect(renamed.status()).toBe(200);const renamedWorkspace=(await renamed.json()).workspace;expect(renamedWorkspace.id).toBe(created.id);expect(renamedWorkspace.name).toBe(name);await expect(page.locator('.project-title strong')).toHaveText(name);await ready(page);await page.unroute('**/api/workspace/action');
   await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 1',{exact:true})).toBeVisible();await ready(page);
   await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('工程已保存 · 修订 2',{exact:true})).toBeVisible();await ready(page);
-  const projects=await (await request.get(apiURL+'/workspaces')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved.revision).toBe(2);
-  await page.getByRole('button',{name:'打开',exact:true}).click();await page.getByRole('button').filter({has:page.getByText(name,{exact:true})}).click();await ready(page);
-  await page.getByRole('button',{name:'修订历史',exact:true}).click();await page.getByRole('button').filter({has:page.getByText('修订 1 · '+name,{exact:true})}).click();await ready(page);
+  const projects=await (await request.get(apiURL+'/workspaces')).json();const saved=projects.find((p:any)=>p.name===name);expect(saved).toBeDefined();expect(saved.id).toBe(created.id);expect(saved.revision).toBe(2);
+  await page.getByRole('button',{name:'打开',exact:true}).click();const openedResponse=page.waitForResponse(r=>r.url().endsWith('/api/workspaces/'+saved.id)&&r.request().method()==='GET');await page.getByRole('button').filter({has:page.getByText(name,{exact:true})}).click();expect((await openedResponse).status()).toBe(200);await expect(page.locator('.document-loading-overlay')).not.toBeVisible();await expect(page.getByRole('dialog')).not.toBeVisible();await ready(page);
+  await page.getByRole('button',{name:'修订历史',exact:true}).click();const restoredResponse=page.waitForResponse(r=>r.url().endsWith('/api/workspaces/'+saved.id+'/restore/1')&&r.request().method()==='POST');await page.getByRole('button').filter({has:page.getByText('修订 1 · '+name,{exact:true})}).click();const response=await restoredResponse;expect(response.status()).toBe(200);const restoredData=await response.json();expect(restoredData.saved_revision).toBe(3);await expect(page.locator('.document-loading-overlay')).not.toBeVisible();await expect(page.getByRole('dialog')).not.toBeVisible();await ready(page);
   const restored=await (await request.get(apiURL+'/workspaces/'+saved.id)).json();expect(restored.saved_revision).toBe(3);
 });
 
