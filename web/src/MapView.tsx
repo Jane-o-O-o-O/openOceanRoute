@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {layerOpacity,layerVisible} from './layerDisplay';
 import L from 'leaflet';
 import {Crosshair,Layers,MousePointer2,Plus,Compass} from 'lucide-react';
 import type {Project,Point,Analysis} from './types';
@@ -25,6 +26,8 @@ type MapProps={project:Project;geometry?:number[][];geometrySegments?:number[][]
 export default function MapView(props:MapProps){const [display,setDisplay]=useState('geographic');return <div className="map-view-container"><nav className="map-display-mode" aria-label="地图显示方式"><button className={display==='geographic'?'active':''} onClick={()=>setDisplay('geographic')}>经纬地图</button><button className={display==='projected'?'active':''} onClick={()=>setDisplay('projected')}>投影视图</button></nav>{display==='projected'?<ProjectedMapView {...props} pathOverlays={props.pathOverlays||noPathOverlays}/>:<GeographicMapView {...props}/>}</div>}
 function GeographicMapView({project,geometry,selected,onSelect,onMove,onAdd,fitVersion,editable=true,allowAdd=true,pathOverlays=noPathOverlays,onPathPick}:MapProps){
   const element=useRef<HTMLDivElement>(null),mapRef=useRef<L.Map|null>(null),content=useRef<L.LayerGroup|null>(null),gridRef=useRef<L.LayerGroup|null>(null),initial=useRef(false);
+  const gisBounds=useRef<L.LatLngBounds|null>(null);
+  const gisGroups=useRef<SVGElement[]>([]);
   const callbacks=useRef({onSelect,onMove,onAdd}),addRef=useRef(false);callbacks.current={onSelect,onMove,onAdd};
   const [adding,setAdding]=useState(false),[base,setBase]=useState(false),[cursor,setCursor]=useState('WGS 84 · EPSG:4326');addRef.current=adding&&editable&&allowAdd;
   useEffect(()=>{if(!allowAdd)setAdding(false)},[allowAdd]);
@@ -44,8 +47,24 @@ function GeographicMapView({project,geometry,selected,onSelect,onMove,onAdd,fitV
   },[]);
   useEffect(()=>{const map=mapRef.current;if(!map)return;const tile=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19});if(base)tile.addTo(map);return()=>{map.removeLayer(tile)};},[base]);
   useEffect(()=>{
-    const map=mapRef.current,group=content.current;if(!map||!group)return;group.clearLayers();
-    project.layers.filter(l=>l.visible).forEach(layer=>{try{const geo=L.geoJSON(layer.geojson,{style:{color:layer.kind==='survey_measured'?'#208ca4':layer.kind==='survey_observations'?'#4e78b1':layer.kind==='survey_residuals'?'#c66b73':['cable','routing_original'].includes(layer.kind)?'#d39a42':['restricted','exclusion','hazard','routing_blocked'].includes(layer.kind)?'#bc5865':'#617aa5',weight:2,fillOpacity:.14,dashArray:layer.kind==='survey_residuals'?'3 4':['cable','routing_original'].includes(layer.kind)?'6 5':undefined},pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{radius:5,color:layer.kind==='survey_observations'?(feature.properties?.ambiguity?'#bc9351':feature.properties?.matched?'#4e78b1':'#8c9da7'):'#617aa5'})});geo.bindTooltip(()=>tooltipText(layer.name));geo.addTo(group)}catch{}});
+    const map=mapRef.current,group=content.current;if(!map||!group)return;
+    group.clearLayers();gisGroups.current.forEach(node=>node.remove());gisGroups.current=[];gisBounds.current=null;
+    project.layers.filter(layerVisible).forEach(layer=>{try{
+      const opacity=layerOpacity(layer);
+      const geo=L.geoJSON(layer.geojson,{
+        style:{color:layer.kind==='survey_measured'?'#208ca4':layer.kind==='survey_observations'?'#4e78b1':layer.kind==='survey_residuals'?'#c66b73':['cable','routing_original'].includes(layer.kind)?'#d39a42':['restricted','exclusion','hazard','routing_blocked'].includes(layer.kind)?'#bc5865':'#617aa5',weight:2,opacity:1,fillOpacity:.14,dashArray:layer.kind==='survey_residuals'?'3 4':['cable','routing_original'].includes(layer.kind)?'6 5':undefined},
+        pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{radius:5,opacity:1,fillOpacity:.2,color:layer.kind==='survey_observations'?(feature.properties?.ambiguity?'#bc9351':feature.properties?.matched?'#4e78b1':'#8c9da7'):'#617aa5'})
+      });
+      geo.bindTooltip(()=>tooltipText(layer.name));geo.addTo(group);
+      const elements:SVGElement[]=[];
+      const tag=(item:any)=>{const node=item.getElement?.() as SVGElement|undefined;if(node){node.setAttribute('data-gis-layer-id',layer.id);node.setAttribute('data-layer-opacity',String(opacity));elements.push(node)}item.eachLayer?.(tag)};
+      geo.eachLayer(tag);
+      // Composite the complete layer once, so overlapping features have the
+      // same opacity semantics as the actual projected SVG layer group.
+      const parent=elements[0]?.parentNode;
+      if(parent){const composite=document.createElementNS('http://www.w3.org/2000/svg','g');composite.setAttribute('data-gis-layer-group-id',layer.id);composite.setAttribute('opacity',String(opacity));parent.appendChild(composite);elements.forEach(node=>composite.appendChild(node));gisGroups.current.push(composite)}
+      const bounds=geo.getBounds();if(bounds.isValid())gisBounds.current=gisBounds.current?gisBounds.current.extend(bounds):bounds;
+    }catch{}});
     for(const overlay of pathOverlays){for(const segment of overlay.segments){if(segment.length<2)continue;const positions=segment.map(p=>[p[1],p[0]] as L.LatLngTuple);const path=L.polyline(positions,{color:overlay.role==='alternative'?'#bf9c57':'#708aaf',weight:3,opacity:.65,dashArray:overlay.role==='alternative'?'5 5':undefined,className:'workspace-other-path'});path.bindTooltip(tooltipText(overlay.name+' · '+(overlay.role==='alternative'?'备选路线':'工程路径')));if(onPathPick&&editable)path.on('click',()=>onPathPick(overlay.id));path.addTo(group)}}
     const positions=geometry?.length?geometry.reduce<L.LatLngTuple[]>((acc,p)=>{let lon=p[0];const last=acc.length?acc[acc.length-1][1]:lon;while(lon-last>180)lon-=360;while(lon-last< -180)lon+=360;acc.push([p[1],lon]);return acc},[]):routePositions(project.route.points,project.route.curve);L.polyline(positions,{color:'#158a85',weight:4,opacity:.95}).addTo(group);
     project.route.points.forEach((p,i)=>{let lon=p.longitude;const first=project.route.points[0]?.longitude||0;while(lon-first>180)lon-=360;while(lon-first< -180)lon+=360;
@@ -55,5 +74,5 @@ function GeographicMapView({project,geometry,selected,onSelect,onMove,onAdd,fitV
     if(!initial.current&&positions.length>1){map.fitBounds(L.latLngBounds(positions),{padding:[55,55]});initial.current=true;}
   },[project,geometry,selected,editable,pathOverlays,onPathPick]);
   useEffect(()=>{const map=mapRef.current;if(map&&project.route.points.length>1)map.fitBounds(L.latLngBounds(routePositions(project.route.points,project.route.curve)),{padding:[60,60]});},[fitVersion]);
-  return <div className={`map-shell ${adding?'map-add':''}`}><div className="leaflet-host" ref={element}/><div className="map-tools"><button title="选取与拖动路由点" className={!adding?'selected':''} onClick={()=>setAdding(false)}><MousePointer2 size={17}/></button>{editable&&allowAdd&&<button title="在地图上点击追加路由点" className={adding?'selected':''} onClick={()=>setAdding(!adding)}><Plus size={18}/></button>}<span/><button title="定位完整路由" onClick={()=>{const map=mapRef.current;if(map)map.fitBounds(L.latLngBounds(routePositions(project.route.points,project.route.curve)),{padding:[55,55]})}}><Crosshair size={18}/></button><button title="切换在线 OpenStreetMap 底图" className={base?'selected':''} onClick={()=>setBase(!base)}><Layers size={18}/></button></div><div className="map-corner"><Compass size={25}/><span>N</span></div><div className="map-source"><i/>{base?'OpenStreetMap · 在线底图':'离线经纬网 · 无地形底图'}</div><div className="map-coordinate">{cursor}</div>{adding&&<div className="map-hint">点击地图追加路由点 · 追加点水深待输入</div>}</div>;
+  return <div className={`map-shell ${adding?'map-add':''}`}><div className="leaflet-host" ref={element}/><div className="map-tools"><button title="选取与拖动路由点" className={!adding?'selected':''} onClick={()=>setAdding(false)}><MousePointer2 size={17}/></button>{editable&&allowAdd&&<button title="在地图上点击追加路由点" className={adding?'selected':''} onClick={()=>setAdding(!adding)}><Plus size={18}/></button>}<span/><button title="定位完整路由" onClick={()=>{const map=mapRef.current;if(map)map.fitBounds(L.latLngBounds(routePositions(project.route.points,project.route.curve)),{padding:[55,55]})}}><Crosshair size={18}/></button><button title="定位可见 GIS 图层" disabled={!project.layers.some(layerVisible)} onClick={()=>{const map=mapRef.current,bounds=gisBounds.current;if(map&&bounds?.isValid())map.fitBounds(bounds,{padding:[55,55],maxZoom:17})}}><Layers size={18}/></button><button title="切换在线 OpenStreetMap 底图" className={base?'selected':''} onClick={()=>setBase(!base)}><Layers size={18}/></button></div><div className="map-corner"><Compass size={25}/><span>N</span></div><div className="map-source"><i/>{base?'OpenStreetMap · 在线底图':'离线经纬网 · 无地形底图'}</div><div className="map-coordinate">{cursor}</div>{adding&&<div className="map-hint">点击地图追加路由点 · 追加点水深待输入</div>}</div>;
 }
