@@ -1,8 +1,8 @@
 # OceanRoute 软件设计文档
 
-版本 0.7 / 2026-10-04 / 与实际代码同步
+版本 0.8 开发版 / 2026-10-04 / 与实际代码同步
 
-本文保留投影点位编辑、二维真实平衡初态及地理制造窗口，纳入稳定局部材料积分、初始异质/点加载及显式稳恒海流的非保守平衡、方向块积分和历史恢复。各项实际验证、对应产物及环境限制见 `RELEASE_NOTES.md`，测试数量不能推定原厂等效。历史0.1至0.6包、PDF和摘要独立保留；后端、浏览器、打包、安装和PDF各自核验，不能由开发门禁推定发行通过。准确算法合同见模块NOTES。
+本文保留投影点位编辑、二维真实平衡初态及地理制造窗口，新增隔离原生S-57读取、完整来源和更新链验证，以及共享GIS显示状态。0.8开发和发行门禁分开记录。历史0.1至0.7包、PDF和摘要独立保留；后端、浏览器、打包、安装和PDF各自核验，不能由开发门禁推定发行通过。准确算法合同见模块NOTES。
 
 ## 1. 目标和依据
 
@@ -25,6 +25,7 @@ FastAPI 本地服务执行计算并提供编译后的 React/TypeScript 界面。
 | constraints.py、assembly.py | 路径约束、制造域、装配回写和参考点 | 固定制造量、完整性签名、显式映射政策 |
 | routing.py | 有限网格避让、带权区域与地形路由搜索 | 有界 A* 候选，不承诺全局最优 |
 | gis.py、dtm.py、terrain_boundaries.py、terrain_slice.py、surfer.py、geoformats.py | 沿线地形、网格、掩膜/切片、Surfer/KML/SHP | 实际稀疏平滑、缺测/投影、完整栅格采样 |
+| s57.py | 原始ISO8211容器、GDAL对象目录/属性/几何和更新证据 | 隔离原生子进程、有界完整参考图层；非FME或航海认证 |
 | terrain_sources.py、terrain_bathymetry.py、bathymetry.py | 共享来源优先级、真实局部重采样、双线性床法向 | 库摘要、缺测与声明海面高，完整二维动态来源追溯 |
 | workspace_terrain.py | 新来源及全部目标路径的原子地形预览 | 查询、Path Link、共享实物量全部通过才返回完整候选 |
 | exchange.py、rpl_templates.py | RPL模板、剖面、GeoJSON、标准图形与报告 | 真实源行诊断、解析与显式应用分开 |
@@ -100,6 +101,16 @@ update_path默认auto_exclusive：独占deployment的柔性制造量随core自�
 XYZ 转局部 AEQD 米制坐标后使用 Delaunay 线性插值或 IDW；默认凸包外不外推，最近测点过远时缺测。GeoTIFF 按 CRS 转换后采样第一波段，保留NoData、水深正方向和垂直基准。EPSG 不替代潮位基准。
 
 KML 保留属性与高度，Shapefile ZIP 按声明 CRS 和字符编码转换。Surfer 独立读取 DSAA/DSBB/DSRB，按显式坐标系、垂直符号及单位采样，断层网格限制为最近节点，不将缺测补为零。路由搜索在局部 AEQD 网格上检查边与障碍，二维地形才可支撑新曲线的地形约束；旧沿线剖面不能代替二维海底图。
+
+原生S-57依据MakaiPlan产品说明物理第9页的可选FME格式范围实现一个独立格式，不据此宣称完整FME或150种格式兼容。三阶段分别为容器inspect、原生catalog和已选择对象类import，HTTP均为multipart file与严格config_json。容器通过不等于图幅有效，只有最终非空有效几何完整导入允许应用。JSON重复键、非有限值、递归或32KiB超限拒绝；上传最多128MiB。
+
+每次原生读在新子进程中，通过pyogrio的GDAL S57驱动处理仅上传的私有文件。GDAL/PROJ覆盖变量清理，固定UPDATES=APPLY、SPLIT_MULTIPOINT=OFF等选项，父HTTP进程不修改全局读取配置。原始ZIP、每个基础图/更新/附属文件摘要、基础与更新DSID/DSPM、各类实际字段/数量及驱动版本随结果保留。真实原生WKB保留孔洞、多点分组、有限第三维，属性保留null、列表和国家文本。原生多边形组织性能提示保留，其余诊断不静默吞掉。
+
+每个更新先独立原生读取，再绑定原图幅版本、机构、用途及后缀号码，最后核对实际应用后的DSID。当前GDAL从001搜索更新，合法再版基础图加后续更新组合明确拒绝；不改原始header或生成虚构前序文件。单独再版基础图可读。DSPM_HDAT=2与COUN=1及对象WGS84 CRS同时核验；测深Z是原海图向下深度，声明单位和基准保持未转换，不写入路线/剖面/地形库。
+
+原生目录先核查数量再读取已选择类的raw WKB/NumPy数组，按实际要素、顶点、属性和完整UTF-8 JSON计预算。默认8图幅/256层/100000要素/200000顶点/20M工作/32M字节/30秒，各项硬限及工作计价见S57_NOTES。子进程超时终止且不返回部分结果；工作单位不声称是GDAL内部操作数或内存。单次导入请求硬限250000顶点，所选对象类最多20000要素；最终共享工作区另核验32MiB总JSON及图层等约束，不将路径几何预算当成全部GIS的累计顶点上限。全部层原子追加、整笔撤销，完整输入/草稿/路径/修订签名阻止陈旧应用。
+
+GIS显示顺序由共享layers数组从底向上定义，资源面板反序显示。display.opacity保存0至1原值及扩展字段，缺省显示1。Leaflet与SVG投影视图均在完整图层的实际SVG合成组应用不透明度，避免同层重叠产生不同透明度；重绘清理旧Leaflet路径及合成组，路径事件保持。合法旧图层缺省可见，原字段不自动补写；两视图按当前数组排序。仅显示顺序和不透明度不计入投影几何签名，保留已验证坐标；几何/显隐/CRS仍计入签名。显示操作不改变穿越/规则语义或制造/测深来源，完整工作区保存和修订保留source。详见GIS_DISPLAY_NOTES及真实浏览器验证。
 
 DTM 生成规则米制网格，梯度给出坡度/坡向，照明得阴影，ContourPy 得等深线并回转WGS84。四波段 GeoTIFF 和下采样预览分别提供，不混淆预览与计算分辨率。当前200k散点/250k单元上限，不声称原手册百万点分块性能。限制区、穿越、缓冲采用局部投影与Shapely，结果不等同完整工程认证。
 
@@ -245,11 +256,17 @@ SQLite WAL 与BEGIN IMMEDIATE保存工程和修订。开发版workspace使用独
 
 saved_revision保护整个工程的多窗口冲突，已有ID缺少修订或使用旧号均拒绝；恢复历史必须带expected_revision，并追加新修订。投影没有独立saved_revision。schema1迁移建立新工作区/路径/装配，保留origin_project_id；schema2导入建立新工程ID、保留内部关系并记录origin_workspace_id，均不继承旧修订。底层拆分/合并仍产生独立schema1结果；加入当前工作区须经路径操作及关联守恒核验。默认本机服务，不含云协作或账号系统。
 
+sqlite_lifecycle由两种持久存储共用，仅在本进程串行连接打开与关闭，实际读写事务、WAL、commit/rollback及跨进程BEGIN IMMEDIATE修订校验仍由SQLite管理。本机SQLite3.51.0在并发open/close时出现原生锁顺序死锁，纯SQLite子进程和实际完整回归均已复现；官方3.51.2有对应修复。短生命周期保护不要求升级用户解释器，不保护绕过该helper的外部SQLite调用或fork继承连接。新有界子进程回归实际执行1600次连接及完整保存冲突/恢复/rollback。
+
+快捷键撤销处理绑定完整controller.document及当前历史/忙碌状态，而非只绑定活跃路径；空工作区保存后也使用最新saved_revision。撤销数据不会回退服务端修订，随后保存继续追加新修订，不能绕过并发冲突校验。
+
 HTTP 的 `POST /api/workspace/migrate`、`POST /api/workspace/action` 和 `POST /api/workspace/import` 返回 workspace/project/analysis/report/warnings envelope；`POST /api/workspace/analyze` 直接收工作区并返回分析；`POST /api/workspace/export` 输出完整 JSON。`GET/POST /api/workspaces` 列出/保存工程，`GET /api/workspaces/{id}/revisions` 与 `POST /api/workspaces/{id}/restore/{revision}` 读取/恢复整工程历史。接口使用未知值 null 和有限 JSON，非法结构/混币/数量不一致/版本冲突为 422，不存在的存储实体为 404。精确请求及 Python 签名见 [WORKSPACE_NOTES.md](WORKSPACE_NOTES.md)。
 
 导入保留行错误，CSV输出防电子表格公式解释，XML/HTML转义用户文本。JSON是完整工程载体；KML/GeoJSON/DXF/SVG为开放交换，不能保证原厂属性往返。缺少原生schema和样例时不声称兼容。
 
 界面以完整workspace和活跃draft作为一个document状态；草稿经update_path校核后再物化，切换/保存/完整导出先提交草稿。共享关联拒绝时保留草稿，明确fork或撤销，不覆写合法库存。响应对应输入快照，防慢响应覆盖新状态；制造关系未通过时不允许保存为已接受工程。撤销/重做覆盖整个document，与数据库修订分开。各路径地图用同次分析的真实route_geometry与日期线segments；Seismic三维显示实际稳态节点和完整观测点，未测轴不伪造。
+
+新建、打开及历史恢复具有独立的整文档载入状态，开始即使旧分析响应失效，并暂停旧工作区的交互、快捷键编辑与保存。实际完整文档接受后才恢复交互并分析新路线；失败保留旧文档及错误。浏览器验收等待对应真实请求、工程身份/名称或新增修订，不以旧状态文本替代操作完成。受控延迟只延迟真实响应交付，不生成伪造工程或修订结果。
 
 App.applyProjectedEdit只接收当前完整document快照及当前路径ID对应的草稿，useWorkspaceDocument.flush通过update_path/auto_exclusive和完整shared校核提交；慢响应发现document已变即重新处理当前草稿，不用旧结果覆盖新状态。App.replaceWorkspaceCandidate对完整地形候选还核对workspace身份、saved_revision及草稿快照，全部通过才一次替换完整workspace并清draft。保存期间若仍有新草稿，返回的新saved_revision更新为当前修订基线而不覆写新编辑；多窗口旧修订失败保留草稿。共享库、装配、其他路径及未知扩展仍归完整source所有，不用活跃路径浅拷贝重建工作区。
 
@@ -261,7 +278,9 @@ Voyage后台单工作线程、最多四个运行/排队任务，以规范UUID定
 
 验证层次为解析/测地基准、材料/费用不变量、缺测/失效、文件生命周期、API集成及浏览器操作。覆盖日期线、剖面山谷、缆型转换点附加量、有限体跨度、平衡/接触和真实下载；通过测试不证明实海误差或未覆盖规模。
 
-0.7的新材料/流初态与恢复按实际源码、编译界面及发行产物分别记录证据。模块独立力平衡/大O积分/真实驱动/历史恢复、整套后端、生产浏览器、PDF、wheel和首装是不同门禁，早一轮零流开发门禁不能代替后续有流分支验收。各执行对象、完整数量、环境及摘要以 `RELEASE_NOTES.md` 为准，以下0.6及更早数字均为历史记录。
+0.8的原生S-57按官方真实二进制、独立ISO8211整数/空间指针、GDAL原生读取、严格API及完整工作区持久化分别验证。GIS同时核对真实SVG合成、两图坐标与完整保存；生命周期子进程检查实际SQLite WAL并发，而不是模拟锁。失败首轮及修正后的记录保留，各执行对象、完整数量、环境及摘要以 `RELEASE_NOTES.md` 与 `DEVELOPMENT_0.8.md` 为准。
+
+0.7的新材料/流初态与恢复按实际源码、编译界面及发行产物分别记录证据。模块独立力平衡/大O积分/真实驱动/历史恢复、整套后端、生产浏览器、PDF、wheel和首装是不同门禁，早一轮零流开发门禁不能代替后续有流分支验收。以下0.6及更早数字均为历史记录。
 
 0.6版本完整后端实际1200项通过，pytest记录56.28秒、进程wall time 57.024秒，0失败/跳过；源码摘要和完整输出保存在 `resources/validation/release_0.6_backend.json`。锚端距离标签修正前的发行复核中，同源编译浏览器74项实际通过，217.425038秒，单worker、retries=0、无失败/跳过/flaky；8份HTTP资源与当时编译文件逐字节一致。该轮保存在 `release_0.6_pre_anchor_label_browser.json`，不替代最终包对应的生产门禁。浏览器、HTTP资源、wheel/portable首装及PDF各有独立验收，具体对象、次数、时长和摘要由 `RELEASE_NOTES.md` 的实际发行记录给出，不能用后端或浏览器门禁推定安装/PDF通过。
 
