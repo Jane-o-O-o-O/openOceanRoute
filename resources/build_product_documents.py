@@ -127,7 +127,7 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
     story = [Spacer(1, 28), Paragraph("OCEANROUTE", STYLES["small"]), Paragraph(title, STYLES["title"]),
              Paragraph(inline("海缆规划与敷设研究工作空间 / " + version), STYLES["h2"]),
              Paragraph(inline(date + " · 独立实现 · 可运行开发版"), STYLES["body"]),
-             Spacer(1, 12), Paragraph("本文对应当前程序行为。规划功能和研究模型的验证范围分别说明；没有原厂或海试对照时，不声称等效工程精度。", STYLES["body"])]
+             Spacer(1, 12), Paragraph("本文说明当前程序行为及规划、研究模型的验证范围；尚无原厂或海试对照，不据此认定工程精度等效。", STYLES["body"])]
     if design:
         story.extend([Spacer(1, 10), architecture()])
     else:
@@ -161,10 +161,22 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             if language == "mermaid" and design:
                 story.extend([relations(), Spacer(1, 8)])
             else:
+                # A formula/code introduction ending with a colon belongs to
+                # its following block, including long mixed CJK/ASCII prose.
+                paragraphs = []
+                if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+                    lead = story.pop()
+                    paragraphs = getattr(lead, "oceanroute_flowables", [lead])
                 code = Paragraph("<br/>".join(inline(v).replace(" ", "&#160;") for v in block), STYLES["code"])
                 # Short formula/code blocks fit on one page; preserve them as
                 # a unit. Long examples still split instead of overflowing.
-                story.append(KeepTogether([code]) if len(block) <= 12 else code)
+                if paragraphs and len(block) <= 12:
+                    story.append(KeepTogether(paragraphs + [code]))
+                else:
+                    if paragraphs:
+                        paragraphs[-1].keepWithNext = True
+                        story.extend(paragraphs)
+                    story.append(KeepTogether([code]) if len(block) <= 12 else code)
         elif line.startswith("|"):
             block = [line]
             while index < len(lines) and lines[index].strip().startswith("|"):
@@ -183,6 +195,15 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             story.append(Paragraph(inline(line[3:]), STYLES["h2"]))
         elif line.startswith("### "):
             story.append(Paragraph(inline(line[4:]), STYLES["h3"]))
+        elif re.match(r"^\d+\.\s", line):
+            block = [Paragraph(inline(line), STYLES["body"])]
+            while index < len(lines) and re.match(r"^\d+\.\s", lines[index].strip()):
+                block.append(Paragraph(inline(lines[index].strip()), STYLES["body"]))
+                index += 1
+            if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+                lead = story.pop()
+                block[0:0] = getattr(lead, "oceanroute_flowables", [lead])
+            append_paragraph_group(story, block)
         elif line.startswith("- "):
             block = [Paragraph(inline(line), STYLES["body"])]
             while index < len(lines) and lines[index].strip().startswith("- "):

@@ -72,6 +72,8 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
     files += documents
     files += ["resources/research/manual_findings.md", "resources/research/website_findings.md",
               "resources/research/web_sources.json"]
+    if tuple(map(int, version.split("."))) >= (0, 8, 0):
+        files += ["resources/research/s57_sources.json"]
     files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
     for name in roots:
