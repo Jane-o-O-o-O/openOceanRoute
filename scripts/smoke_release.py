@@ -1093,6 +1093,175 @@ print(json.dumps({'status':'passed','isolated_modules':modules,'examples':result
 '''
 
 
+S57_SMOKE_CODE = r'''
+from copy import deepcopy
+import hashlib
+import importlib
+import io
+import json
+from pathlib import Path
+import sys
+import time
+import zipfile
+
+import oceanroute
+import pyogrio
+from fastapi.testclient import TestClient
+from oceanroute.api import create_app
+from oceanroute.storage import ProjectStore
+
+root = Path.cwd().resolve()
+expected_version, expected_sha = sys.argv[1:3]
+started = time.monotonic()
+modules = {}
+for name in ('oceanroute', 'oceanroute.s57', 'oceanroute.api', 'oceanroute.workspace',
+             'oceanroute.workspace_storage', 'oceanroute.storage', 'oceanroute.sqlite_lifecycle'):
+    module = importlib.import_module(name)
+    location = Path(module.__file__).resolve()
+    assert location.is_relative_to(root), (name, str(location), str(root))
+    modules[name] = str(location.relative_to(root))
+assert oceanroute.__version__ == expected_version
+assert modules['oceanroute.s57'] == 'oceanroute/s57.py'
+assert modules['oceanroute.sqlite_lifecycle'] == 'oceanroute/sqlite_lifecycle.py'
+assert 'r' in pyogrio.list_drivers().get('S57', ''), 'Native S57 reader is unavailable'
+assert tuple(map(int, pyogrio.__version__.split('.')[:2])) >= (0, 12)
+fixture = root / 'fixtures/s57/US5A1KMJ.zip'
+payload = fixture.read_bytes()
+assert hashlib.sha256(payload).hexdigest() == expected_sha
+cell_path = 'ENC_ROOT/US5A1KMJ/US5A1KMJ.000'
+requests = []
+
+def finite(value):
+    json.dumps(value, allow_nan=False)
+    return value
+
+def get(client, path):
+    response = client.get(path)
+    requests.append(('GET', path))
+    assert response.status_code == 200, (path, response.status_code, response.text[:1200])
+    return finite(response.json())
+
+def post(client, path, value):
+    response = client.post(path, json=value)
+    requests.append(('POST', path))
+    assert response.status_code == 200, (path, response.status_code, response.text[:1200])
+    return finite(response.json())
+
+def upload(client, stage, config):
+    path = '/api/import/s57' + ('/' + stage if stage else '')
+    response = client.post(path, data={'config_json': json.dumps(config)},
+                           files={'file': ('US5A1KMJ.zip', payload, 'application/octet-stream')})
+    requests.append(('POST', path))
+    assert response.status_code == 200, (path, response.status_code, response.text[:1200])
+    result = finite(response.json())
+    assert result['source']['sha256'] == expected_sha
+    assert result['source']['input_bytes'] == len(payload)
+    return result
+
+database = root / 'data/s57-smoke.sqlite3'
+with TestClient(create_app(ProjectStore(database))) as client:
+    health = get(client, '/api/health')
+    assert health['status'] == 'ok' and health['version'] == expected_version
+    inspected = upload(client, 'inspect', {})
+    assert inspected['stage'] == 'inspect' and not inspected['can_apply']
+    assert inspected['reader']['native'] is False
+    assert [cell['path'] for cell in inspected['cells']] == [cell_path]
+    assert [update['number'] for update in inspected['cells'][0]['updates']] == [1, 2]
+    catalog = upload(client, 'catalog', {'cells': [cell_path]})
+    assert catalog['stage'] == 'catalog' and not catalog['can_apply']
+    assert catalog['layers'] == [] and catalog['reader']['native']
+    cell = catalog['cells'][0]
+    assert cell['base_dsid']['DSID_UPDN'] == '0'
+    assert cell['dsid']['DSID_UPDN'] == '2' and cell['applied_update_number'] == 2
+    assert [update['dsid']['DSID_UPDN'] for update in cell['updates']] == ['1', '2']
+    counts = {row['name']: row['feature_count'] for row in catalog['classes_catalog']}
+    assert {key: counts[key] for key in ('SOUNDG', 'DEPARE', 'DEPCNT')} == {
+        'SOUNDG': 4, 'DEPARE': 88, 'DEPCNT': 123}
+    imported = upload(client, '', {'cells': [cell_path], 'classes': ['SOUNDG', 'DEPARE', 'DEPCNT']})
+    assert imported['stage'] == 'import' and imported['accepted'] and imported['can_apply']
+    assert imported['reader']['driver'] == 'S57' and imported['reader']['process_isolated']
+    assert imported['reader']['pyogrio_version'] == pyogrio.__version__
+    assert imported['reader']['gdal_version'] == pyogrio.__gdal_version_string__
+    layers = {layer['source']['object_class']: layer for layer in imported['layers']}
+    assert set(layers) == {'SOUNDG', 'DEPARE', 'DEPCNT'}
+    assert all(layer['kind'] == 'reference' and layer['crs'] == 'EPSG:4326' for layer in layers.values())
+    soundings = layers['SOUNDG']['geojson']['features']
+    assert all(feature['geometry']['type'] == 'MultiPoint' for feature in soundings)
+    sounding_points = [point for feature in soundings for point in feature['geometry']['coordinates']]
+    assert len(soundings) == 4 and len(sounding_points) == 657
+    assert all(len(point) == 3 for point in sounding_points)
+    assert sounding_points[0] == [177.5191417, 51.9181095, 23.7]
+    polygons = []
+    for feature in layers['DEPARE']['geojson']['features']:
+        geometry = feature['geometry']
+        assert geometry is not None and geometry['type'] in ('Polygon', 'MultiPolygon')
+        polygons.extend([geometry['coordinates']] if geometry['type'] == 'Polygon' else geometry['coordinates'])
+    holes = sum(len(polygon)-1 for polygon in polygons)
+    assert holes > 0, 'Native DEPARE polygon holes disappeared'
+    source_evidence = imported['cells'][0]
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for layer in layers.values():
+            source = layer['source']
+            evidence = source['cell_evidence']
+            assert all(evidence[key] == source_evidence[key] for key in evidence)
+            assert source['source_sha256'] == expected_sha
+            assert source['datum_units']['depth_unit_code'] == 1
+            assert source['datum_units']['depth_units'] == 'm'
+            assert source['datum_units']['sounding_datum_code'] == 12
+            assert source['depth_is_engineering_water_depth'] is False
+            for item in [evidence['base'], *evidence['updates']]:
+                original = archive.read(item['path'])
+                assert item['bytes'] == len(original)
+                assert item['sha256'] == hashlib.sha256(original).hexdigest()
+            native_reader = source['native_reader']
+            assert native_reader['driver'] == 'S57' and native_reader['process_isolated']
+            assert native_reader['pyogrio_version'] == pyogrio.__version__
+            assert native_reader['gdal_version'] == pyogrio.__gdal_version_string__
+            assert native_reader['options'] == imported['reader']['options']
+            assert 'worker_path' not in json.dumps(source) and 'oceanroute-s57' not in json.dumps(source)
+    sample = get(client, '/api/sample')
+    workspace = post(client, '/api/workspace/migrate', {'project': sample})['workspace']
+    saved_before = post(client, '/api/workspaces', workspace)['workspace']
+    before = deepcopy(saved_before)
+    initial_summary = post(client, '/api/workspace/analyze', before)['summary']
+    candidate = post(client, '/api/workspace/action', {'workspace': before, 'config': {
+        'action': 'update_shared', 'layers': before['layers'] + imported['layers']}})['workspace']
+    assert before == saved_before, 'The submitted workspace was mutated'
+    for key in ('paths', 'assemblies', 'associations', 'cable_types', 'terrain_sources'):
+        assert candidate[key] == before[key], key
+    assert candidate['layers'][-3:] == imported['layers']
+    after_summary = post(client, '/api/workspace/analyze', candidate)['summary']
+    assert after_summary['manufactured_total_m'] == initial_summary['manufactured_total_m']
+    assert after_summary['deployment_path_count'] == initial_summary['deployment_path_count']
+    # Preview/action is pure; persist the whole candidate in one revision.
+    assert get(client, '/api/workspaces/' + before['id']) == saved_before
+    saved = post(client, '/api/workspaces', candidate)['workspace']
+    assert saved['saved_revision'] == saved_before['saved_revision'] + 1
+    assert get(client, '/api/workspaces/' + saved['id']) == saved
+with TestClient(create_app(ProjectStore(database))) as client:
+    reopened = get(client, '/api/workspaces/' + saved['id'])
+    assert reopened == saved
+    assert reopened['layers'][-3:] == imported['layers']
+    assert [layer['source'] for layer in reopened['layers'][-3:]] == [layer['source'] for layer in imported['layers']]
+    for key in ('paths', 'assemblies', 'associations', 'cable_types', 'terrain_sources'):
+        assert reopened[key] == saved_before[key], key
+print(json.dumps(finite({'status': 'passed', 'version': oceanroute.__version__,
+    'isolated_modules': modules,
+    'fixture': {'path': str(fixture.relative_to(root)), 'bytes': len(payload), 'sha256': expected_sha,
+                'source_url': 'https://www.charts.noaa.gov/ENCs/US5A1KMJ.zip', 'original_bytes_explicitly_copied': True},
+    'native_reader': {'pyogrio_version': pyogrio.__version__, 'gdal_version': pyogrio.__gdal_version_string__,
+                      'S57_driver': pyogrio.list_drivers()['S57'], 'process_isolated': True},
+    'stages': ['inspect', 'catalog', 'import'], 'actual_http_requests': len(requests),
+    'base_update_number': 0, 'applied_update_number': 2, 'soundg_features': 4, 'soundg_xyz_points': 657,
+    'dep_are_polygon_holes': holes, 'reference_layers': len(imported['layers']),
+    'source_file_chain_and_native_metadata_preserved': True,
+    'atomic_shared_update': True, 'preview_not_persisted': True,
+    'saved_revision': saved['saved_revision'], 'database_owner_reopened': True,
+    'path_assembly_material_inventory_unchanged': True, 'elapsed_s': time.monotonic()-started,
+    'scope': 'extracted wheel only for OceanRoute; existing interpreter pyogrio/GDAL dependencies and explicitly copied original NOAA ZIP; actual ASGI lifecycle, not clean installation, official navigation product or engineering sounding conversion'}), allow_nan=False))
+'''
+
+
 def smoke(wheel: Path, report_path: Path | None = None) -> dict:
     wheel = wheel.resolve()
     with tempfile.TemporaryDirectory(prefix="oceanroute-wheel-") as directory:
@@ -1135,6 +1304,23 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if current.stderr:
                 print(current.stderr, file=sys.stderr, end="")
             report["heterogeneous_and_current_equilibrium"] = json.loads(current.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 8, 0):
+            fixture_source = Path(__file__).resolve().parents[1] / "tests/fixtures/s57/noaa/US5A1KMJ.zip"
+            original_fixture = fixture_source.read_bytes()
+            fixture_digest = hashlib.sha256(original_fixture).hexdigest()
+            if fixture_digest != "ee3fb1a96da5e1da84ca8c00c8aca57c22e1168c78c07c0c9c361cf2e43eed34":
+                raise RuntimeError("Original NOAA S57 fixture differs from the frozen source bytes")
+            fixture_destination = destination / "fixtures/s57/US5A1KMJ.zip"
+            fixture_destination.parent.mkdir(parents=True)
+            fixture_destination.write_bytes(original_fixture)
+            if fixture_destination.read_bytes() != original_fixture:
+                raise RuntimeError("Original NOAA S57 fixture bytes changed during explicit copy")
+            native = subprocess.run([sys.executable, "-c", S57_SMOKE_CODE, metadata["Version"], fixture_digest],
+                                    cwd=destination, env=environment, check=True, capture_output=True,
+                                    text=True, timeout=120)
+            if native.stderr:
+                print(native.stderr, file=sys.stderr, end="")
+            report["native_s57"] = json.loads(native.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size

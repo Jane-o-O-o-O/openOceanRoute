@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,6 +17,128 @@ import tempfile
 import time
 import urllib.request
 import zipfile
+
+
+def native_s57_http(url: str, fixture: Path, project: dict) -> dict:
+    """Real installed-server requests; no source import or preconverted chart."""
+    started = time.monotonic()
+    payload = fixture.read_bytes()
+    source_sha = hashlib.sha256(payload).hexdigest()
+    assert source_sha == "ee3fb1a96da5e1da84ca8c00c8aca57c22e1168c78c07c0c9c361cf2e43eed34"
+    assert len(payload) == 172585
+    requests = 0
+
+    def json_request(path, value=None):
+        nonlocal requests
+        if value is None:
+            request = url + path
+        else:
+            request = urllib.request.Request(url + path,
+                json.dumps(value, allow_nan=False).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.load(response)
+        requests += 1
+        json.dumps(result, allow_nan=False)
+        return result
+
+    def upload(stage, config):
+        nonlocal requests
+        boundary = "oceanroute-native-s57-" + source_sha
+        delimiter = boundary.encode()
+        assert delimiter not in payload
+        body = (b"--" + delimiter + b'\r\nContent-Disposition: form-data; name="config_json"\r\n\r\n'
+                + json.dumps(config, allow_nan=False).encode()
+                + b"\r\n--" + delimiter
+                + b'\r\nContent-Disposition: form-data; name="file"; filename="US5A1KMJ.zip"'
+                + b"\r\nContent-Type: application/octet-stream\r\n\r\n" + payload
+                + b"\r\n--" + delimiter + b"--\r\n")
+        path = "/api/import/s57" + ("/" + stage if stage else "")
+        request = urllib.request.Request(url + path, body,
+            {"Content-Type": "multipart/form-data; boundary=" + boundary})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.load(response)
+        requests += 1
+        json.dumps(result, allow_nan=False)
+        assert result["source"]["sha256"] == source_sha and result["source"]["input_bytes"] == len(payload)
+        return result
+
+    cell_path = "ENC_ROOT/US5A1KMJ/US5A1KMJ.000"
+    inspected = upload("inspect", {})
+    assert inspected["stage"] == "inspect" and not inspected["can_apply"] and not inspected["reader"]["native"]
+    assert [cell["path"] for cell in inspected["cells"]] == [cell_path]
+    catalog = upload("catalog", {"cells": [cell_path]})
+    assert catalog["stage"] == "catalog" and not catalog["can_apply"] and catalog["layers"] == []
+    cell = catalog["cells"][0]
+    assert cell["base_dsid"]["DSID_UPDN"] == "0" and cell["dsid"]["DSID_UPDN"] == "2"
+    assert [item["dsid"]["DSID_UPDN"] for item in cell["updates"]] == ["1", "2"]
+    counts = {row["name"]: row["feature_count"] for row in catalog["classes_catalog"]}
+    assert counts["SOUNDG"] == 4 and counts["DEPARE"] == 88
+    imported = upload("", {"cells": [cell_path], "classes": ["DEPARE", "SOUNDG"]})
+    assert imported["stage"] == "import" and imported["accepted"] and imported["can_apply"]
+    reader = imported["reader"]
+    assert reader["native"] and reader["driver"] == "S57" and reader["process_isolated"]
+    assert tuple(map(int, reader["pyogrio_version"].split(".")[:2])) >= (0, 12)
+    layers = {layer["source"]["object_class"]: layer for layer in imported["layers"]}
+    assert set(layers) == {"DEPARE", "SOUNDG"}
+    assert all(layer["kind"] == "reference" and layer["crs"] == "EPSG:4326" for layer in layers.values())
+    soundings = layers["SOUNDG"]["geojson"]["features"]
+    assert len(soundings) == 4
+    assert all(feature["geometry"]["type"] == "MultiPoint" for feature in soundings)
+    points = [point for feature in soundings for point in feature["geometry"]["coordinates"]]
+    assert len(points) == 657 and all(len(point) == 3 for point in points)
+    assert points[0] == [177.5191417, 51.9181095, 23.7]
+    polygons = []
+    for feature in layers["DEPARE"]["geojson"]["features"]:
+        geometry = feature["geometry"]
+        assert geometry is not None and geometry["type"] in {"Polygon", "MultiPolygon"}
+        polygons.extend([geometry["coordinates"]] if geometry["type"] == "Polygon" else geometry["coordinates"])
+    holes = sum(len(polygon)-1 for polygon in polygons)
+    assert holes > 0
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for layer in layers.values():
+            source = layer["source"]; evidence = source["cell_evidence"]
+            assert source["source_sha256"] == source_sha
+            assert all(evidence[key] == imported["cells"][0][key] for key in evidence)
+            assert evidence["applied_update_number"] == 2
+            for item in [evidence["base"], *evidence["updates"]]:
+                original = archive.read(item["path"])
+                assert item["bytes"] == len(original) and item["sha256"] == hashlib.sha256(original).hexdigest()
+            native = source["native_reader"]
+            assert native["driver"] == "S57" and native["process_isolated"]
+            assert all(native[key] == reader[key] for key in ("pyogrio_version", "gdal_version", "options"))
+            assert source["datum_units"]["depth_units"] == "m" and source["datum_units"]["sounding_datum_code"] == 12
+            assert source["depth_is_engineering_water_depth"] is False
+            assert "worker_path" not in json.dumps(source)
+    workspace = json_request("/api/workspace/migrate", {"project": project})["workspace"]
+    before = json_request("/api/workspaces", workspace)["workspace"]
+    original = deepcopy(before)
+    inventory = json_request("/api/workspace/analyze", before)["summary"]
+    candidate = json_request("/api/workspace/action", {"workspace": before, "config": {
+        "action": "update_shared", "layers": before["layers"] + imported["layers"]}})["workspace"]
+    assert before == original
+    for key in ("paths", "assemblies", "associations", "cable_types", "terrain_sources"):
+        assert candidate[key] == original[key], key
+    assert candidate["layers"][-2:] == imported["layers"]
+    assert json_request("/api/workspaces/" + before["id"]) == original
+    saved = json_request("/api/workspaces", candidate)["workspace"]
+    assert saved["saved_revision"] == original["saved_revision"] + 1
+    reopened = json_request("/api/workspaces/" + saved["id"])
+    assert reopened == saved and reopened["layers"][-2:] == imported["layers"]
+    assert [layer["source"] for layer in reopened["layers"][-2:]] == [layer["source"] for layer in imported["layers"]]
+    after = json_request("/api/workspace/analyze", reopened)["summary"]
+    assert after["manufactured_total_m"] == inventory["manufactured_total_m"]
+    assert after["deployment_path_count"] == inventory["deployment_path_count"]
+    return {"status": "passed", "stages": ["inspect", "catalog", "import"],
+            "actual_http_requests": requests,
+            "fixture": {"path": "tests/fixtures/s57/noaa/US5A1KMJ.zip", "bytes": len(payload),
+                        "sha256": source_sha, "source_url": "https://www.charts.noaa.gov/ENCs/US5A1KMJ.zip"},
+            "native_reader": {key: reader[key] for key in ("driver", "pyogrio_version", "gdal_version", "process_isolated", "options")},
+            "base_update_number": 0, "applied_update_number": 2, "soundg_xyz_points": len(points),
+            "dep_are_polygon_holes": holes, "reference_layers": 2,
+            "atomic_shared_update": True, "preview_not_persisted": True,
+            "saved_revision": saved["saved_revision"], "saved_source_and_z_geometry_reopened": True,
+            "path_assembly_material_inventory_unchanged": True, "elapsed_s": round(time.monotonic()-started, 3),
+            "scope": "fresh launcher-installed HTTP server with shipped original NOAA ZIP; reference chart only, no engineering sounding conversion or navigation certification"}
 
 
 def smoke(archive: Path, report: Path | None = None) -> dict:
@@ -125,6 +250,8 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                         physical_examples[filename] = {"endpoint": endpoint, "http_status": 200,
                             "model": checkpoint["model"], "proof_schema": proof["schema"],
                             "split_json_resume_exact_six_arrays": True, "requests": 4}
+                if tuple(map(int, expected_version.split("."))) >= (0, 8, 0):
+                    native_s57 = native_s57_http(url, checkout / "tests/fixtures/s57/noaa/US5A1KMJ.zip", project)
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -149,9 +276,14 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                                cwd=checkout, env=environment, check=True, text=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         print(tests.stdout, end="", flush=True)
-        versions = subprocess.check_output(
-            [str(python), "-c", "import json,importlib.metadata as m; print(json.dumps({k:m.version(k) for k in ['oceanroute','fastapi','numpy','scipy','pyproj','shapely','rasterio','contourpy']}))"],
-            cwd=root, env=environment, text=True)
+        if tuple(map(int, expected_version.split("."))) >= (0, 8, 0):
+            versions = subprocess.check_output(
+                [str(python), "-c", "import json,importlib.metadata as m,pyogrio,sqlite3; v={k:m.version(k) for k in ['oceanroute','fastapi','numpy','scipy','pyproj','shapely','rasterio','contourpy','pyogrio']}; c=sqlite3.connect(':memory:'); v.update(gdal=pyogrio.__gdal_version_string__,sqlite3=sqlite3.sqlite_version,sqlite3_source_id=c.execute('select sqlite_source_id()').fetchone()[0],sqlite3_threadsafety=sqlite3.threadsafety); c.close(); print(json.dumps(v))"],
+                cwd=root, env=environment, text=True)
+        else:
+            versions = subprocess.check_output(
+                [str(python), "-c", "import json,importlib.metadata as m; print(json.dumps({k:m.version(k) for k in ['oceanroute','fastapi','numpy','scipy','pyproj','shapely','rasterio','contourpy']}))"],
+                cwd=root, env=environment, text=True)
         result = {"archive": archive.name, "platform": sys.platform,
                   "python": sys.version.split()[0], "clean_venv": True,
                   "launcher_install": True, "http_health": health,
@@ -159,6 +291,10 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                   "synthetic_physical_http_examples": physical_examples,
                   "tests_output": tests.stdout.strip(), "versions": json.loads(versions),
                   "wall_time_s": round(time.monotonic() - started, 2)}
+        if tuple(map(int, expected_version.split("."))) >= (0, 8, 0):
+            result["native_s57"] = native_s57
+            assert native_s57["native_reader"]["pyogrio_version"] == result["versions"]["pyogrio"]
+            assert native_s57["native_reader"]["gdal_version"] == result["versions"]["gdal"]
         if report is not None:
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
