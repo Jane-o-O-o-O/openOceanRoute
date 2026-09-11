@@ -1,0 +1,198 @@
+{
+  "schema": "oceanroute.research.s57-sources.v1",
+  "scope": "0.8 development independent reference-layer import verification, not S52/ECDIS/IHO certification or FME equivalence",
+  "reviewed_date": "2026-10-04",
+  "product_grounding": {
+    "document": "MakaiPlan.pdf",
+    "physical_page": 9,
+    "text_path": "resources/research/MakaiPlan.txt",
+    "text_sha256": "59f8981359328c45509cafa8ff680c9f005de1cb570438859d8a5a8c1adbdb8a",
+    "text_lines": [
+      293,
+      315
+    ],
+    "interpretation": "S57 is explicitly one of optional FME module GIS formats; main354-page manual does not expose a native S57/GDAL API."
+  },
+  "sources": [
+    {
+      "title": "GDAL S57 driver",
+      "url": "https://gdal.org/en/stable/drivers/vector/s57.html",
+      "role": "Native class layers, updates, DSID metadata, Z, open options"
+    },
+    {
+      "title": "Pyogrio API",
+      "url": "https://pyogrio.readthedocs.io/en/latest/api.html",
+      "role": "Native read/list/count and open-option behavior"
+    },
+    {
+      "title": "IHO S57 Edition 3.1 main document",
+      "url": "https://iho.int/uploads/user/pubs/standards/s-57/31Main.pdf",
+      "role": "ISO8211 field layouts, integer coordinate/sounding scaling"
+    },
+    {
+      "title": "IHO ENC product specification",
+      "url": "https://iho.int/uploads/user/pubs/standards/s-57/20ApB1.pdf",
+      "role": "ENC units/WGS84, exchange sets, update/reissue rules; physical pages19,23–25"
+    },
+    {
+      "title": "IHO attribute catalog",
+      "url": "https://iho.int/uploads/user/pubs/standards/s-57/31ApAch2.pdf",
+      "role": "VERDAT12 MLLW and16 MHW; numeric codes/attributes"
+    },
+    {
+      "title": "NOAA ENC dataset repository record",
+      "url": "https://repository.library.noaa.gov/view/noaa/71555",
+      "role": "Dataset-specific CC0-1.0 license; DOI10.25923/jyyk-j845"
+    },
+    {
+      "title": "NOAA OCS data licensing",
+      "url": "https://nauticalcharts.noaa.gov/data/data-licensing.html",
+      "role": "OCS data licensing and contributor distinction"
+    },
+    {
+      "title": "NOAA ENC redistribution agreement",
+      "url": "https://www.charts.noaa.gov/ENCs/ENC_Agreement.shtml",
+      "role": "Free redistribution; redistributed charts are not certified official NOAA navigation/carriage products"
+    },
+    {
+      "title": "NOAA individual ENC catalog",
+      "url": "https://www.charts.noaa.gov/ENCs/ENCsIndv.shtml",
+      "role": "Official links to the two exchange sets"
+    },
+    {
+      "title": "GDAL3.12.4 S57 reader source",
+      "url": "https://github.com/OSGeo/gdal/blob/v3.12.4/ogr/ogrsf_frmts/s57/s57reader.cpp",
+      "role": "Independent verification of update finder start-at1 limitation"
+    },
+    {
+      "title": "GDAL issue13456",
+      "url": "https://github.com/OSGeo/gdal/issues/13456",
+      "role": "Official project tracker on legal reissued base cells with nonzero UPDN"
+    }
+  ],
+  "fixtures": [
+    {
+      "cell": "US5A1KMJ",
+      "source_url": "https://www.charts.noaa.gov/ENCs/US5A1KMJ.zip",
+      "retrieved_utc_date": "2026-10-04",
+      "license": "CC0-1.0 (NOAA ENC dataset record), NOAA redistribution conditions retained in original ZIP USERAGREEMENT.TXT",
+      "original_binary_bytes_unchanged": true,
+      "files": [
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMJ.zip",
+          "bytes": 172585,
+          "sha256": "ee3fb1a96da5e1da84ca8c00c8aca57c22e1168c78c07c0c9c361cf2e43eed34"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.000",
+          "bytes": 452009,
+          "sha256": "79dc8264eca7abc72faf7eadffc83d06a95a274182491cb4a643bb7d8315c582"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.001",
+          "bytes": 3975,
+          "sha256": "f99139faeda8b2cf01f826100b43fefe7f2e99ccbbf3412f6db3f566cffe377c"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.002",
+          "bytes": 2342,
+          "sha256": "a28aae35eee938952b656008cf841a283b9f3bec9477540a968ebc30802cfc32"
+        }
+      ],
+      "native_observation": {
+        "reader": "pyogrio 0.13.0 / GDAL 3.12.4",
+        "effective_update_number": 2,
+        "base_update_number": 0,
+        "edition": "1",
+        "sounding_features": 4,
+        "sounding_points": 657,
+        "horizontal_datum_code": 2,
+        "sounding_datum_code": 12,
+        "vertical_datum_code": 16,
+        "DUNI": 1,
+        "HUNI": 1,
+        "PUNI": 1,
+        "COUN": 1,
+        "COMF": 10000000,
+        "SOMF": 10,
+        "depth_range_m": [
+          0.6,
+          64.0
+        ]
+      }
+    },
+    {
+      "cell": "US5A1KMK",
+      "source_url": "https://www.charts.noaa.gov/ENCs/US5A1KMK.zip",
+      "retrieved_utc_date": "2026-10-04",
+      "license": "CC0-1.0 (NOAA ENC dataset record), NOAA redistribution conditions retained in original ZIP USERAGREEMENT.TXT",
+      "original_binary_bytes_unchanged": true,
+      "files": [
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMK.zip",
+          "bytes": 201406,
+          "sha256": "3f4ffefc9a7bb0bda2e55509a1b59311c2204a3c8d83407fc4f2c0d1bf415b9e"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.000",
+          "bytes": 508156,
+          "sha256": "5c07919b6db946dcb14f6ff84b222d1be3081f5c1e36c5928170de8be23bb276"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.001",
+          "bytes": 2425,
+          "sha256": "38bc96c79538c33e878616b0cfa62cb1d9d9acae5d5051409b21bd571b617e3f"
+        },
+        {
+          "path": "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.002",
+          "bytes": 2473,
+          "sha256": "e345c40a85ff428cde21780c7755334169624aff290a56d5a3e669b5bbabc58c"
+        }
+      ],
+      "native_observation": {
+        "reader": "pyogrio 0.13.0 / GDAL 3.12.4",
+        "effective_update_number": 2,
+        "base_update_number": 0,
+        "edition": "2",
+        "sounding_features": 2,
+        "sounding_points": 1346,
+        "horizontal_datum_code": 2,
+        "sounding_datum_code": 12,
+        "vertical_datum_code": 16,
+        "DUNI": 1,
+        "HUNI": 1,
+        "PUNI": 1,
+        "COUN": 1,
+        "COMF": 10000000,
+        "SOMF": 10,
+        "depth_range_m": [
+          0.9,
+          85.9
+        ]
+      }
+    }
+  ],
+  "excluded_fixture_source": {
+    "name": "IHO S64/GDAL autotest charts",
+    "reason": "MIT licensing of a GDAL test script does not establish a redistribution license for externally authored IHO chart bytes. These were not downloaded or bundled."
+  },
+  "limits": [
+    "Two real NOAA ENC cells with two supplied updates each are a research fixture set, not full IHO or all-producer/edition coverage.",
+    "Sounding Z retains encoded sign/units/datum; MLLW/MHW is not automatically model sea level.",
+    "Frozen data retrieval date does not assert charts are currently suitable for navigation.",
+    "Derived malicious or metadata-altered test inputs are created in memory, separately labelled, and not represented as original NOAA files."
+  ],
+  "native_limitations": [
+    {
+      "code": "REISSUE_FOLLOWUP_UNSUPPORTED",
+      "reader": "pyogrio0.13.0/GDAL3.12.4",
+      "observed": "Native base DSID_UPDN1 with supplied.002 leaves APPLY atUPDN1; explicit driver-limitation rejection required, not invalid-source-chain label. Derived test fixture is a declaration/admission probe, not an original NOAA reissue.",
+      "standard": "IHO ENC product specification5.7/Table5.1 explicitly permits reissue baseUPDN>0 followed byUPDN+1.",
+      "unsupported_workaround": "No fabricated missing updates or rewritten native headers."
+    },
+    {
+      "code": "NATIVE_FIDN_SIGNED32",
+      "observed": "NOAA KMJ SOUNDG RCID1867 source unsignedFIDN3041713370 is native OGR scalar-1253253926; LNAM0226B54CDCDA21CA retains exact source FOID. Independent test checks originalFOID to LNAM."
+    }
+  ]
+}
