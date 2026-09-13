@@ -107,6 +107,8 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "coordinates", "name": "显式投影坐标编辑", "status": "implemented", "note": "真实二维水平CRS预览及制造域编辑；不兼容CSF或混合轴单位"},
             {"id": "map_projection", "name": "工程平面投影视图", "status": "implemented", "note": "真实EPSG/WKT/PROJ路线与GIS显示、原生XY网格、局部比例及操作选择预算；不重投影在线瓦片"},
             {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
+            {"id": "side_slopes", "name": "路线侧坡 / 横向采样带", "status": "research", "note": "实际曲线法向探点、右舷上坡为正；左右割线和局部最大坡度，保留缺测、来源边界及路线/源库失效"},
+            {"id": "slope_rules", "name": "KP 区间纵坡 / 侧坡规则", "status": "implemented", "note": "每路径最多512条持久规则，报告采样超限、缺测与过期；采样通过不代表连续海底安全"},
             {"id": "workspace_terrain", "name": "整工程地形重采样", "status": "implemented", "note": "多路径、底余缆及共享库存一笔预览验收；缺测、固定域不足或不同制造结果整笔拒绝"},
             {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播"},
             {"id": "static_bathymetry", "name": "坡床悬链线 / 变深海底定端静力", "status": "research", "note": "真实坡床切向弹性悬垂及定端自然长约束；接触/摩擦/力残差与缆段穿床验证；显式动态入口重新验收"},
@@ -308,6 +310,72 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         if set(payload)-{"project", "config"}:
             raise ValueError("profile仅支持project和config；地形源属于project.terrain_sources")
         return profile_from_sources(_project(payload.get("project", {})), payload.get("config"))
+
+    @app.post("/api/terrain/side-slopes")
+    def terrain_side_slopes(payload: dict):
+        from .side_slopes import side_slopes_from_sources
+        if set(payload) - {"project", "config"}:
+            raise ValueError("side-slopes仅支持project和config；只使用明确共享地形源")
+        project = _project(payload.get("project", {}))
+        return _inherit_revision(project, side_slopes_from_sources(project, payload.get("config")))
+
+    @app.post("/api/tools/slope-rules")
+    def slope_rules(payload: dict):
+        from .slope_rules import check_slope_rules
+        if set(payload) - {"project", "config"}:
+            raise ValueError("slope-rules仅支持project和config")
+        project = _project(payload.get("project", {}))
+        result = check_slope_rules(project, payload.get("config"))
+        candidate = deepcopy(project)
+        candidate["slope_rules"] = deepcopy(result["rules"])
+        return _inherit_revision(project, {**result, "project": candidate})
+
+    @app.post("/api/terrain/side-slopes/example")
+    def side_slopes_example(payload: dict):
+        """Generate declared source inputs near the first 2 km; never compute results."""
+        import hashlib
+        from pyproj import CRS
+        from .geodesy import inverse, coordinate
+        from .terrain_sources import normalize_sources, MAX_SOURCES
+        if set(payload) != {"project"}:
+            raise ValueError("side-slopes/example须仅提供当前project")
+        project = _project(payload["project"])
+        points = project["route"]["points"]
+        longitude, latitude = coordinate(points[0].get("longitude"), points[0].get("latitude"))
+        curve = project["route"].get("curve", "rhumb")
+        lengths = [inverse(a.get("longitude"), a.get("latitude"), b.get("longitude"), b.get("latitude"), curve)
+                   for a, b in zip(points, points[1:])]
+        positive = next((item for item in lengths if item[0] > 1e-7), None)
+        if positive is None:
+            raise ValueError("合成侧坡源需要正长度路线")
+        heading = math.radians(positive[1])
+        crs = CRS.from_proj4(f"+proj=aeqd +lat_0={latitude:.15g} +lon_0={longitude:.15g} +datum=WGS84 +units=m")
+        lines = ["x_m,y_m,depth_m"]
+        for y in (-2500, 0, 2500):
+            for x in (-2500, 0, 2500):
+                right = x * math.cos(heading) - y * math.sin(heading)
+                lines.append(f"{x},{y},{1500 - .2 * right:.15g}")
+        text = "\n".join(lines) + "\n"
+        identifier = "side-slopes-demo-" + hashlib.sha256((crs.to_string() + text).encode()).hexdigest()[:12]
+        existing = normalize_sources(project.get("terrain_sources", []))
+        existing = [source for source in existing if source["id"] != identifier]
+        if len(existing) >= MAX_SOURCES:
+            raise ValueError("共享源库已满；请先明确移除一个来源后生成合成例")
+        priority = max((source["priority"] for source in existing), default=0) + 1
+        if priority > 1_000_000:
+            raise ValueError("现有源优先级已达硬限；请先明确调整后生成合成例")
+        source = {"id": identifier, "name": "明确合成首段侧坡平面 · 非实测", "kind": "xyz", "enabled": True,
+                  "priority": priority, "source_crs": crs.to_string(), "depth_positive": "down", "depth_units": "m",
+                  "vertical_datum": "synthetic-side-slopes-datum", "text": text,
+                  "sampling": {"method": "linear", "max_gap_m": 4000}}
+        return {"sources": normalize_sources(existing + [source]), "config": {
+                    "spacing_m": 250, "half_width_m": 100, "cross_spacing_m": 50,
+                    "start_kp_m": 0, "end_kp_m": min(2000, sum(item[0] for item in lengths)),
+                    "vertical_datum": "synthetic-side-slopes-datum"},
+                "source": "explicit_synthetic_source_inputs_not_field_data",
+                "assumptions": ["只生成当前首段附近明确AEQD坐标的9个合成XYZ输入，不生成坡度或规则结果。",
+                                "源深度1500m减0.2倍首段右舷坐标；曲线实际采样仍由真实查询执行。",
+                                "明确筛选合成基准；其他基准源不混合。路线、原剖面和制造库存未修改。"]}
 
     @app.post("/api/terrain/bathymetry")
     def terrain_bathymetry(payload: dict):
