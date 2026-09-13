@@ -61,6 +61,45 @@ def _warning(warnings, code, message, severity="warning", point_id=None, **extra
     warnings.append({"code": code, "message": message, "severity": severity, "point_id": point_id, **extra})
 
 
+def _side_slopes_metadata(project, signature, warnings, terrain_signature=None):
+    """Fresh source binding is separate from completeness and sampled slope values."""
+    value = _object(project.get("side_slopes"), "side_slopes")
+    metadata = _object(value.get("metadata", {}), "side_slopes.metadata")
+    supported = (value.get("schema_version") == 1 and not isinstance(value.get("schema_version"), bool)
+                 and value.get("model", metadata.get("model")) == "route-side-slopes-v1"
+                 and metadata.get("model") == "route-side-slopes-v1")
+    if not supported:
+        _warning(warnings, "SIDE_SLOPES_UNSUPPORTED", "保存的侧坡模型或版本不受支持；保留记录但不能用于坡度判定")
+        return {"source_binding_current": False, "geometry_current": False, "library_current": False,
+                "supported": False, "model": value.get("model", metadata.get("model"))}
+    from .terrain_sources import terrain_library_signature
+    if terrain_signature is None:
+        terrain_signature = terrain_library_signature(project.get("terrain_sources", []))
+    geometry_current = value.get("route_signature") == signature
+    library_current = metadata.get("terrain_library_signature") == terrain_signature
+    samples = _list(value.get("samples", []), "side_slopes.samples", 50000)
+    for row in samples:
+        row = _object(row, "side_slopes.sample")
+        finite_number(row.get("kp_m"), "side_slopes.kp_m", minimum=0)
+        if not isinstance(row.get("complete"), bool) or not isinstance(row.get("source_boundary"), bool):
+            raise ValueError("side_slopes complete/source_boundary须为布尔值")
+    current = geometry_current and library_current
+    if not current:
+        _warning(warnings, "SIDE_SLOPES_STALE", "路线或共享地形来源已改变；旧侧坡仅保留记录，请重新计算后检查规则",
+                 geometry_current=geometry_current, library_current=library_current)
+    elif any(not row["complete"] for row in samples):
+        _warning(warnings, "SIDE_SLOPES_NODATA", "侧坡横向样带存在缺测；不能把缺测或未采样海床判为安全")
+    if current and any(row["source_boundary"] for row in samples):
+        _warning(warnings, "SIDE_SLOPES_SOURCE_BOUNDARY", "横向采样跨越不同来源，坡度可能包含深度跳变；来源边界须单独审查")
+    return {"supported": True, "model": "route-side-slopes-v1", "source_binding_current": current,
+            "geometry_current": geometry_current, "library_current": library_current,
+            "route_signature": signature, "terrain_library_signature": terrain_signature,
+            "sample_count": len(samples), "complete_sample_count": sum(row["complete"] for row in samples),
+            "source_boundary_sample_count": sum(row["source_boundary"] for row in samples),
+            "sampling_only": True, "vertical_datum": metadata.get("vertical_datum"),
+            "start_kp_m": metadata.get("start_kp_m"), "end_kp_m": metadata.get("end_kp_m")}
+
+
 def _validate_points(route):
     points = _list(route.get("points", []), "route.points", 10000)
     if len(points) < 2:
@@ -690,6 +729,27 @@ def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
                                         "工期由路线平面段长除船速及停时估算，未考虑缆角、海流、船舶响应或水深对作业速度的影响。",
                                         "GIS 检查采用加密线路及区间局部 AEQD 投影，稀疏图层边界仅作初步筛查。",
                                         "尚未与原厂算法或实海数据进行精度对照。"]}}
+    # Legacy projects have neither field and retain their established analysis.
+    if project.get("side_slopes") is not None:
+        result["side_slopes_metadata"] = _side_slopes_metadata(project, signature, warnings, _terrain_signature)
+    if "slope_rules" in project:
+        from .slope_rules import check_slope_rules
+        checks = check_slope_rules(project, {"max_rules": 512}, analysis=result, terrain_signature=_terrain_signature)
+        result["slope_rule_checks"] = checks
+        for rule in checks["results"]:
+            status = rule["status"]
+            if status == "disabled":
+                continue
+            extra = {"rule_id": rule["id"], "rule_status": status,
+                     "start_kp_m": rule["start_kp_m"], "end_kp_m": rule["end_kp_m"]}
+            if status == "violations":
+                _warning(warnings, "SLOPE_RULE_VIOLATION", f"坡度规则 {rule['name']} 有 {len(rule['violations'])} 项实际采样超限",
+                         violation_count=len(rule["violations"]), **extra)
+            elif status in {"incomplete", "unknown"}:
+                _warning(warnings, "SLOPE_RULE_UNAVAILABLE", f"坡度规则 {rule['name']} 的采样、覆盖或来源绑定不足，不能判为通过", **extra)
+            if status == "violations" and any(not component.get("coverage", {}).get("complete", False)
+                                               for component in rule.get("components", {}).values()):
+                _warning(warnings, "SLOPE_RULE_UNAVAILABLE", f"坡度规则 {rule['name']} 同时存在超限和缺测/不确定区间，请查看完整报告", **extra)
     # Final invariant ensures every API/export consumer can use strict JSON.
     try:
         json.dumps(result, allow_nan=False)
