@@ -89,3 +89,10 @@ Frontend uses same-origin `/api` through Vite proxy during development; producti
 - Research recovery/tow/grapnel-rope/buoy tools: `/api/repair/{recovery|tow|rope|buoy}`; [REPAIR_NOTES.md](REPAIR_NOTES.md).
 
 Saved projects expose `saved_revision`. Existing-ID saves require the exact current revision, including after same-ID tool transforms; missing or stale revision is rejected. JSON import and route split/merge create new IDs. Assembly references have `{id,name,cable_kp_m,note?}` and contribute zero length and zero cost. Stored constraint states are opaque integrity records; edit them through the constraint APIs, or explicitly clear and recapture them.
+
+
+## Route side slopes and KP slope rules (0.9)
+
+Each schema1 path may preserve optional `side_slopes` (model `route-side-slopes-v1`, schema1) and `slope_rules` (strict independent list, at most512). The shared terrain library remains on the schema2 workspace; neither field creates manufacturing inventory. `POST /api/terrain/side-slopes` produces genuine normal-ray probes and a pure candidate; `POST /api/tools/slope-rules` changes only the normalized rule list in its candidate. Only explicit whole-workspace saving writes a revision.
+
+Core adds `side_slopes_metadata` and `slope_rule_checks` only when their corresponding fields are present. Geometry/library bindings, raw transects, coverage and current analysis identity govern use; missing, stale or uncertain data never become a pass. Nullable sampling end resolves to the actual end of this computation; nullable saved rule end remains dynamic for future route checks. Signed side angles are positive for rising elevation towards starboard. Rules use absolute sampled maxima and preserve simultaneous violations and incomplete coverage. Full contracts: [SIDE_SLOPES_NOTES.md](SIDE_SLOPES_NOTES.md), [SLOPE_RULES_NOTES.md](SLOPE_RULES_NOTES.md).
