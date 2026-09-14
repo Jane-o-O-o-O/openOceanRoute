@@ -1,8 +1,8 @@
 # OceanRoute 软件设计文档
 
-版本 0.8 开发版 / 2026-10-04 / 与实际代码同步
+版本 0.9 开发版 / 2026-10-04 / 与实际代码同步
 
-本文保留投影点位编辑、二维真实平衡初态及地理制造窗口，新增隔离原生S-57读取、完整来源和更新链验证，以及共享GIS显示状态。0.8开发和发行门禁分开记录。历史0.1至0.7包、PDF和摘要独立保留；后端、浏览器、打包、安装和PDF各自核验，不能由开发门禁推定发行通过。准确算法合同见模块NOTES。
+本文保留既有投影、地形、原生S-57、制造和完整恢复合同，新增实际路线法向采样与KP纵坡/侧坡规则，以及异步原子应用和当前分析对象身份绑定。0.9开发和发行门禁分别记录，历史0.1至0.8包、PDF和摘要独立保留。后端、生产浏览器、PDF、wheel和首装均需各自实际核验。
 
 ## 1. 目标和依据
 
@@ -26,6 +26,7 @@ FastAPI 本地服务执行计算并提供编译后的 React/TypeScript 界面。
 | routing.py | 有限网格避让、带权区域与地形路由搜索 | 有界 A* 候选，不承诺全局最优 |
 | gis.py、dtm.py、terrain_boundaries.py、terrain_slice.py、surfer.py、geoformats.py | 沿线地形、网格、掩膜/切片、Surfer/KML/SHP | 实际稀疏平滑、缺测/投影、完整栅格采样 |
 | s57.py | 原始ISO8211容器、GDAL对象目录/属性/几何和更新证据 | 隔离原生子进程、有界完整参考图层；非FME或航海认证 |
+| side_slopes.py、slope_rules.py | 实际曲线法向探点与每路径KP坡度规则 | 签名/缺测/来源边界、原始探点校核与有界完整报告 |
 | terrain_sources.py、terrain_bathymetry.py、bathymetry.py | 共享来源优先级、真实局部重采样、双线性床法向 | 库摘要、缺测与声明海面高，完整二维动态来源追溯 |
 | workspace_terrain.py | 新来源及全部目标路径的原子地形预览 | 查询、Path Link、共享实物量全部通过才返回完整候选 |
 | exchange.py、rpl_templates.py | RPL模板、剖面、GeoJSON、标准图形与报告 | 真实源行诊断、解析与显式应用分开 |
@@ -123,6 +124,126 @@ RPL模板schema1明确固定宽度或分隔多行、索引起点、物理头部�
 共享多源库以有界内嵌文本/二进制资料形成稳定ID、内容SHA256与解释fingerprint；缓存实际解码网格/散点算子而非来源选择结果。按(-priority,id)逐点真实查询、NoData回退，同名垂直基准混采或明确筛选；输出真实来源、失败尝试、预算和方法声明。所有投影操作禁ballpark、最佳所需网格缺失拒绝。工作区顶层只保存一份库，子路径不私存；SQLite修订完整冻结源内容。库最多8源、单源8MiB、总12MiB/JSON16MiB，50k查询点；预算不足拒绝而非截断。
 
 coordinate_transforms以PROJ实际二维水平操作生成只读预览，原生轴单位和方向明确，区域操作和未知精度保持真实；任意坏点禁用整批应用。独立坐标预览和投影画布编辑均经正常路线/制造域事务应用，不绕过共享实体校核；原厂CSF、在线栅格重投影及原厂native坐标配置仍没有兼容证据。
+
+### 6.1 路线侧坡、KP规则与原子应用
+
+**模块和 HTTP 边界**
+
+新增生产模块 `oceanroute.side_slopes` 负责真实横向来源查询，`oceanroute.slope_rules` 负责独立只读规则检查；现有 `terrain_sources` 保持源解释、CRS、单位／基准、优先级／NoData 回退与逐点来源职责。`SideSlopesPanel` 提供预览／明确应用，`App.applySideSlopesCandidate` 使用工作区事务候选进行全工程核验。
+
+| 接口 | 请求 | 返回和副作用 |
+| --- | --- | --- |
+| `POST /api/terrain/side-slopes/example` | `{project}` | 实际合成 XYZ 来源输入 `sources`、`config`、`source`、`assumptions`；不计算侧坡、不改变工程、不存库 |
+| `POST /api/terrain/side-slopes` | `{project,config}` | `side_slopes`、候选 `project`、`sources`、`quality`、`budget`、`warnings`、`assumptions`；保留输入修订，不存库 |
+| `POST /api/tools/slope-rules` | `{project,config}` | 规则报告加候选 `project`；候选仅更新规范 `slope_rules`，不采样、不改制造、不存库 |
+| `POST /api/workspace/action` | `{workspace,config:{action:'update_path',path_id,project,assembly_policy:'auto_exclusive',update_shared:true}}` | 实际完整工作区候选与分析；约束、装配关系及制造一致性校验，不存库 |
+| `POST /api/workspaces` | 完整工作区，含当前修订 | 乐观修订保护的实际 SQLite 保存；旧修订、失败候选不得覆盖当前数据 |
+
+API 严格限制各请求字段。缺测和合法过期数据可返回可显示的未知报告；不支持的结构、非有限数值、布尔数值、无效阈值或超预算输入返回 422。工程应用还可能因固定域、底余缆所需剖面、共享装配或保存修订不满足而失败，不能把单项采样成功绕过这些校验。
+
+**路径与来源关系**
+
+工作区继续使用开放 `schema_version:2`；共享 `terrain_sources` 位于工作区顶层。每条路径复用原有路径投影，分别保存 `side_slopes` 和 `slope_rules`。不新增隐式制造装配、不将来源复制计费；侧坡记录不是缆材或实体，也不增加敷设库存。候选生成只新增侧坡及规范来源声明，不修改路径几何、沿线剖面、缆材库、费用、装配、事件、制造约束和用户扩展数据。
+
+使用已有共享来源的采样通常只更新本路径侧坡。合成草稿明确增加共享来源，因来源库摘要改变可能使其他路径旧剖面／旧侧坡失效；不能声称同时完成全工程重新测深。工作区原子核验保留既有库存／固定域意义，失败不改变旧工作区。已有的完整工作区地形重采样工具是重新计算受影响纵剖面和底余缆的独立流程，不能把只生成侧坡的候选混称为该流程。
+
+**持久侧坡 schema 与数学**
+
+```text
+project.side_slopes = {
+  model:'route-side-slopes-v1', schema_version:1, route_signature,
+  metadata:{
+    model:'route-side-slopes-v1', terrain_library_signature, vertical_datum,
+    spacing_m, half_width_m, cross_spacing_m, actual_cross_spacing_m,
+    start_kp_m, end_kp_m, route_length_m, route_curve,
+    heading_policy:'outgoing_one_sided_at_waypoint_incoming_at_terminal',
+    offset_positive:'starboard', slope_positive:'rising_elevation_towards_starboard',
+    slope_definition:'finite_width_endpoint_secants_and_adjacent_sampled_segments',
+    depth_positive:'down', units:'m', slope_units:'degrees', ...
+  },
+  samples:[{
+    kp_m, longitude, latitude, heading_deg,
+    port_slope_deg, starboard_slope_deg, side_slope_deg,
+    max_sampled_abs_slope_deg, complete, source_boundary,
+    transect:[{offset_m,longitude,latitude,depth_m,source_id,source_fingerprint,
+               fallback,fallback_count,attempts,slope_to_next_deg,source_boundary_to_next}]
+  }]
+}
+```
+
+沿线站含声明范围端点和范围内路线点，间距不大于 `spacing_m`；同位重复点不创造新航向。每站以当前真实前向方位角建立 WGS84 左右横向测地射线。恒向线航向恒定，大地线内点航向随曲线变化；不将整条大地线初始方位角重复套到所有站。日期线正确回卷；真地理极点没有唯一罗盘切向，拒绝。
+
+令 `w=half_width_m`，深度 `D` 正向下，横向 `u` 正向右舷，角度均转为度：
+
+```text
+port       = atan((D(-w)-D(0))/w)
+starboard  = atan((D(0)-D(w))/w)
+full       = atan((D(-w)-D(w))/(2w))
+adjacent_i = atan((D(u_i)-D(u_(i+1)))/(u_(i+1)-u_i))
+maximum    = max(abs(adjacent_i) over actual adjacent valid probes)
+```
+
+两侧探点对称且包含零，实际步长为 `w/ceil(w/cross_spacing_m)`。任一半幅／全幅中间探点缺测，其对应割线为空；相邻最大值不跨缺测桥接。`complete` 只表示该站全部声明探点有深度；`source_boundary` 表示有效探点的 `(source_id,fingerprint)` 集合不止一种，包括被缺测隔开的不同来源。数据完整与来源一致独立，不隐含连续海底或测量精度验收。
+
+根路线签名绑定几何／曲线，来源库摘要绑定真实来源内容和解释、启用与优先级。当前核心返回 `analysis.side_slopes_metadata` 明确 `geometry_current`、`library_current`、`source_binding_current`；旧记录保留但不能用于当前规则、图表或下载。签名是一致性绑定，不是对任意外部构造 JSON 的来源真实性认证。
+
+**规则 schema 与结果**
+
+```json
+{
+  "id": "nearshore",
+  "name": "近岸检查",
+  "enabled": true,
+  "kind": "both",
+  "start_kp_m": 0,
+  "end_kp_m": null,
+  "max_inline_slope_deg": 15,
+  "max_side_slope_deg": 12
+}
+```
+
+规则数组位于 `project.slope_rules`，字段严格，ID 唯一，类型仅 `inline|side|both`，对应阈值必填、不适用阈值拒绝，范围 `0≤角度<90`。配置可用 `rules` 覆盖本次检查清单，不修改输入。保存的 `end_kp_m:null` 动态解析为本次路线终点，结果另给 `requested_range_m:[声明start,声明end|null]`，避免将开放终点冻结。后来缩线造成空可检查域时为 `unknown`／`RULE_RANGE_EMPTY`，不是非法规则；明确数值终点必须大于起点，路线外区间不外推或强制裁剪。
+
+`check_slope_rules(project,config=None,*,analysis=None,terrain_signature=None)` 可复用内部当前分析与来源摘要；独立调用仅复用核心 `_profiles`，不调用制造分析，避免递归。核心仅在路径显式带 `slope_rules` 时调用，输出 `analysis.slope_rule_checks` 并追加实际超限和不可用警告；旧路径不添加该结果字段。
+
+报告模型为 `kp-slope-rules-v1`，包含规范 `rules`、逐条 `results`、`summary`、`metadata`、`warnings`、`budget`、`assumptions`。元数据提供 `route_signature`、`terrain_library_signature`、`rules_signature`。结果各组件给出请求域、覆盖／未知区间及长度；侧坡另给实际域内／支持站位、缺测／来源边界站和站距缺口。
+
+纵坡检查有效原分段与规则 KP 区间的正长度交集，使用该原分段深度差／KP 差，而非只检查段首。侧坡检查域内真实站点的 `max_sampled_abs_slope_deg`，校核原始 transect 的有序偏移、端点／中心、缺测、半幅／全幅及最大角，不信任可能舍入失真的摘要。没有域内实际站、超出采样域、有 NoData、来源边界或站距缺口均不能通过。单站范围合法，但不覆盖正长度规则区间。
+
+每条规则状态为 `disabled|sampled_pass|violations|incomplete|unknown`，整体另有 `not_configured`。真实超限优先保留，但 `components[kind].coverage.complete` 和 `summary.all_requested_data_available` 独立报告是否仍有缺测或不确定范围；有违例的同一规则仍可计入 `incomplete_rules`。侧坡违例的 `uncertain` 不得忽略。报告始终 `validation_status:'research'`，`continuous_bed_verified:false`。
+
+**资源准入**
+
+| 参数或容量 | 默认 | 硬上限／范围 |
+| --- | --- | --- |
+| 侧坡沿线站距 | 1000 m | 1–100000 m |
+| 每侧宽度／横向探点间距 | 100 m／50 m | 各 0.001–100000 m |
+| 侧坡查询探点 | 50000 | 1–50000，站数×每站探点数，不截断 |
+| 侧坡逻辑工作量 | 30000000 | 1–200000000 |
+| 侧坡输出 | 16 MiB | 1 KiB–64 MiB |
+| 规则只读数量预算 | 128 | 显式可调至 512；核心自动检查使用 512 |
+| 规则逻辑工作量 | 5000000 | 1–20000000 |
+| 规则输出 | 16 MiB | 1 KiB–32 MiB |
+| 规则输入路线点／原始剖面点 | — | 10000／100000；内部插入路线边界后的剖面最多 110000 |
+| 规则横坡站／累计原始探点 | — | 各 50000 |
+
+站数×探点数先行准入，侧坡几何／探点费用与真实源准备／查询共用请求工作预算，缓存命中也计保守准备费用。规则预先估算解析、探点及逐规则采样比较，超限先于库指纹解析和规则计算拒绝；其来源库规范化另受来源模块容量限制，不能把规则预算称为包含全部原生库 CPU 开销。两者采用逻辑单位，不是 FLOPs、时间硬限或内存上限。
+
+输出先保守计入候选、元数据、来源尝试及重复结果／警告，再核实际有限、紧凑 UTF-8 JSON 字节。超限拒绝整份报告，不丢违例或缺测诊断。512 条只是规则清单数量上限，不能保证在任意 50000 站输入上都能通过默认工作／输出预算。
+
+**异步、原子性与保存语义**
+
+面板对完整路径投影、工作区上下文、采样参数、独立来源草稿、规则和预算建立请求快照。请求序号、组件 mounted 状态与最新快照同时限制预览响应；任何变动使旧响应、图表、应用和导出失效。已应用记录的显示还必须使用**属于当前路径投影**的实际核心绑定校验，不能复用前一路径的有效布尔标记。当前 `App.analysisProject` 只在该投影的实际分析完成后绑定其对象，`EngineeringTools.analysisCurrent` 仅在对象仍当前时把分析传给侧坡面板，否则传空值；因此路径切换、工作区修订或其他文档动作后的异步窗口不猜测旧记录是否有效。它不只是比较旧 artifact 的哈希，因为复制路径的旧记录可能和前一路径相同。
+
+应用不是直接替换路径。`App.applySideSlopesCandidate` 对完整工作区快照、活跃路径 ID、草稿／待验状态、保存修订和面板 `isCurrent` 同时检查，然后请求 `workspace/action update_path`。响应回来再检查原文档对象仍当前、面板未变／未卸载、工作区 ID／活跃路径／修订一致，才把整份候选一次性提交，并把旧文档加入撤销历史。失败或迟到响应不清掉原草稿、不改变原工作区、不部分更新共享来源、不自动 fork 或放宽制造域。
+
+候选与 `workspace/action` 都不写数据库。用户“保存”才调用现有工作区 SQLite 事务及乐观修订保护；重开／恢复读取整个工程容器，侧坡与规则作为路径扩展保存。撤销维持当前持久修订作为后续保存保护，不能回退修订号绕过并发校验。
+
+**公开覆盖及剩余范围**
+
+公开手册物理页 107／111／114 给出侧坡计算间距、沿线／左右坡显示及右舷上坡正号；物理页 266 给出纵坡／侧坡／二者与 KP 范围规则。独立实现补齐该公开功能的采样／检查流程，但不声称原厂规则二进制、隐藏数值方法或连续危险走廊检查已兼容。
+
+本次真实二维点采样仍可能漏掉探点／沿线站间的细沟、尖峰和缺测；没有全样带拓扑覆盖或连续最大坡证明。来源声明同一垂直基准不证明实测精度一致。侧坡规则不等于 plow 适用性、埋设力学或设备接口；自动交叉／邻近 KP 规则扩展、原厂 native 文件和现场对照仍不能由本模块的存在推定完成。证据与专项测试范围详见 [SIDE_SLOPES_NOTES.md](SIDE_SLOPES_NOTES.md) 和 [SLOPE_RULES_NOTES.md](SLOPE_RULES_NOTES.md)。准确实际门禁及发行对象见RELEASE_NOTES和DEVELOPMENT_0.9。
 
 ## 7. 物理求解和施工计划
 
