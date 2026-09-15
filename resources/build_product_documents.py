@@ -36,6 +36,9 @@ STYLES = {
 def inline(text):
     text = text.replace("—", "-").replace("–", "-").replace("−", "-").replace("‑", "-")
     text = escape(text)
+    # STHeiti lacks the Unicode subscript-zero glyph. Draw a real ASCII zero
+    # below the baseline so mathematical K₀ remains visible and searchable.
+    text = text.replace("₀", "<sub>0</sub>")
     text = re.sub(r"`([^`]+)`", r'<font color="#087D86">\1</font>', text)
     text = re.sub(r"\*\*(.+?)\*\*", r'<b>\1</b>', text)
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: m[1] if m[1] == m[2] else f"{m[1]} ({m[2]})", text)
