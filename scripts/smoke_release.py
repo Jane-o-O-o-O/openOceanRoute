@@ -16,6 +16,55 @@ import sys
 import tempfile
 import zipfile
 
+SIDE_SMOKE_WRAPPER = r'''
+import importlib
+import json
+from pathlib import Path
+import sys
+from fastapi.testclient import TestClient
+from oceanroute.api import create_app
+from oceanroute.storage import ProjectStore
+
+root = Path.cwd().resolve()
+modules = {}
+for name in ('oceanroute', 'oceanroute.api', 'oceanroute.core', 'oceanroute.workspace',
+             'oceanroute.side_slopes', 'oceanroute.slope_rules'):
+    module = importlib.import_module(name)
+    location = Path(module.__file__).resolve()
+    assert location.is_relative_to(root), (name, location, root)
+    modules[name] = str(location.relative_to(root))
+assert importlib.import_module('oceanroute').__version__ == sys.argv[1]
+database = root / 'installed-side-workflow.sqlite3'
+client = TestClient(create_app(ProjectStore(database)))
+client.__enter__()
+reads = 0
+owner_reopened = False
+def post(path, payload):
+    response = client.post(path, json=payload)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    return response.json()
+def get(path):
+    global client, reads, owner_reopened
+    reads += 1
+    if reads == 2:
+        client.__exit__(None, None, None)
+        client = TestClient(create_app(ProjectStore(database)))
+        client.__enter__()
+        owner_reopened = True
+    response = client.get(path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    return response.json()
+try:
+    report = run_side_slopes_smoke(post, get)
+finally:
+    client.__exit__(None, None, None)
+assert owner_reopened
+report.update(isolated_modules=modules, version=sys.argv[1],
+              harness_sha256=sys.argv[2], actual_asgi_owner_closed_and_reopened=True,
+              scope='OceanRoute imports from the extracted wheel only; real ASGI APIs and new lifespan/storage owners, with existing interpreter dependencies, not a clean installation')
+print(json.dumps(report, ensure_ascii=False, allow_nan=False))
+'''
+
 # Execute in a fresh process, with only the extracted wheel on PYTHONPATH. Keep
 # the checks here so the test cannot accidentally import the checkout's package.
 SMOKE_CODE = r'''
@@ -1321,6 +1370,16 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if native.stderr:
                 print(native.stderr, file=sys.stderr, end="")
             report["native_s57"] = json.loads(native.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 9, 0):
+            helper = Path(__file__).resolve().parent / "side_slopes_smoke.py"
+            source = helper.read_text()
+            side = subprocess.run([sys.executable, "-c", source + "\n" + SIDE_SMOKE_WRAPPER,
+                                   metadata["Version"], hashlib.sha256(helper.read_bytes()).hexdigest()],
+                                  cwd=destination, env=environment, check=True, capture_output=True,
+                                  text=True, timeout=120)
+            if side.stderr:
+                print(side.stderr, file=sys.stderr, end="")
+            report["side_slopes_and_kp_rules"] = json.loads(side.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size

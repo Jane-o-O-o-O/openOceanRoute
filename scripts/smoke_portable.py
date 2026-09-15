@@ -252,6 +252,16 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                             "split_json_resume_exact_six_arrays": True, "requests": 4}
                 if tuple(map(int, expected_version.split("."))) >= (0, 8, 0):
                     native_s57 = native_s57_http(url, checkout / "tests/fixtures/s57/noaa/US5A1KMJ.zip", project)
+                if tuple(map(int, expected_version.split("."))) >= (0, 9, 0):
+                    helper = checkout / "scripts/side_slopes_smoke.py"
+                    namespace = {"__name__": "portable_side_slopes_smoke"}
+                    exec(compile(helper.read_text(), str(helper), "exec"), namespace)
+                    def get_side(path):
+                        with urllib.request.urlopen(url + path, timeout=30) as response:
+                            return json.load(response)
+                    side_slopes = namespace["run_side_slopes_smoke"](post, get_side)
+                    side_slopes.update(harness_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                        scope="Shipped harness calling the freshly launcher-installed HTTP server and real SQLite APIs; API reread only, server owner remains running during this workflow")
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -295,6 +305,8 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
             result["native_s57"] = native_s57
             assert native_s57["native_reader"]["pyogrio_version"] == result["versions"]["pyogrio"]
             assert native_s57["native_reader"]["gdal_version"] == result["versions"]["gdal"]
+        if tuple(map(int, expected_version.split("."))) >= (0, 9, 0):
+            result["side_slopes_and_kp_rules"] = side_slopes
         if report is not None:
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
