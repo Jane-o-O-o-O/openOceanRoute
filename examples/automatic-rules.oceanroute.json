@@ -1,0 +1,493 @@
+{
+  "schema_version": 2,
+  "id": "automatic-rules-demo-0-10",
+  "name": "自动规则与二维坡窗：合成演示",
+  "currency": "CNY",
+  "active_path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+  "cable_types": [
+    {
+      "id": "C",
+      "name": "Declared cable",
+      "cost_per_m": 3,
+      "lay_speed_m_s": 1,
+      "wet_weight_n_m": 10,
+      "ea_n": 1000000.0
+    }
+  ],
+  "layers": [
+    {
+      "id": "gis",
+      "name": "Synthetic GIS",
+      "kind": "reference",
+      "visible": false,
+      "geojson": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "id": 1,
+            "properties": {
+              "name": "Numeric ID"
+            },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [
+                [
+                  0.0045,
+                  -0.001
+                ],
+                [
+                  0.0045,
+                  0.001
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "1",
+            "properties": {
+              "name": "String ID"
+            },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [
+                [
+                  0.0075,
+                  -0.001
+                ],
+                [
+                  0.0075,
+                  0.001
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "name": "No native ID"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                0.005,
+                0.0001
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "id": "index:2",
+            "properties": {},
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                0.006,
+                0.0002
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "terrain_sources": [
+    {
+      "id": "plane",
+      "name": "合成二维斜平面 D=1000+0.1x+0.2y",
+      "kind": "xyz",
+      "enabled": true,
+      "priority": 1,
+      "source_crs": "+proj=aeqd +lat_0=0 +lon_0=0.004491576420598 +datum=WGS84 +units=m +type=crs",
+      "depth_positive": "down",
+      "depth_units": "m",
+      "vertical_datum": "synthetic-plane-datum",
+      "sampling": {
+        "method": "linear",
+        "max_gap_m": 1000.0
+      },
+      "text": "-200 -200 940.0\n0 -200 960.0\n200 -200 980.0\n-200 0 980.0\n0 0 1000.0\n200 0 1020.0\n-200 200 1020.0\n0 200 1040.0\n200 200 1060.0",
+      "schema": "oceanroute.terrain-source",
+      "schema_version": 1,
+      "coordinate_order": "xy",
+      "nodata_value": null,
+      "content_sha256": "8027aa091e20f2d4330396018fb116b44f787556bb3a161e388f5f69a647b3de",
+      "byte_count": 124,
+      "fingerprint": "98f750e6a75ce38ada0b389939a105fdf424e250d3d8ba20b362fc8e4a538886"
+    }
+  ],
+  "paths": [
+    {
+      "id": "e38800c4-7db8-48a5-b154-089e019eb1ad",
+      "name": "同库存备选路径",
+      "kind": "cable",
+      "project": {
+        "schema_version": 1,
+        "id": "e38800c4-7db8-48a5-b154-089e019eb1ad",
+        "name": "合成赤道路线",
+        "crs": "EPSG:4326",
+        "route": {
+          "id": "r",
+          "curve": "geodesic",
+          "mode": "flexible",
+          "slack_pct": 1,
+          "slack_basis": "surface",
+          "points": [
+            {
+              "id": "a",
+              "longitude": 0,
+              "latitude": 0,
+              "depth_m": 1000
+            },
+            {
+              "id": "b",
+              "longitude": 0.01,
+              "latitude": 0,
+              "depth_m": 1000
+            }
+          ],
+          "legs": [
+            {
+              "cable_type_id": "C"
+            }
+          ],
+          "allowances": [
+            {
+              "id": "reserve",
+              "kp_m": 200,
+              "length_m": 40
+            }
+          ]
+        },
+        "bodies": [
+          {
+            "id": "joint",
+            "name": "Synthetic joint",
+            "kp_m": 500,
+            "length_m": 0,
+            "cost": 25
+          }
+        ],
+        "profile": {
+          "source": "合成演示，非实测",
+          "measured": false,
+          "samples": [
+            {
+              "kp_m": 0,
+              "depth_m": 1000
+            },
+            {
+              "kp_m": 2000,
+              "depth_m": 1000
+            }
+          ],
+          "route_signature": "a7736b918a52f5e9efea0203f27624e5e079f516068a9a1531a64774dd3043fb"
+        },
+        "costs": {
+          "currency": "CNY"
+        },
+        "user_extension": {
+          "preserve": [
+            "route",
+            "inventory"
+          ]
+        }
+      }
+    },
+    {
+      "id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "name": "合成主路径",
+      "kind": "cable",
+      "project": {
+        "schema_version": 1,
+        "id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+        "name": "合成赤道路线",
+        "crs": "EPSG:4326",
+        "route": {
+          "id": "r",
+          "curve": "geodesic",
+          "mode": "flexible",
+          "slack_pct": 1,
+          "slack_basis": "surface",
+          "points": [
+            {
+              "id": "a",
+              "longitude": 0,
+              "latitude": 0,
+              "depth_m": 1000
+            },
+            {
+              "id": "b",
+              "longitude": 0.01,
+              "latitude": 0,
+              "depth_m": 1000
+            }
+          ],
+          "legs": [
+            {
+              "cable_type_id": "C"
+            }
+          ],
+          "allowances": [
+            {
+              "id": "reserve",
+              "kp_m": 200,
+              "length_m": 40
+            }
+          ]
+        },
+        "bodies": [
+          {
+            "id": "joint",
+            "name": "Synthetic joint",
+            "kp_m": 500,
+            "length_m": 0,
+            "cost": 25
+          }
+        ],
+        "profile": {
+          "source": "合成演示，非实测",
+          "measured": false,
+          "samples": [
+            {
+              "kp_m": 0,
+              "depth_m": 1000
+            },
+            {
+              "kp_m": 2000,
+              "depth_m": 1000
+            }
+          ],
+          "route_signature": "a7736b918a52f5e9efea0203f27624e5e079f516068a9a1531a64774dd3043fb"
+        },
+        "costs": {
+          "currency": "CNY"
+        },
+        "user_extension": {
+          "preserve": [
+            "route",
+            "inventory"
+          ]
+        }
+      }
+    }
+  ],
+  "assemblies": [
+    {
+      "id": "08217456-fb9d-4467-b080-cf5695935ee3",
+      "name": "Synthetic equatorial route · 制造装配",
+      "currency": "CNY",
+      "items": [
+        {
+          "id": "ca8275b3-f047-4ad7-8cd0-7c77b026934c",
+          "kind": "cable",
+          "name": "Declared cable",
+          "start_m": 0.0,
+          "end_m": 202.0,
+          "length_m": 202.0,
+          "note": "",
+          "cable_type_id": "C"
+        },
+        {
+          "id": "9c26660d-9767-4471-b68e-51c1187e4588",
+          "kind": "cable",
+          "name": "Declared cable",
+          "start_m": 202.0,
+          "end_m": 242.0,
+          "length_m": 40.0,
+          "note": "",
+          "cable_type_id": "C"
+        },
+        {
+          "id": "e02cba77-c07d-4726-912b-724e3b0c7934",
+          "kind": "cable",
+          "name": "Declared cable",
+          "start_m": 242.0,
+          "end_m": 545.0,
+          "length_m": 303.0,
+          "note": "",
+          "cable_type_id": "C"
+        },
+        {
+          "id": "joint",
+          "kind": "body",
+          "name": "Synthetic joint",
+          "start_m": 545.0,
+          "end_m": 545.0,
+          "length_m": 0.0,
+          "note": "",
+          "body_kind": "body",
+          "cost": 25.0,
+          "properties": {}
+        },
+        {
+          "id": "b099cd50-64b5-4c0c-b46d-19b4bf9f9abe",
+          "kind": "cable",
+          "name": "Declared cable",
+          "start_m": 545.0,
+          "end_m": 1164.326857012063,
+          "length_m": 619.3268570120631,
+          "note": "",
+          "cable_type_id": "C"
+        }
+      ],
+      "total_length_m": 1164.326857012063,
+      "source": "captured_path_manufacturing",
+      "source_path_id": "e38800c4-7db8-48a5-b154-089e019eb1ad",
+      "manufacturing_signature": "43a90500709bfd05d48524dc6009bef6aea83c88c5ce680d7e7c18ac0de23441"
+    }
+  ],
+  "associations": [
+    {
+      "id": "6533dd54-8044-44f6-8b76-d35f786ae892",
+      "path_id": "e38800c4-7db8-48a5-b154-089e019eb1ad",
+      "assembly_id": "08217456-fb9d-4467-b080-cf5695935ee3",
+      "role": "deployment"
+    },
+    {
+      "id": "388364e1-a4a5-4621-ab7b-1220cb34aa27",
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "assembly_id": "08217456-fb9d-4467-b080-cf5695935ee3",
+      "role": "alternative"
+    }
+  ],
+  "origin_project_id": "rules-http-source",
+  "migration": "schema1_to_schema2",
+  "user_extension": {
+    "synthetic_example": true,
+    "purpose": "0.10 demonstration; not field data",
+    "expected_plane_slope_deg": 12.604382648379183,
+    "profile_and_plane_match_at_body_center": true
+  },
+  "automatic_rules": [
+    {
+      "id": "cross-numeric",
+      "name": "数字ID穿越：水深超过900m",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "crossing",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "selectors": [
+        {
+          "layer_id": "gis",
+          "feature_ids": [
+            1
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "field": "depth_m",
+          "comparison": "gt",
+          "value": 900.0
+        }
+      ],
+      "match_mode": "all",
+      "body_distance_mode": "horizontal"
+    },
+    {
+      "id": "cross-text",
+      "name": "字符串ID穿越：角度小于35度",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "crossing",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "selectors": [
+        {
+          "layer_id": "gis",
+          "feature_ids": [
+            "1"
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "field": "angle_deg",
+          "comparison": "lt",
+          "value": 35.0
+        }
+      ],
+      "match_mode": "all",
+      "body_distance_mode": "horizontal"
+    },
+    {
+      "id": "near-index",
+      "name": "路径邻近：无ID要素索引2",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "proximity",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "around": "path",
+      "targets": [
+        "gis"
+      ],
+      "distance_m": 50.0,
+      "water_depth_m": {
+        "min_m": 900.0,
+        "max_m": 1100.0
+      },
+      "selectors": [
+        {
+          "layer_id": "gis",
+          "feature_indexes": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bed-plane",
+      "name": "缆体周边二维坡窗：5度阈值",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "proximity",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "around": "bodies",
+      "targets": [
+        "slopes"
+      ],
+      "distance_m": 50.0,
+      "water_depth_m": {
+        "min_m": 900.0,
+        "max_m": 1100.0
+      },
+      "slope_threshold_deg": 5.0,
+      "slope_probe_spacing_m": 25.0,
+      "slope_vertical_datum": "synthetic-plane-datum"
+    },
+    {
+      "id": "inline-flat",
+      "name": "平坦沿线纵坡：1度阈值",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "slope",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "slope_basis": "inline",
+      "max_inline_slope_deg": 1.0
+    },
+    {
+      "id": "missing-reference",
+      "name": "演示：保留的缺失图层引用",
+      "enabled": true,
+      "path_id": "b6ef7284-8487-4402-b450-c2371e32b0fe",
+      "kind": "crossing",
+      "start_kp_m": 0.0,
+      "end_kp_m": null,
+      "selectors": [
+        {
+          "layer_id": "absent-demo-layer",
+          "feature_ids": null
+        }
+      ],
+      "conditions": [],
+      "match_mode": "all",
+      "body_distance_mode": "horizontal"
+    }
+  ]
+}
