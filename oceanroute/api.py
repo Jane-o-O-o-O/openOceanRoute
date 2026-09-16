@@ -109,6 +109,8 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
             {"id": "side_slopes", "name": "路线侧坡 / 横向采样带", "status": "research", "note": "实际曲线法向探点、右舷上坡为正；左右割线和局部最大坡度，保留缺测、来源边界及路线/源库失效"},
             {"id": "slope_rules", "name": "KP 区间纵坡 / 侧坡规则", "status": "implemented", "note": "每路径最多512条持久规则，报告采样超限、缺测与过期；采样通过不代表连续海底安全"},
+            {"id": "automatic_rules", "name": "自动穿越 / 邻近 / 坡度规则", "status": "research", "note": "共享声明、typed GIS引用、真实逐实例结果与定位；开放包候选导入导出、缺引用保留及整笔应用；明确比较方向、实际曲线几何与未知范围"},
+            {"id": "terrain_slope_neighborhoods", "name": "组件周边二维坡度窗口", "status": "research", "note": "真实二维源探点及六子片坡度；缺测与接缝停用，报告未覆盖圆域边缘；不证明连续海床安全"},
             {"id": "workspace_terrain", "name": "整工程地形重采样", "status": "implemented", "note": "多路径、底余缆及共享库存一笔预览验收；缺测、固定域不足或不同制造结果整笔拒绝"},
             {"id": "bathymetry", "name": "二维变化海底接触", "status": "research", "note": "真实双线性坡法向、有限冲量摩擦、完整恢复；来源重采样需明确海面高，未解变深波传播"},
             {"id": "static_bathymetry", "name": "坡床悬链线 / 变深海底定端静力", "status": "research", "note": "真实坡床切向弹性悬垂及定端自然长约束；接触/摩擦/力残差与缆段穿床验证；显式动态入口重新验收"},
@@ -170,6 +172,53 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     def analyze_workspace(payload: dict):
         from .workspace import analyze_workspace as analyze
         return analyze(payload)
+
+    def automatic_rule_workspace(payload: dict, *, importing=False):
+        from .workspace import _validate
+        allowed = {"workspace", "config", "package"} if importing else {"workspace", "config"}
+        required = {"workspace", "package"} if importing else {"workspace"}
+        if set(payload)-allowed or not required <= payload.keys():
+            raise ValueError("automatic-rules须提供workspace及受支持的config；导入另须package")
+        return _validate(payload["workspace"], _check_legacy_crossings=False)
+
+    def automatic_rule_response(result: dict):
+        # The report has its own requested budget. The complete HTTP wrapper
+        # also includes the whole declarative workspace, and has a separate cap.
+        size = len(json.dumps(result, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8"))
+        if size > 64*1024**2:
+            from .automatic_rules import AutomaticRuleEvaluationError
+            raise AutomaticRuleEvaluationError("AUTOMATIC_RULE_HTTP_OUTPUT_LIMIT", "Complete candidate response exceeds 64 MiB; no truncation")
+        return result
+
+    @app.post("/api/automatic-rules/catalog")
+    def automatic_rule_catalog(payload: dict):
+        from .automatic_rules import automatic_rule_catalog as catalog
+        if payload.get("config") not in (None, {}):
+            raise ValueError("automatic-rules catalog不接受额外配置")
+        workspace, _, _ = automatic_rule_workspace(payload)
+        return automatic_rule_response(catalog(workspace))
+
+    @app.post("/api/automatic-rules/check")
+    def automatic_rule_check(payload: dict):
+        from .automatic_rules import check_automatic_rules
+        workspace, analyses, _ = automatic_rule_workspace(payload)
+        checks = check_automatic_rules(workspace, payload.get("config"), analyses=analyses)
+        candidate = deepcopy(workspace)
+        candidate["automatic_rules"] = deepcopy(checks["rules"])
+        return automatic_rule_response({"workspace": candidate, "rules": checks["rules"], "checks": checks,
+                "scope": "read-only rule check and complete declarative candidate; not saved"})
+
+    @app.post("/api/automatic-rules/export")
+    def automatic_rule_export(payload: dict):
+        from .automatic_rules import export_automatic_rules
+        workspace, _, _ = automatic_rule_workspace(payload)
+        return automatic_rule_response(export_automatic_rules(workspace, payload.get("config")))
+
+    @app.post("/api/automatic-rules/import")
+    def automatic_rule_import(payload: dict):
+        from .automatic_rules import import_automatic_rules
+        workspace, _, _ = automatic_rule_workspace(payload, importing=True)
+        return automatic_rule_response(import_automatic_rules(workspace, payload["package"], payload.get("config")))
 
     @app.post("/api/workspace/terrain/preview")
     def preview_workspace_terrain(payload: dict):
