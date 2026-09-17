@@ -205,7 +205,7 @@ def _geometry_work(project):
     return vertices
 
 
-def _validate(workspace):
+def _validate(workspace, *, _check_legacy_crossings=True):
     ws = deepcopy(_object(workspace, "workspace"))
     raw = json.dumps(ws, ensure_ascii=False, allow_nan=False)
     if len(raw.encode()) > 32*1024*1024:
@@ -237,7 +237,19 @@ def _validate(workspace):
     from .terrain_sources import normalize_sources, _library_signature
     ws["terrain_sources"] = normalize_sources(ws.get("terrain_sources", []))
     terrain_signature = _library_signature(ws["terrain_sources"])
+    if "automatic_rules" in ws:
+        # References are checked by the rule engine, not removed by storage.
+        # A valid imported rule may refer to a missing path or GIS feature and
+        # must remain editable after a save/reopen.
+        from .automatic_rules import normalize_automatic_rules
+        ws["automatic_rules"] = normalize_automatic_rules(ws["automatic_rules"], max_rules=512)
     paths = _unique(_array(ws.get("paths", []), "paths", 100), "paths")
+    if not paths and not _check_legacy_crossings:
+        # Nonempty workspaces admit shared GIS through each materialized path.
+        # The rule catalog/import also accept empty workspaces, so their hidden
+        # or unselected source layers must still receive the same admission.
+        from .core import _layer_geometries
+        _layer_geometries(ws, [])
     assemblies = _unique(_array(ws.get("assemblies", []), "assemblies", 100), "assemblies")
     links = _array(ws.get("associations", []), "associations", 100)
     _unique(links, "associations")
@@ -310,7 +322,7 @@ def _validate(workspace):
         if geometry_vertices > MAX_GEOMETRY_VERTICES:
             _error("WORKSPACE_LIMIT", "工作区全部路径地图加密预算为250,000个顶点；请拆分工程")
         materialized = _materialize(ws, path)
-        analysis = analyze_project(materialized, _terrain_signature=terrain_signature)
+        analysis = analyze_project(materialized, _terrain_signature=terrain_signature, _check_legacy_crossings=_check_legacy_crossings)
         analyses[path["id"]] = analysis
         link = next((l for l in links if l["path_id"] == path["id"]), None)
         if link:
@@ -334,7 +346,7 @@ def materialize_path(workspace, path_id=None):
     return _materialize(ws, path)
 
 
-def _analyzed(ws, analyses, assemblies):
+def _analyzed(ws, analyses, assemblies, *, include_automatic_rules=True):
     links = ws["associations"]
     deployed = [analyses[l["path_id"]]["summary"] for l in links if l["role"] == "deployment"]
     warnings = [{**deepcopy(w), "path_id": pid} for pid, a in analyses.items() for w in a["warnings"]]
@@ -380,6 +392,24 @@ def _analyzed(ws, analyses, assemblies):
             "manufacturing_tolerance_m": TOL, "currency_policy": "one_currency_no_implicit_exchange",
             "cost_policy": "unique_assembly_procurement_plus_deployment_installation", "unallocated_inventory_contingency": "excluded",
             "limitations": ["一条路径关联一套完整装配；不自动拆分实物或同时敷设同一装配。", "alternative是同一库存的互斥路线方案，不是额外安装。", "库存采购费计一次；安装和预备费仅计deployment路径。", "OceanRoute自有schema，不兼容原厂关系库或native文件。"]}}
+    if "automatic_rules" in ws:
+        result["automatic_rule_checks_pending"] = not include_automatic_rules
+        if include_automatic_rules:
+            from .automatic_rules import AutomaticRuleEvaluationError, check_automatic_rules
+            try:
+                result["automatic_rule_checks"] = check_automatic_rules(ws, {"max_rules": 512}, analyses=analyses)
+            except AutomaticRuleEvaluationError as exc:
+                # A bounded screening failure must leave valid declarations
+                # editable. It is unavailable evidence, never an empty pass.
+                result["automatic_rule_checks"] = None
+                result["automatic_rule_check_error"] = {
+                    "status": "unavailable", "code": getattr(exc, "code", "AUTOMATIC_RULE_EVALUATION_UNAVAILABLE"),
+                    "message": str(exc),
+                }
+                result["warnings"].append({
+                    "code": "AUTOMATIC_RULE_EVALUATION_UNAVAILABLE", "severity": "warning",
+                    "message": str(exc),
+                })
     try:
         json.dumps(result, allow_nan=False)
     except (ValueError, OverflowError) as error:
@@ -391,9 +421,9 @@ def analyze_workspace(workspace):
     return _analyzed(*_validate(workspace))
 
 
-def _result(workspace, report=None):
+def _result(workspace, report=None, *, include_automatic_rules=True):
     ws, analyses, assemblies = _validate(workspace)
-    analysis = _analyzed(ws, analyses, assemblies)
+    analysis = _analyzed(ws, analyses, assemblies, include_automatic_rules=include_automatic_rules)
     active = next((p for p in ws["paths"] if p["id"] == ws.get("active_path_id")), None)
     return {"workspace": ws, "project": _materialize(ws, active) if active else None, "analysis": analysis,
             "report": report or {}, "warnings": analysis["warnings"]}
@@ -461,7 +491,7 @@ def migrate_project(project, config=None):
 def workspace_action(workspace, config):
     config = _object(config, "config")
     ws, analyses, reports = _validate(workspace)
-    before = _analyzed(ws, analyses, reports)["summary"]
+    before = _analyzed(ws, analyses, reports, include_automatic_rules=False)["summary"]
     action = config.get("action")
     path_id = config.get("path_id", ws.get("active_path_id"))
     path = next((p for p in ws["paths"] if p["id"] == path_id), None)
@@ -478,6 +508,11 @@ def workspace_action(workspace, config):
     elif action == "update_metadata":
         if "name" not in config: _error("WORKSPACE_STRUCTURE", "update_metadata须提供name")
         ws["name"] = str(config["name"])
+    elif action == "update_automatic_rules":
+        if "rules" not in config:
+            _error("WORKSPACE_STRUCTURE", "update_automatic_rules须提供完整rules候选")
+        from .automatic_rules import normalize_automatic_rules
+        ws["automatic_rules"] = normalize_automatic_rules(config["rules"], max_rules=512)
     elif action == "update_shared":
         for key in ("cable_types", "layers", "terrain_sources"):
             if key in config: ws[key] = deepcopy(config[key])
@@ -576,7 +611,10 @@ def workspace_action(workspace, config):
         ws["assemblies"] = [a for a in ws["assemblies"] if a["id"] != aid]
     else:
         _error("WORKSPACE_ACTION", "未知工作区操作")
-    result = _result(ws, {"operation": action})
+    # Relation/manufacturing validation stays atomic. Geometry checks are
+    # read-only reports, requested separately rather than rerun before and
+    # after every metadata or selection edit.
+    result = _result(ws, {"operation": action}, include_automatic_rules=False)
     result["report"].update(before_summary=before, after_summary=result["analysis"]["summary"],
         manufactured_total_delta_m=result["analysis"]["summary"]["manufactured_total_m"]-before["manufactured_total_m"],
         cost_total_delta=result["analysis"]["summary"]["cost_total"]-before["cost_total"])
