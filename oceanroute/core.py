@@ -12,10 +12,11 @@ import math
 from copy import deepcopy
 
 from pyproj import CRS, Transformer
+from shapely.errors import GeometryTypeError, GEOSException
 from shapely.geometry import LineString, Point, shape
 from shapely.ops import transform
 
-from .geodesy import coordinate, densify, finite_number, interpolate, inverse, split_antimeridian
+from .geodesy import GEOD, coordinate, densify, finite_number, interpolate, inverse, split_antimeridian
 
 
 def _object(value, name):
@@ -458,11 +459,11 @@ def _intersection_points(geometry):
     return []
 
 
-def _crossings(project, points, kps, curve, corridor, warnings):
-    """Densified routes and per-leg local azimuthal equidistant GIS checks.
+def _layer_geometries(project, warnings):
+    """Admit source GIS geometry without running any route projections.
 
-    This is a screening calculation, not a cadastral accuracy guarantee. The
-    source GeoJSON's sparse edges are straight lines in the local projection.
+    Shared by ordinary screening and the independent automatic-rule admission;
+    skipping legacy contact calculations must not accept an invalid workspace.
     """
     layers = _list(project.get("layers", []), "layers", 1000)
     features = []
@@ -487,8 +488,18 @@ def _crossings(project, points, kps, curve, corridor, warnings):
                 if not all(math.isfinite(v) for v in geom.bounds) or minx < -180 or maxx > 180 or miny < -90 or maxy > 90:
                     raise ValueError("GeoJSON 经纬度越界")
                 features.append((layer, feature.get("id", index), feature.get("properties", {}), geom))
-            except (TypeError, KeyError, AttributeError, ValueError) as exc:
+            except (TypeError, KeyError, AttributeError, ValueError, GeometryTypeError, GEOSException) as exc:
                 raise ValueError(f"GeoJSON 几何无效: {exc}") from exc
+    return features
+
+
+def _crossings(project, points, kps, curve, corridor, warnings):
+    """Densified routes and per-leg local azimuthal equidistant GIS checks.
+
+    This is a screening calculation, not a cadastral accuracy guarantee. The
+    source GeoJSON's sparse edges are straight lines in the local projection.
+    """
+    features = _layer_geometries(project, warnings)
     if not features:
         return []
     crossings = []
@@ -549,7 +560,7 @@ def _crossings(project, points, kps, curve, corridor, warnings):
     return sorted(crossings, key=lambda x: x["kp_m"])
 
 
-def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
+def analyze_project(project: dict, *, _terrain_signature=None, _check_legacy_crossings=True) -> dict:
     project = _object(project, "project")
     if project.get("crs", "EPSG:4326") != "EPSG:4326":
         raise ValueError("项目内部坐标须为 EPSG:4326；请在导入时转换其他坐标系")
@@ -671,7 +682,16 @@ def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
         leg = legs[i] if i < len(legs) else legs[-1]
         turn = None
         if 0 < i < len(points) - 1 and bearings[i - 1] is not None and bearings[i] is not None:
-            turn = (bearings[i] - bearings[i - 1] + 180) % 360 - 180
+            incoming = bearings[i - 1]
+            if curve == "geodesic":
+                # Both directions must be measured at the shared vertex.
+                # A geodesic's arrival azimuth generally differs from its
+                # departure azimuth, particularly at high latitudes.
+                previous = points[i - 1]
+                _, arrival_back, _ = GEOD.inv(previous["longitude"], previous["latitude"],
+                                               point["longitude"], point["latitude"])
+                incoming = (arrival_back + 180) % 360
+            turn = (bearings[i] - incoming + 180) % 360 - 180
         rpl.append({"id": point["id"], "index": i, "label": point.get("label", ""), "longitude": point["longitude"], "latitude": point["latitude"],
                     "depth_m": depth_at(kps[i]), "kp_m": kps[i], "bottom_kp_m": bottom_cumulative,
                     "cable_kp_m": assembly["cable_at"](kps[i]), "bearing_deg": bearings[i] if i < len(bearings) else None,
@@ -708,7 +728,11 @@ def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
                "time_hours": time_hours, "currency": currency,
                "slack_pct": 100.0 * (total / surface_total - 1) if surface_total > 1e-7 else None,
                "bottom_slack_pct": 100.0 * (total / bottom_total - 1) if bottom_total is not None and bottom_total > 1e-7 else None}
-    crossings = _crossings(project, points, kps, curve, corridor, warnings)
+    if _check_legacy_crossings:
+        crossings = _crossings(project, points, kps, curve, corridor, warnings)
+    else:
+        _layer_geometries(project, warnings)
+        crossings = None
     geometry_coords = []
     for a, b in zip(points, points[1:]):
         dense = densify(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)
@@ -755,6 +779,8 @@ def analyze_project(project: dict, *, _terrain_signature=None) -> dict:
         json.dumps(result, allow_nan=False)
     except (ValueError, TypeError) as exc:
         raise ValueError("计算结果超出有限数值范围，请检查参数量级") from exc
+    if not _check_legacy_crossings:
+        result["legacy_crossings_evaluated"] = False
     return result
 
 
