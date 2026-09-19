@@ -1,5 +1,37 @@
 # OceanRoute 验证与发行进度
 
+## 0.10阶段发行
+
+2026-10-04。新增全工程穿越、复合邻近与坡度自动规则，开放规则包导入导出、错误实例地图/剖面定位以及真实二维缆体坡度窗口。三类规则明确保存比较符、AND/OR、typed特征引用、距离轴、主体KP及有效深度范围；缺失引用保留为可编辑声明，缺测、不确定和预算不足不误判为通过。候选经当前完整工作区事务应用，支持撤销，用户保存才写库，路径/共享装配/制造库存不被规则检查改写。大地线转角改为同一顶点的真实入段到达与出段初始方位差。
+
+二维组件坡度使用来源的真实圆域探点、七支撑六子片及三个实际查询角点的梯度。几何子片质心未查询时水深为null，查询见证与主体圆心分开显示；采样通过不认证连续圆域最大坡。GIS距离采用真实地理原语与实际路线曲线的有限筛查，容差、地理拓扑适用范围及无法消除的歧义随报告返回。检查预算不覆盖先行完整工程/来源准入，也不是CPU、内存、墙钟或Token费用上限。
+
+| 验证对象 | 实际结果 |
+| --- | --- |
+| 完整后端 | 1922通过、97.25秒；进程97.909517秒，161份输入不变，零失败/错误/跳过 |
+| 最终生产浏览器 | 99项各一次passed、344.528815秒；进程344.856472秒，同源8777、Chrome154.0.8037.93、单worker、retry0，182份输入不变，零失败/跳过/flaky |
+| 实际界面资源 | 8份HTTP文件与正式浏览器、发行/默认/内置静态目录逐字节一致，在线手册与源码相同 |
+| wheel外源码目录 | 五个实际烟测流程动态并集38模块；新增自动规则15次ASGI/真实存储owner关闭后重开，侧坡12次及原生S57 14次另列 |
+| 便携包全新首装 | 新venv联网可编辑安装解压源码、HTTP界面/分析/6份合成物理例、原生海图11次及侧坡12次HTTP通过；新增规则15次HTTP，真实终止并重启服务器后重读保存 |
+| 首装隔离后端 | 1922通过、1条测试客户端依赖弃用提示、96.55秒；整个首装141.41秒 |
+| 正式PDF | 手册22页、设计25页，全部47页真实逐页视觉核查；字形/打印源码单元/字段公式/字符边界及页码另检 |
+| 真实首装运行输入 | 第二候选262份运行/示例/fixture/测试/界面/harness输入冻结，最终非运行文档和报告可刷新 |
+| 截图证据 | 最终99轮的94张PNG真实来源字节/尺寸/时间核对，其中15张实际逐图查看；封面原字节来自同一轮 |
+| 历史基线 | 116件0.1至0.9发行物、版本清单、报告及最终0.9界面保持原字节 |
+
+wheel为906985字节，60份包文件/65项RECORD，SHA256 `93a6d2558d17eae8a2c2f090d76f7924e753caf58295d45017a38352f1c638b1`。wheel提取烟测使用现有解释器依赖，并非干净安装；启动器的全新venv与真实editable dist-info/direct_url及模块来源在添加测试依赖前独立核查。新增自动规则的wheel流程是实际新存储owner，首装流程是实际进程终止/重启；旧侧坡首装只是同owner API保存重读，不混写为重启。
+
+完整后端/浏览器归档是同一次最终完整执行的同字节副本，专项与额外示例不加到1922/99。真实报告为`release_0.10_backend*`、`release_0.10_browser*`、`release_0.10_wheel_smoke.json`、`release_0.10_portable_smoke.json`、`release_0.10_served_assets.json`、`release_0.10_pdf_qa.json`与`release_0.10_screenshot*`。当前字节/执行证据/HTTP只读核验为`release_0.10_verified_runtime.json`，不重跑门禁。完整归档由`release_0.10_artifact_audit.json`独立枚举成员、检查源码/路径/CRC/RECORD及历史基线，再嵌入报告并只读复核；外部`manifest-0.10.json`记录最终ZIP摘要以避免自引用。
+
+首次全新安装在新harness的模块来源断言失败：实际启动器一直安装解压目录的可编辑源码，断言误认为另一个wheel来源。保留原失败stderr、退出码1、第一候选ZIP/262输入快照，不能当首次全程通过。只修正新增harness和对应只读验证器，产品、启动器与已通过wheel不变；重建第二候选并实际重新全新安装后才得到本版成功结果。两候选由`release_0.10_initial_archive.json`及`release_0.10_verified_initial_archive.json`分别标识；原失败ZIP保留于开发资源，独立审核为`development_0.10_independent_installation_contract_review.json`。
+
+PDF首轮∇缺字及块前标签分页问题的失败记录保留。修正限于PDF排版层，重新生成两份PDF后所有47页真实逐页查看；用户手册、设计源码与wheel未改。实际builder输入是workspace.png，pdf-cover.png为同字节副本；封面原图、实际输入与两副本均有SHA证据。开发失败、修正、准入范围与限定专项见 [DEVELOPMENT_0.10.md](DEVELOPMENT_0.10.md)、[自动规则合同](AUTOMATIC_RULES_NOTES.md)、[二维坡窗](TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md)、[独立几何复核](AUTOMATIC_RULES_INDEPENDENT_REVIEW.md) 及 [纯GIS准入复核](AUTOMATIC_RULES_ADMISSION_REVIEW.md)。
+
+交付为`outputs/releases/OceanRoute-0.10-portable.zip`、`outputs/releases/oceanroute-0.10.0-py3-none-any.whl`及`output/pdf/OceanRoute_用户手册_0.10.pdf` / `OceanRoute_设计文档_0.10.pdf`。预览8777使用独立数据与最终发行构建。解压后执行`python3 launcher.py`（Windows为`py launcher.py`），默认8765；需要Python3.10+与首次联网，实测macOS/Python3.13.9/Chrome154.0.8037.93。Windows/Linux实机、Python3.10实机与免Python桌面安装器仍未验收。发行审计依赖开发环境的冻结历史/渲染原图和loopback预览，普通安装不依赖这些审计资源。
+
+完整原厂复现仍未完成。原厂native文件、全部FME格式/DWG、完整施工/维修/地震能力、设备接入、初始EI/波/加载历史摩擦、有限杆6DOF、百万点分块及现场精度仍待实现或验证。下一阶段只读建议另见`development_0.10_next_phase_review.json`，它不是已实现或已验收记录。Token与订阅费用由平台账户结算，助手不接收转账。以下为冻结版本的历史验收，不与本版数量累计。
+
+
 ## 0.9阶段发行
 
 2026-10-04。新增真实路线法向地形探点、左右/全幅侧坡及相邻段最大侧坡，按KP范围检查纵坡、侧坡或两者。候选预览经完整工作区事务应用，保留撤销、保存修订、共享来源、替代路径与制造库存。图表绑定产生分析的当前Project对象，参数、来源、路径或工作区变化后旧结果不能继续显示为有效。null规则终点动态跟随路线；缩短路线、缺测、来源边界和过期签名明确报告未知/不完整。V形海底按最大相邻有效坡度检查，不被左右平均抵消。
