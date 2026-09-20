@@ -16,6 +16,58 @@ import sys
 import tempfile
 import zipfile
 
+AUTOMATIC_SMOKE_WRAPPER = r'''
+import importlib
+from pathlib import Path
+import sys
+from fastapi.testclient import TestClient
+from oceanroute.api import create_app
+from oceanroute.storage import ProjectStore
+
+root = Path.cwd().resolve()
+modules = {}
+for name in ('oceanroute', 'oceanroute.api', 'oceanroute.core', 'oceanroute.workspace',
+             'oceanroute.workspace_storage', 'oceanroute.sqlite_lifecycle',
+             'oceanroute.automatic_rules', 'oceanroute.automatic_rule_geometry',
+             'oceanroute.terrain_slope_neighborhoods'):
+    module = importlib.import_module(name)
+    location = Path(module.__file__).resolve()
+    assert location.is_relative_to(root), (name, location, root)
+    modules[name] = str(location.relative_to(root))
+assert importlib.import_module('oceanroute').__version__ == sys.argv[1]
+database = root / 'installed-automatic-workflow.sqlite3'
+client = TestClient(create_app(ProjectStore(database)))
+client.__enter__()
+reads = 0
+owner_reopened = False
+def post(path, payload):
+    response = client.post(path, json=payload)
+    if response.status_code == 422:
+        return {'_http_status': 422, '_error': response.json()}
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    return response.json()
+def get(path):
+    global client, reads, owner_reopened
+    reads += 1
+    if reads == 2:
+        client.__exit__(None, None, None)
+        client = TestClient(create_app(ProjectStore(database)))
+        client.__enter__()
+        owner_reopened = True
+    response = client.get(path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    return response.json()
+try:
+    report = run_automatic_rules_smoke(post, get)
+finally:
+    client.__exit__(None, None, None)
+assert owner_reopened
+report.update(isolated_modules=modules, version=sys.argv[1],
+              harness_sha256=sys.argv[2], actual_asgi_owner_closed_and_reopened=True,
+              scope='Extracted wheel OceanRoute modules only; actual ASGI and new SQLite/lifespan owner; existing interpreter dependencies, not clean installation or field accuracy')
+print(json.dumps(report, ensure_ascii=False, allow_nan=False))
+'''
+
 SIDE_SMOKE_WRAPPER = r'''
 import importlib
 import json
@@ -1380,6 +1432,16 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if side.stderr:
                 print(side.stderr, file=sys.stderr, end="")
             report["side_slopes_and_kp_rules"] = json.loads(side.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 10, 0):
+            helper = Path(__file__).resolve().parent / "automatic_rules_smoke.py"
+            source = helper.read_text(encoding="utf-8")
+            automatic = subprocess.run([sys.executable, "-c", source + "\n" + AUTOMATIC_SMOKE_WRAPPER,
+                                       metadata["Version"], hashlib.sha256(helper.read_bytes()).hexdigest()],
+                                      cwd=destination, env=environment, check=True, capture_output=True,
+                                      text=True, timeout=120)
+            if automatic.stderr:
+                print(automatic.stderr, file=sys.stderr, end="")
+            report["automatic_geographic_rules"] = json.loads(automatic.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size

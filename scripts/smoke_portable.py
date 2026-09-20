@@ -16,6 +16,8 @@ import sys
 import tempfile
 import time
 import urllib.request
+import urllib.error
+import urllib.parse
 import zipfile
 
 
@@ -262,6 +264,124 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                     side_slopes = namespace["run_side_slopes_smoke"](post, get_side)
                     side_slopes.update(harness_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
                         scope="Shipped harness calling the freshly launcher-installed HTTP server and real SQLite APIs; API reread only, server owner remains running during this workflow")
+                if tuple(map(int, expected_version.split("."))) >= (0, 10, 0):
+                    helper = checkout / "scripts/automatic_rules_smoke.py"
+                    namespace = {"__name__": "portable_automatic_rules_smoke"}
+                    exec(compile(helper.read_text(encoding="utf-8"), str(helper), "exec"), namespace)
+                    automatic_reads = 0
+                    automatic_owner_restarted = False
+                    automatic_process_ids = [process.pid]
+
+                    def post_automatic(path, value):
+                        request = urllib.request.Request(url + path,
+                            json.dumps(value, allow_nan=False).encode("utf-8"),
+                            {"Content-Type": "application/json"})
+                        try:
+                            with urllib.request.urlopen(request, timeout=30) as response:
+                                return json.load(response)
+                        except urllib.error.HTTPError as error:
+                            if error.code != 422:
+                                raise
+                            return {"_http_status": 422, "_error": json.load(error)}
+
+                    def get_automatic(path):
+                        nonlocal process
+                        nonlocal automatic_reads, automatic_owner_restarted
+                        automatic_reads += 1
+                        if automatic_reads == 2:
+                            # Unlike the inherited helper's API reread, this
+                            # actually stops the fresh installed server owner.
+                            if os.name == "nt":
+                                process.terminate()
+                            else:
+                                os.killpg(process.pid, signal.SIGINT)
+                            try:
+                                process.wait(timeout=20)
+                            except subprocess.TimeoutExpired:
+                                if os.name == "nt":
+                                    process.kill()
+                                else:
+                                    os.killpg(process.pid, signal.SIGKILL)
+                                process.wait(timeout=10)
+                            process = subprocess.Popen(
+                                [sys.executable, "launcher.py", "--port", str(port)],
+                                cwd=checkout, env=environment, stdout=stream, stderr=subprocess.STDOUT,
+                                start_new_session=os.name != "nt")
+                            automatic_process_ids.append(process.pid)
+                            restart_health = None
+                            deadline = time.monotonic() + 60
+                            while time.monotonic() < deadline:
+                                if process.poll() is not None:
+                                    raise RuntimeError("Restarted launcher stopped: " + log.read_text()[-4000:])
+                                try:
+                                    with urllib.request.urlopen(url + "/api/health", timeout=1) as response:
+                                        restart_health = json.load(response)
+                                    break
+                                except (OSError, ValueError):
+                                    time.sleep(.1)
+                            assert restart_health is not None and restart_health["version"] == expected_version
+                            assert len(set(automatic_process_ids)) == 2
+                            automatic_owner_restarted = True
+                        with urllib.request.urlopen(url + path, timeout=30) as response:
+                            return json.load(response)
+
+                    automatic_rules = namespace["run_automatic_rules_smoke"](post_automatic, get_automatic)
+                    assert automatic_owner_restarted
+                    # The launcher installs -e ROOT[terrain] in a fresh venv.
+                    # Query that real editable registration before adding test
+                    # dependencies; cwd remains outside the source checkout.
+                    installed_python = checkout / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+                    installed_code = (
+                        "import importlib,importlib.metadata as md,json,pathlib,hashlib,sys,oceanroute; names="
+                        "['oceanroute','oceanroute.api','oceanroute.core','oceanroute.workspace',"
+                        "'oceanroute.workspace_storage','oceanroute.sqlite_lifecycle','oceanroute.automatic_rules',"
+                        "'oceanroute.automatic_rule_geometry','oceanroute.terrain_slope_neighborhoods']; rows={}; "
+                        "\nfor name in names:\n p=pathlib.Path(importlib.import_module(name).__file__).resolve(); "
+                        "data=p.read_bytes(); rows[name]={'path':str(p),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}"
+                        "\nd=md.distribution('oceanroute'); f=next(f for f in d.files if str(f).endswith('.dist-info/METADATA')); "
+                        "mp=pathlib.Path(d.locate_file(f)).resolve(); data=mp.read_bytes(); "
+                        "du=json.loads(d.read_text('direct_url.json')); "
+                        "print(json.dumps({'version':oceanroute.__version__,'modules':rows,'sys_prefix':sys.prefix,"
+                        "'resolved_sys_prefix':str(pathlib.Path(sys.prefix).resolve()),'metadata':{'name':d.metadata['Name'],"
+                        "'version':d.version,'dist_info_path':str(mp.parent),'metadata_bytes':len(data),"
+                        "'metadata_sha256':hashlib.sha256(data).hexdigest(),'direct_url':du}}))")
+                    installed = json.loads(subprocess.check_output([str(installed_python), "-c", installed_code],
+                        cwd=root, env=environment, text=True))
+                    assert installed["version"] == expected_version
+                    source_root = checkout.resolve()
+                    environment_root = (checkout / ".venv").resolve()
+                    assert Path(installed["sys_prefix"]).resolve() == environment_root
+                    assert Path(installed["resolved_sys_prefix"]).resolve() == environment_root
+                    registration = installed["metadata"]
+                    assert registration["name"].lower() == "oceanroute" and registration["version"] == expected_version
+                    assert Path(registration["dist_info_path"]).resolve().is_relative_to(environment_root)
+                    direct_url = registration["direct_url"]
+                    assert direct_url.get("dir_info", {}).get("editable") is True
+                    # urlopen imports urllib.parse; decode a real local file URI
+                    # then normalize both sides (/var and /private/var on macOS).
+                    parsed_source = urllib.parse.urlsplit(direct_url["url"])
+                    assert parsed_source.scheme == "file" and parsed_source.netloc in ("", "localhost")
+                    assert not parsed_source.query and not parsed_source.fragment
+                    declared_root = Path(urllib.request.url2pathname(parsed_source.path)).resolve()
+                    assert declared_root == source_root
+                    for name, row in installed["modules"].items():
+                        location = Path(row["path"]).resolve()
+                        assert location.is_relative_to(source_root / "oceanroute")
+                        suffix = "oceanroute/__init__.py" if name == "oceanroute" else name.replace(".", "/") + ".py"
+                        source = (source_root / suffix).resolve()
+                        assert location == source
+                        assert row["bytes"] == source.stat().st_size and row["sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+                    automatic_rules.update(version=expected_version,
+                        harness_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                        actual_http_server_owner_closed_and_restarted=True,
+                        launcher_process_ids=automatic_process_ids,
+                        installation_kind="fresh_venv_editable_source",
+                        launcher_installed_modules_before_test_dependencies=installed["modules"],
+                        launcher_installation={"checkout_path": str(checkout), "resolved_checkout_path": str(source_root),
+                            "environment_path": str(checkout / ".venv"), "resolved_environment_path": str(environment_root),
+                            "sys_prefix": installed["sys_prefix"], "resolved_sys_prefix": installed["resolved_sys_prefix"],
+                            "metadata": registration, "resolved_direct_url_source_root": str(declared_root)},
+                        scope="Shipped stdlib harness through the launcher's fresh venv editable source[terrain] HTTP server; server actually stopped/restarted before saved reread; actual editable metadata/direct_url and module source bytes verified before adding test dependencies; distinct from extracted-wheel smoke, synthetic screening only")
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -307,6 +427,8 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
             assert native_s57["native_reader"]["gdal_version"] == result["versions"]["gdal"]
         if tuple(map(int, expected_version.split("."))) >= (0, 9, 0):
             result["side_slopes_and_kp_rules"] = side_slopes
+        if tuple(map(int, expected_version.split("."))) >= (0, 10, 0):
+            result["automatic_geographic_rules"] = automatic_rules
         if report is not None:
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
