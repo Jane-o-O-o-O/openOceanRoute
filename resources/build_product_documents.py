@@ -19,6 +19,10 @@ OUTPUT.mkdir(parents=True, exist_ok=True)
 FONT_PATH = Path("/System/Library/Fonts/STHeiti Light.ttc")
 pdfmetrics.registerFont(TTFont("OceanCJK", str(FONT_PATH), subfontIndex=0))
 pdfmetrics.registerFontFamily("OceanCJK", normal="OceanCJK", bold="OceanCJK", italic="OceanCJK", boldItalic="OceanCJK")
+# The Chinese face lacks U+2207. Embed the actual mathematical glyph rather
+# than silently dropping it or changing the maintained source formula.
+MATH_FONT_PATH = Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")
+pdfmetrics.registerFont(TTFont("OceanMath", str(MATH_FONT_PATH)))
 INK, TEAL, MUTED = (colors.HexColor(v) for v in ("#183447", "#087D86", "#607782"))
 WIDTH = A4[0] - 90
 STYLES = {
@@ -39,6 +43,7 @@ def inline(text):
     # STHeiti lacks the Unicode subscript-zero glyph. Draw a real ASCII zero
     # below the baseline so mathematical K₀ remains visible and searchable.
     text = text.replace("₀", "<sub>0</sub>")
+    text = text.replace("∇", '<font name="OceanMath">∇</font>')
     text = re.sub(r"`([^`]+)`", r'<font color="#087D86">\1</font>', text)
     text = re.sub(r"\*\*(.+?)\*\*", r'<b>\1</b>', text)
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: m[1] if m[1] == m[2] else f"{m[1]} ({m[2]})", text)
@@ -111,10 +116,22 @@ def relations():
     return drawing
 
 
+def is_block_introduction(flowable):
+    source = getattr(flowable, "source_line", "").strip()
+    return source.endswith((":", "：")) or bool(re.fullmatch(r"\*\*[^*]+\*\*", source))
+
+
 def append_paragraph_group(story, paragraphs, source_line=""):
     headings = []
-    while story and isinstance(story[-1], Paragraph) and story[-1].style.name in {"h2", "h3"}:
-        headings.insert(0, story.pop())
+    while story:
+        previous = story[-1]
+        if isinstance(previous, Paragraph) and previous.style.name in {"h2", "h3"}:
+            headings.insert(0, story.pop())
+        elif re.fullmatch(r"\*\*[^*]+\*\*", getattr(previous, "source_line", "").strip()):
+            story.pop()
+            headings[0:0] = getattr(previous, "oceanroute_flowables", [previous])
+        else:
+            break
     flowables = headings + paragraphs
     # Keep ordinary short paragraphs intact so references or the final word do
     # not become an isolated page-top line. Long prose may still split normally.
@@ -167,7 +184,7 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
                 # A formula/code introduction ending with a colon belongs to
                 # its following block, including long mixed CJK/ASCII prose.
                 paragraphs = []
-                if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+                if story and is_block_introduction(story[-1]):
                     lead = story.pop()
                     paragraphs = getattr(lead, "oceanroute_flowables", [lead])
                 code = Paragraph("<br/>".join(inline(v).replace(" ", "&#160;") for v in block), STYLES["code"])
@@ -186,7 +203,7 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
                 block.append(lines[index]); index += 1
             # A short table introduction must travel with the following table
             # header, just as a list introduction travels with its first item.
-            if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+            if story and is_block_introduction(story[-1]):
                 lead = story.pop()
                 paragraphs = getattr(lead, "oceanroute_flowables", [lead])
                 # ReportLab excludes KeepTogether containers themselves from
@@ -203,7 +220,7 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             while index < len(lines) and re.match(r"^\d+\.\s", lines[index].strip()):
                 block.append(Paragraph(inline(lines[index].strip()), STYLES["body"]))
                 index += 1
-            if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+            if story and is_block_introduction(story[-1]):
                 lead = story.pop()
                 block[0:0] = getattr(lead, "oceanroute_flowables", [lead])
             append_paragraph_group(story, block)
@@ -212,7 +229,7 @@ def build(source_name, target_name, title, design=False, *, version="0.4", date=
             while index < len(lines) and lines[index].strip().startswith("- "):
                 block.append(Paragraph(inline(lines[index].strip()), STYLES["body"]))
                 index += 1
-            if story and getattr(story[-1], "source_line", "").endswith((":", "：")):
+            if story and is_block_introduction(story[-1]):
                 lead = story.pop()
                 block[0:0] = getattr(lead, "oceanroute_flowables", [lead])
             append_paragraph_group(story, block)

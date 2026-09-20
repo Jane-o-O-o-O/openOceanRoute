@@ -77,6 +77,10 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
     if tuple(map(int, version.split("."))) >= (0, 9, 0):
         files += ["resources/run_0_9_backend_gate.py", "resources/run_0_9_browser_gate.py",
                   "resources/run_0_9_ui_build.py", "resources/validate_0_9_pdf_structure.py"]
+    if tuple(map(int, version.split("."))) >= (0, 10, 0):
+        files += ["resources/run_0_10_backend_gate.py", "resources/run_0_10_browser_gate.py",
+                  "resources/validate_0_10_pdf_structure.py",
+                  "resources/documentation_0_10_automatic_rules_contract.md"]
     files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
     for name in roots:
