@@ -2,9 +2,11 @@
 
 基于用户提供的 MakaiPlan / MakaiPlan Pro 公开说明与手册独立开发。包含多路径/制造关系、地图/RPL/剖面/SLD、约束、余缆和费用、地形/避让、实敷调查、施工指令、动力/海况、海流反算、维修研究及连续后台计算。0.5整合真实投影地图、整工程地形原子更新、坡床/变深定端静力及四边界悬链线Calculator；自然长和伸长弧长明确区分，下坡多解逐根验收并显式选择。程序与界面为自有实现，不包含原厂程序、授权或付费资源。
 
-当前阶段发行版本为0.10：在原生S-57、共享GIS、规划/制造/完整恢复与路线侧坡基础上，新增穿越、复合邻近及坡度自动规则、规则导入导出、错误实例定位和真实二维组件坡窗。规则显式保存比较符、AND/OR、typed引用和距离轴，缺测与不确定结果不判为通过。候选只更新完整规则声明，核对整份当前工程与输入，支持撤销，用户保存才写库。历史0.1至0.9发行物独立保留。完整原厂文件、设备接入、完整施工能力与现场精度等效仍未完成。
+当前阶段发行版本为0.11：新增转角Split和指定半径Radius，路线保留真实WGS84测地半径圆弧，里程、切线、调查、地形及施工插值读取同一段几何。操作以完整工程候选预览和事务应用，保留固定共享库存、约束及制造映射；圆弧CSV可往返，GeoJSON/KML/DXF输出真实曲线的有界显示采样。仍是独立实现，完整原厂文件、设备接入、完整施工能力与现场精度等效尚未完成，历史0.1至0.10发行物保持原字节。
 
-0.10合同见 [自动规则](docs/AUTOMATIC_RULES_NOTES.md)、[真实二维邻域](docs/TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md)、[独立几何复核](docs/AUTOMATIC_RULES_INDEPENDENT_REVIEW.md)、[界面与异步应用](docs/AUTOMATIC_RULES_UI_NOTES.md) 和 [开发与实际门禁](docs/DEVELOPMENT_0.10.md)。公开资料不披露原厂隐藏算法，采样结果不证明连续海底安全；每版实际发行范围由独立执行记录给出。
+0.11合同见 [真实路线几何](docs/ROUTE_GEOMETRY_NOTES.md)、[转角整形](docs/ALTERCOURSE_NOTES.md)、[近域与极区恒向线](docs/RHUMB_PRECISION_NOTES.md)、[整形界面](docs/ALTERCOURSE_UI_NOTES.md) 和 [开发/实际门禁](docs/DEVELOPMENT_0.11.md)。公开资料没有原厂隐藏算法；半径求解是受限局部解，显示采样不证明连续误差或海底安全。
+
+历史0.10合同见 [自动规则](docs/AUTOMATIC_RULES_NOTES.md)、[真实二维邻域](docs/TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md)、[独立几何复核](docs/AUTOMATIC_RULES_INDEPENDENT_REVIEW.md)、[界面与异步应用](docs/AUTOMATIC_RULES_UI_NOTES.md) 和 [开发与实际门禁](docs/DEVELOPMENT_0.10.md)。公开资料不披露原厂隐藏算法，采样结果不证明连续海底安全；每版实际发行范围由独立执行记录给出。
 
 历史0.9合同见 [路线侧坡](docs/SIDE_SLOPES_NOTES.md)、[KP坡度规则](docs/SLOPE_RULES_NOTES.md)、[开发与实际门禁](docs/DEVELOPMENT_0.9.md)。所有计数来自实际执行，采样通过不证明站间连续海底安全。
 
@@ -14,7 +16,7 @@
 
 ## 运行
 
-当前便携包为 `outputs/releases/OceanRoute-0.10-portable.zip`；保留0.1至0.9历史包。解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），程序打开本地工作空间。两份新PDF为 `output/pdf/OceanRoute_用户手册_0.10.pdf` 与 `output/pdf/OceanRoute_设计文档_0.10.pdf`，历史PDF保持冻结。启动器创建全新虚拟环境并安装解压目录的可编辑源码；另提供独立wheel，两种验收分别记录。发行包需要Python及首次联网，尚未提供免Python桌面安装器；本次实测平台为macOS/Python3.13.9，Windows/Linux实机仍待验收。
+当前便携包为 `outputs/releases/OceanRoute-0.11-portable.zip`；保留0.1至0.10历史包。解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），程序打开本地工作空间。两份PDF为 `output/pdf/OceanRoute_用户手册_0.11.pdf` 与 `output/pdf/OceanRoute_设计文档_0.11.pdf`，历史PDF冻结。启动器创建全新虚拟环境并安装解压目录的可编辑源码，另提供独立wheel，两种验收分别记录。需要Python3.10+及首次联网；实测macOS/Python3.13.9/Chrome154.0.8037.93，Windows/Linux实机及免Python桌面安装器尚未验收。
 
 要求 Python 3.10 或更高版本。发布包包含已编译界面，不需要 Node.js；源码开发使用 Node.js 20 或更高版本。
 
@@ -30,7 +32,7 @@ Windows 使用 `.venv\Scripts\python.exe` 替换 Python 路径。也可执行 `p
 
 工作空间：<http://127.0.0.1:8765>。接口说明：<http://127.0.0.1:8765/docs>。工程及完整修订保存于当前目录 `.oceanroute/projects.sqlite3`，可用 `OCEANROUTE_DATA_DIR` 指定目录。
 
-0.10发行预览入口为 <http://127.0.0.1:8777>，使用独立数据与最终发行界面。历史0.9预览8775、0.8预览8773、0.7预览8771保留，安装后的默认端口仍是8765。历史预览前端固定，但开发服务器的动态后端与在线手册不能代替其冻结安装包。
+0.11发行预览入口为 <http://127.0.0.1:8779>，使用独立数据与最终发行界面；历史0.10预览8777、0.9预览8775和此前预览保留。安装默认端口8765。历史预览动态后端/在线手册不替代相应冻结安装包。
 
 ## 文档
 
@@ -61,7 +63,9 @@ npm --prefix web run test:e2e
 
 浏览器测试按 `web/playwright.config.ts` 启动本地服务与开发界面，需要已安装 Google Chrome。Windows 将验证命令的 `.venv/bin/python` 替换为 `.venv\Scripts\python.exe`。动态模型、ShipPlan、Look Ahead 和张力搜索均有实际数值计算，尚无原厂黄金输出或海试数据对照，不能声称与 Pro 工程精度等效。原生文件、设备接口及完整地震/维修动态的差距见状态矩阵。
 
-0.10完整后端1922项97.25秒通过；最终生产Chrome99项344.528815秒全部一次通过，单worker、retry0、零跳过/失败/flaky。161份后端及182份浏览器执行输入未变。wheel外目录实际38模块来源和真实API通过；启动器另作全新可编辑源码安装，真实HTTP界面、分析与关闭重启后恢复通过，隔离1922项96.55秒通过、整项141.41秒。正式手册22页、设计25页，全部47页实际逐页视觉核查。262份首装运行输入及60份wheel包文件/65项RECORD均逐字节核对；116份历史对象不变。具体范围、真实失败和最终归档证据见 `docs/RELEASE_NOTES.md`、`docs/DEVELOPMENT_0.10.md` 与 `resources/validation/release_0.10*`，不累计重复执行或额外示例smoke。
+0.11完整后端2094项117.34秒通过；最终生产Chrome107项376.087442秒各一次通过，单worker/retry0、零失败/跳过/flaky，176/190份运行输入不变。wheel实际六流程44模块；全新首装的HTTP、独立关闭重启恢复和隔离2094项115.82秒均通过，整个首装160.75秒。手册24页、设计28页共52页全部实际逐页视觉检查，107轮105张原图全部实际逐图检查；首装296份输入、63包文件/68项RECORD逐字节核对，153份历史对象不变。首轮真实失败、修复和最终归档证据见 `docs/RELEASE_NOTES.md`、`docs/DEVELOPMENT_0.11.md` 与 `resources/validation/release_0.11*`。空工程页和规则下载名称仍有0.10文字，HTML报告亦带0.1版次；均为公开保留的版本文案遗留。
+
+历史0.10完整后端1922项97.25秒通过；最终生产Chrome99项344.528815秒全部一次通过，单worker、retry0、零跳过/失败/flaky。161份后端及182份浏览器执行输入未变。wheel外目录实际38模块来源和真实API通过；启动器另作全新可编辑源码安装，真实HTTP界面、分析与关闭重启后恢复通过，隔离1922项96.55秒通过、整项141.41秒。正式手册22页、设计25页，全部47页实际逐页视觉核查。262份首装运行输入及60份wheel包文件/65项RECORD均逐字节核对；116份历史对象不变。具体范围、真实失败和最终归档证据见 `docs/RELEASE_NOTES.md`、`docs/DEVELOPMENT_0.10.md` 与 `resources/validation/release_0.10*`，不累计重复执行或额外示例smoke。
 
 历史0.9完整后端、生产浏览器、PDF、wheel与全新安装的准确对象和结果见 `docs/RELEASE_NOTES.md` 与 `resources/validation/release_0.9*`；开发失败、修正和早期专项另保留，不累计重复计数。
 
