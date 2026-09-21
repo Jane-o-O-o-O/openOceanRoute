@@ -17,6 +17,7 @@ from shapely.geometry import LineString, Point, shape
 from shapely.ops import transform
 
 from .geodesy import GEOD, coordinate, densify, finite_number, interpolate, inverse, split_antimeridian
+from .route_geometry import route_segments, segment_from_leg, render_route
 
 
 def _object(value, name):
@@ -42,6 +43,11 @@ def route_signature(project: dict) -> str:
     points = _list(route.get("points", []), "route.points", 10000)
     coordinates = [coordinate(_object(p, "point").get("longitude"), p.get("latitude")) for p in points]
     body = {"crs": project.get("crs", "EPSG:4326"), "curve": route.get("curve", "rhumb"), "points": coordinates}
+    options = _list(route.get("legs", []), "route.legs", 10000)
+    if any(_object(option, "route.leg").get("geometry") is not None for option in options):
+        # Preserve every old straight-route signature. New continuous geometry
+        # must invalidate sampled evidence even when both endpoints are equal.
+        body["leg_geometry"] = [segment.geometry for segment in route_segments(project)]
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
@@ -50,12 +56,10 @@ def densify_route(project: dict, max_step_m: float = 5000.0) -> list[list[float]
     route = _object(_object(project, "project").get("route", {}), "route")
     points = _validate_points(route)
     spacing = finite_number(max_step_m, "max_step_m", minimum=1)
-    curve = route.get("curve", "rhumb")
-    coords = []
-    for a, b in zip(points, points[1:]):
-        leg = densify(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve, spacing)
-        coords.extend(leg if not coords else leg[1:])
-    return [[lon, lat] for lon, lat in coords]
+    options = route.get("legs", [])
+    has_arcs = any(isinstance(option, dict) and option.get("geometry") is not None for option in options)
+    maximum = 250000 if has_arcs else (len(points) - 1) * 1002 + 1
+    return render_route(project, spacing_m=spacing, max_vertices=maximum)["coordinates"]
 
 
 def _warning(warnings, code, message, severity="warning", point_id=None, **extra):
@@ -504,15 +508,28 @@ def _crossings(project, points, kps, curve, corridor, warnings):
         return []
     crossings = []
     dedupe = set()
+    segments = route_segments(project)
     for leg_idx, (a, b) in enumerate(zip(points, points[1:])):
         if kps[leg_idx + 1] - kps[leg_idx] < 1e-6:
             continue
-        middle_lon, middle_lat = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], .5, curve)
+        segment = segments[leg_idx]
+        middle_lon, middle_lat = segment.point_at_fraction(.5)
         crs = CRS.from_proj4(f"+proj=aeqd +lat_0={middle_lat} +lon_0={middle_lon} +datum=WGS84 +units=m")
         forward = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
         backward = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
-        coords = densify(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve, 2000, 2000)
+        if segment.is_arc:
+            count = max(1, math.ceil(segment.length_m/2000), math.ceil(abs(segment.geometry["sweep_deg"])))
+            if count+1 > 10000:
+                raise ValueError("legacy arc crossing screening exceeds 10000 samples per leg")
+            coords = [segment.point_at_fraction(i/count) for i in range(count+1)]
+        else:
+            coords = densify(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve, 2000, 2000)
         route_line = LineString([forward.transform(lon, lat) for lon, lat in coords])
+        projected_keys = [0.]
+        if segment.is_arc:
+            chart_coords = list(route_line.coords)
+            for p, q in zip(chart_coords, chart_coords[1:]):
+                projected_keys.append(projected_keys[-1]+math.hypot(q[0]-p[0], q[1]-p[1]))
         for layer, feature_id, props, geom in features:
             projected = transform(forward.transform, geom)
             if projected.is_empty or not all(math.isfinite(v) for v in projected.bounds):
@@ -531,7 +548,21 @@ def _crossings(project, points, kps, curve, corridor, warnings):
             overlap = intersection.geom_type in ("LineString", "MultiLineString") and not is_area
             for pt in _intersection_points(intersection):
                 lon, lat = backward.transform(pt.x, pt.y)
-                distance, _ = inverse(a["longitude"], a["latitude"], lon, lat, curve)
+                if segment.is_arc:
+                    from scipy.optimize import minimize_scalar
+                    projected_station = route_line.project(pt)
+                    cell = max(0, min(count-1, bisect.bisect_right(projected_keys, projected_station)-1))
+                    lo, hi = cell/count, (cell+1)/count
+                    def separation(fraction):
+                        x, y = forward.transform(*segment.point_at_fraction(fraction))
+                        return (x-pt.x)**2+(y-pt.y)**2
+                    root = minimize_scalar(separation, bounds=(lo, hi), method="bounded",
+                                           options={"xatol":1e-14, "maxiter":100})
+                    fraction = min((lo, hi, float(root.x)), key=separation)
+                    lon, lat = segment.point_at_fraction(fraction)
+                    distance = segment.length_m*fraction
+                else:
+                    distance, _ = inverse(a["longitude"], a["latitude"], lon, lat, curve)
                 kp = min(kps[leg_idx + 1], max(kps[leg_idx], kps[leg_idx] + distance))
                 token = (str(layer.get("id")), str(feature_id), round(kp, 2))
                 if token in dedupe:
@@ -545,6 +576,12 @@ def _crossings(project, points, kps, curve, corridor, warnings):
                     ra, rb = route_line.interpolate(max(0, t - 10)), route_line.interpolate(min(route_line.length, t + 10))
                     oa, ob = other.interpolate(max(0, u - 10)), other.interpolate(min(other.length, u + 10))
                     v = (rb.x - ra.x, rb.y - ra.y)
+                    if segment.is_arc:
+                        heading = segment.tangent_at_fraction(fraction)
+                        left = GEOD.fwd(lon, lat, heading+180, 1)[:2]
+                        right = GEOD.fwd(lon, lat, heading, 1)[:2]
+                        lx, ly = forward.transform(*left); rx, ry = forward.transform(*right)
+                        v = (rx-lx, ry-ly)
                     w = (ob.x - oa.x, ob.y - oa.y)
                     norm = math.hypot(*v) * math.hypot(*w)
                     if norm > 0:
@@ -552,7 +589,9 @@ def _crossings(project, points, kps, curve, corridor, warnings):
                 crossings.append({"layer_id": layer.get("id"), "layer_name": layer.get("name", ""), "feature_id": feature_id,
                                   "feature_name": props.get("name", str(feature_id)), "kind": "restricted_area" if is_area else "overlap" if overlap else "crossing",
                                   "kp_m": kp, "longitude": lon, "latitude": lat, "leg_index": leg_idx, "angle_deg": angle,
-                                  "model": "densified_route_local_aeqd_screening"})
+                                  "model": "sampled_intrinsic_arc_local_aeqd_screening" if segment.is_arc else "densified_route_local_aeqd_screening",
+                                  **({"station_basis":"closest_actual_arc_point_to_sampled_overlay; approximate_screening",
+                                      "arc_samples":count+1} if segment.is_arc else {})})
             if is_area and layer.get("kind") in ("restricted", "exclusion", "hazard"):
                 _warning(warnings, "RULE_RESTRICTED_AREA", f"路线进入图层 {layer.get('name', '')} 的限制区域", severity="error", leg_index=leg_idx, layer_id=layer.get("id"))
             elif overlap:
@@ -598,9 +637,10 @@ def analyze_project(project: dict, *, _terrain_signature=None, _check_legacy_cro
         raise ValueError("route.legs 数量不能超过路线区间数量")
     for option in options:
         _object(option, "route.leg")
+    segments = route_segments(project)
     kps, distances, bearings = [0.0], [], []
-    for a, b in zip(points, points[1:]):
-        distance, bearing = inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)
+    for segment, b in zip(segments, points[1:]):
+        distance, bearing = segment.length_m, segment.tangent_at_fraction(0)
         distances.append(distance)
         bearings.append(bearing)
         kps.append(kps[-1] + distance)
@@ -663,6 +703,9 @@ def analyze_project(project: dict, *, _terrain_signature=None, _check_legacy_cro
                      "time_hours": length / typ["lay_speed_m_s"] / 3600.0 + stop_hours,
                      "material_cost": cable_length * typ["cost_per_m"], "burial": bool(opt.get("burial", False)),
                      "burial_length_m": length if opt.get("burial", False) else 0.0, "extra_cost": extra_cost})
+        if segments[i].geometry is not None:
+            legs[-1].update(geometry=deepcopy(segments[i].geometry), curve_type="circular_arc",
+                            end_bearing_deg=segments[i].tangent_at_fraction(1))
     assembly = _assembly(project, route, points, kps, legs, types, warnings)
     leg_material_lengths = [0.0] * len(legs)
     leg_material_costs = [0.0] * len(legs)
@@ -682,15 +725,7 @@ def analyze_project(project: dict, *, _terrain_signature=None, _check_legacy_cro
         leg = legs[i] if i < len(legs) else legs[-1]
         turn = None
         if 0 < i < len(points) - 1 and bearings[i - 1] is not None and bearings[i] is not None:
-            incoming = bearings[i - 1]
-            if curve == "geodesic":
-                # Both directions must be measured at the shared vertex.
-                # A geodesic's arrival azimuth generally differs from its
-                # departure azimuth, particularly at high latitudes.
-                previous = points[i - 1]
-                _, arrival_back, _ = GEOD.inv(previous["longitude"], previous["latitude"],
-                                               point["longitude"], point["latitude"])
-                incoming = (arrival_back + 180) % 360
+            incoming = segments[i - 1].tangent_at_fraction(1)
             turn = (bearings[i] - incoming + 180) % 360 - 180
         rpl.append({"id": point["id"], "index": i, "label": point.get("label", ""), "longitude": point["longitude"], "latitude": point["latitude"],
                     "depth_m": depth_at(kps[i]), "kp_m": kps[i], "bottom_kp_m": bottom_cumulative,
@@ -733,19 +768,21 @@ def analyze_project(project: dict, *, _terrain_signature=None, _check_legacy_cro
     else:
         _layer_geometries(project, warnings)
         crossings = None
-    geometry_coords = []
-    for a, b in zip(points, points[1:]):
-        dense = densify(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)
-        geometry_coords.extend(dense if not geometry_coords else dense[1:])
+    has_arcs = any(segment.geometry is not None for segment in segments)
+    render_maximum = 250000 if has_arcs else (len(points) - 1) * 1002 + 1
+    rendered = render_route(project, max_vertices=render_maximum)
+    geometry_coords = rendered["coordinates"]
     result = {"summary": summary, "rpl": rpl, "legs": legs, "profile": profile, "warnings": warnings,
               "sld": assembly["sld"], "crossings": crossings, "bodies": assembly["bodies"], "profile_metadata": profile_meta,
               "assembly_references": assembly["assembly_references"],
               "route_signature": signature, "route_geometry": {"type": "LineString", "coordinates": geometry_coords},
-              "route_geometry_segments": split_antimeridian(geometry_coords, curve),
+              "route_geometry_segments": rendered["segments"],
+              **({"route_geometry_render": {key:value for key,value in rendered.items() if key not in {"coordinates", "segments"}}}
+                 if has_arcs else {}),
               "materials": [{"cable_type_id": tid, "name": types[tid].get("name", tid), "length_m": length,
                              "cost_per_m": types[tid]["cost_per_m"], "cost": length * types[tid]["cost_per_m"]}
                             for tid, length in assembly["type_lengths"].items()],
-              "model": {"geometry": "WGS84_ellipsoidal_rhumb" if curve == "rhumb" else "WGS84_geodesic_PROJ",
+              "model": {"geometry": "WGS84_mixed_geodesic_radius_arcs" if has_arcs else "WGS84_ellipsoidal_rhumb" if curve == "rhumb" else "WGS84_geodesic_PROJ",
                         "profile": "piecewise_linear_kp_depth", "validation_status": "planning_prototype",
                         "assumptions": ["水深正向下；平面 KP、海底距离和实物装配里程分开计算。",
                                         "附属体 kp_m 为路线平面 KP，cable_kp_m 为可选实物缆里程；长度从定位点起算。",
