@@ -173,6 +173,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         from .workspace import analyze_workspace as analyze
         return analyze(payload)
 
+    @app.post("/api/workspace/altercourse-preview")
+    def preview_workspace_altercourse(payload: dict):
+        from .altercourse_workspace import preview_altercourse_workspace
+        if set(payload) != {"workspace", "path_id", "kind", "config"}:
+            raise ValueError("altercourse preview须仅含workspace/path_id/kind/config")
+        return preview_altercourse_workspace(payload["workspace"], payload["path_id"], payload["kind"], payload["config"])
+
     def automatic_rule_workspace(payload: dict, *, importing=False):
         from .workspace import _validate
         allowed = {"workspace", "config", "package"} if importing else {"workspace", "config"}
@@ -384,7 +391,8 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         """Generate declared source inputs near the first 2 km; never compute results."""
         import hashlib
         from pyproj import CRS
-        from .geodesy import inverse, coordinate
+        from .geodesy import coordinate
+        from .route_geometry import route_segments
         from .terrain_sources import normalize_sources, MAX_SOURCES
         if set(payload) != {"project"}:
             raise ValueError("side-slopes/example须仅提供当前project")
@@ -392,8 +400,7 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         points = project["route"]["points"]
         longitude, latitude = coordinate(points[0].get("longitude"), points[0].get("latitude"))
         curve = project["route"].get("curve", "rhumb")
-        lengths = [inverse(a.get("longitude"), a.get("latitude"), b.get("longitude"), b.get("latitude"), curve)
-                   for a, b in zip(points, points[1:])]
+        lengths = [(s.length_m, s.tangent_at_fraction(0)) for s in route_segments(project)]
         positive = next((item for item in lengths if item[0] > 1e-7), None)
         if positive is None:
             raise ValueError("合成侧坡源需要正长度路线")
@@ -698,6 +705,11 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         project = _project(payload.get("project", {}))
         functions = {"subdivide": subdivide_project, "depth-cables": define_cables_by_depth,
                      "slack-template": apply_slack_template, "split": split_project}
+        if kind in {"split-altercourse", "radius-altercourse"}:
+            if set(payload) != {"project", "config"}:
+                raise ValueError("altercourse tool须仅含project/config")
+            from .altercourse import split_altercourse, radius_altercourse
+            functions.update({"split-altercourse": split_altercourse, "radius-altercourse": radius_altercourse})
         if kind == "reverse":
             return _inherit_revision(project, reverse_project(project))
         if kind not in functions:

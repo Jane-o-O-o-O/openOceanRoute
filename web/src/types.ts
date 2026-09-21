@@ -1,5 +1,6 @@
 export type Point = {id:string;label:string;longitude:number;latitude:number;depth_m:number|null;note:string;constraint?:'rigid'|'clamped'|'sliding';anchor_start_id?:string;anchor_end_id?:string;fraction?:number};
-export type Leg = {cable_type_id:string;slack_pct:number;fixed_cable_length_m:number|null;burial:boolean;mode?:string;slack_basis?:string;allowance_m?:number};
+export type CircularArc={type:'circular_arc';schema_version:1;center:[number,number];radius_m:number;start_azimuth_deg:number;sweep_deg:number};
+export type Leg = {cable_type_id:string;slack_pct:number;fixed_cable_length_m:number|null;burial:boolean;mode?:string;slack_basis?:string;allowance_m?:number;geometry?:CircularArc};
 export type Cable = {id:string;name:string;diameter_m:number;wet_weight_n_m:number;cost_per_m:number;lay_speed_m_s:number;ea_n:number;ei_n_m2:number;max_tension_n:number;min_bend_radius_m:number};
 export type Body = {id:string;name:string;kind:string;kp_m?:number;cost:number;length_m:number;length_mode?:string;cable_kp_m?:number};
 export type Layer = {id:string;name:string;kind:string;visible?:boolean;geojson:any;display?:{opacity?:number;[key:string]:unknown};[key:string]:unknown};
