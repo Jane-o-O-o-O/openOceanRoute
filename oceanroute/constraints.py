@@ -15,6 +15,7 @@ import math
 from .core import analyze_project, route_signature
 from .geodesy import coordinate, finite_number, interpolate, inverse
 from .tools import _canonical_allowances, _depth_at, _effective_leg
+from .route_geometry import route_segments, segment_from_leg
 
 EPS = 1e-6
 
@@ -48,6 +49,10 @@ def _signature(project):
             "manufacturing": route.get("constraint_state", {}).get("manufacturing"),
             "assembly_references": [{k:r.get(k) for k in ("id", "cable_kp_m", "length_m")}
                                     for r in project.get("assembly_references", [])]}
+    # Existing straight materialized signatures are unchanged. New intrinsic
+    # descriptors are engineering data and must be bound into the proof.
+    if any(l.get("geometry") is not None for l in route.get("legs", [])):
+        body["leg_geometry"] = [l.get("geometry") for l in route.get("legs", [])]
     def normalize(value):
         # JSON in the browser has a single Number type: 118.0 -> 118 and -0
         # -> 0. Equal physical values must have equal material signatures.
@@ -77,19 +82,64 @@ def _points(project):
     return points, {p["id"]: p for p in points}, {p["id"]: i for i, p in enumerate(points)}
 
 
-def _station(points, curve):
+def _station(points, curve, segments=None):
     keys = [0.0]
-    for a, b in zip(points, points[1:]):
-        keys.append(keys[-1] + inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)[0])
+    for i, (a, b) in enumerate(zip(points, points[1:])):
+        length = segments[i].length_m if segments is not None else inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)[0]
+        keys.append(keys[-1] + length)
     return keys
 
 
-def _at(points, keys, kp, curve):
+def _at(points, keys, kp, curve, segments=None):
     kp = max(0.0, min(keys[-1], kp))
     i = max(0, min(len(points)-2, bisect.bisect_right(keys, kp)-1))
     width = keys[i+1]-keys[i]
+    if segments is not None:
+        return segments[i].point_at_fraction((kp-keys[i])/width if width > EPS else 0)
     return interpolate(points[i]["longitude"], points[i]["latitude"], points[i+1]["longitude"], points[i+1]["latitude"],
                        (kp-keys[i])/width if width > EPS else 0, curve)
+
+
+def _rigid_path(project):
+    """Join marker subdivisions into their one actual rigid-to-rigid curve."""
+    points = project["route"]["points"]
+    segments = route_segments(project)
+    indexes = [i for i,p in enumerate(points) if p.get("constraint", "rigid") == "rigid"]
+    if not indexes or indexes[0] != 0 or indexes[-1] != len(points)-1:
+        raise ConstraintError("CONSTRAINT_ENDPOINT_TYPE", "路线两端必须为 Rigid")
+    joined = []
+    for left, right in zip(indexes, indexes[1:]):
+        parts = segments[left:right]
+        first = parts[0]
+        geometry = first.geometry
+        if geometry is not None:
+            sweep = 0.
+            for part in parts:
+                g = part.geometry
+                if g is None or g["center"] != geometry["center"] or g["radius_m"] != geometry["radius_m"] or g["sweep_deg"]*geometry["sweep_deg"] <= 0:
+                    raise ConstraintError("CONSTRAINT_ALTERCOURSE", "沿线标记不能跨不同圆弧／转折")
+                expected = (geometry["start_azimuth_deg"]+sweep) % 360
+                if abs((g["start_azimuth_deg"]-expected+180)%360-180)>1e-7:
+                    raise ConstraintError("CONSTRAINT_ALTERCOURSE", "圆弧子段不连续")
+                sweep += g["sweep_deg"]
+            geometry["sweep_deg"] = sweep
+        elif any(p.geometry is not None for p in parts):
+            raise ConstraintError("CONSTRAINT_ALTERCOURSE", "沿线标记不能跨直线和圆弧转折")
+        segment = segment_from_leg(points[left], points[right], {"geometry":geometry} if geometry else None, project["route"].get("curve", "rhumb"))
+        if abs(segment.length_m-sum(p.length_m for p in parts)) > max(.001,segment.length_m*1e-9):
+            raise ConstraintError("CONSTRAINT_ALTERCOURSE", "Clamped/Sliding 之间存在转折")
+        joined.append(segment)
+    rigid = [points[i] for i in indexes]
+    return rigid, joined, _station(rigid,project["route"].get("curve","rhumb"),joined)
+
+
+def _span_descriptors(segments, keys, start, end):
+    descriptors=[]
+    for i,segment in enumerate(segments):
+        lo,hi=max(start,keys[i]),min(end,keys[i+1])
+        if hi-lo>EPS:
+            descriptors.append(segment.subsegment(max(0.,lo-keys[i]),min(segment.length_m,hi-keys[i])).descriptor())
+    return descriptors
 
 
 def _base_at(kp, analysis):
@@ -165,6 +215,9 @@ def _point_types(project):
     if not rigid or rigid[0] != 0 or rigid[-1] != len(points)-1:
         raise ConstraintError("CONSTRAINT_ENDPOINT_TYPE", "路线两端必须为 rigid 点")
     curve = project["route"].get("curve", "rhumb")
+    actual_segments = route_segments(project)
+    actual_keys = _station(points, curve, actual_segments)
+    skeleton, paths, skeys = _rigid_path(project)
     for i, point in enumerate(points):
         if point["constraint"] == "rigid":
             continue
@@ -175,16 +228,20 @@ def _point_types(project):
         if start not in by_id or end not in by_id or indices[start] != left or indices[end] != right:
             raise ConstraintError("CONSTRAINT_ANCHOR_DOMAIN", "Clamped/Sliding 必须明确绑定相邻两个 rigid 点，不能跨转折")
         a, b = by_id[start], by_id[end]
-        length = inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)[0]
+        # Markers can partition a real circular arc. Rejoin the persistent
+        # descriptors rather than inventing a straight chord between anchors.
+        path_index = next(j for j,p in enumerate(skeleton) if p["id"] == start)
+        segment = paths[path_index]
+        length = segment.length_m
         if length <= EPS:
             raise ConstraintError("CONSTRAINT_ZERO_DOMAIN", "约束锚线长度为零")
         fraction = point.get("fraction")
         if fraction is None:
-            fraction = inverse(a["longitude"], a["latitude"], point["longitude"], point["latitude"], curve)[0]/length
+            fraction = (actual_keys[i]-actual_keys[left])/length
         fraction = finite_number(fraction, "fraction", minimum=0, maximum=1)
         if fraction <= 1e-10 or fraction >= 1-1e-10:
             raise ConstraintError("CONSTRAINT_POINT_AT_ANCHOR", "非 rigid 点必须在两锚点内部，不能与锚点重合")
-        expected = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], fraction, curve)
+        expected = segment.point_at_fraction(fraction)
         error = inverse(*expected, point["longitude"], point["latitude"], curve)[0]
         if error > max(.001, length*1e-9):
             raise ConstraintError("CONSTRAINT_ALTERCOURSE", f"点 {point['id']} 不在锚线，应先投影／插点；Clamped/Sliding 不允许转折")
@@ -364,6 +421,8 @@ def _profile_after(source, result, before, rigid_old, rigid_new, old_keys, new_k
 
 def edit_constrained_project(project, config=None):
     config = _config(config)
+    if any(l.get("geometry") is not None for l in project.get("route",{}).get("legs",[])):
+        return _edit_intrinsic_constraints(project, config)
     before = analyze_project(project)
     state = project["route"].get("constraint_state")
     if not state:
@@ -631,3 +690,309 @@ def solve_constraints(project, config=None):
     if config.get("moves"):
         raise ValueError("solve不接受moves，请使用edit")
     return edit_constrained_project(project,config)
+
+
+def reconcile_route_structure(project, candidate, *, marker_fractions=None, sliding_stations=None):
+    """Reconcile an explicitly edited Rigid skeleton without recapturing stock.
+
+    The candidate must retain every old Rigid ID in its original order. New
+    Rigid points do not create Slack-Change links. Existing Clamped markers
+    keep their distance fraction over the replacement path between the same
+    old anchors; Fixed Sliding markers keep their physical manufacturing KP.
+    All placements and leg partitions use intrinsic RouteSegment distances.
+    """
+    before = analyze_project(project)
+    result = deepcopy(candidate)
+    route = result["route"]
+    curve = route.get("curve", "rhumb")
+    oldpoints, oldby, oldindex = _points(project)
+    oldrigid, oldsegments, oldkeys = _rigid_path(project)
+    skeleton, segments, keys = _rigid_path(result)
+    if len({p["id"] for p in skeleton}) != len(skeleton):
+        raise ConstraintError("CONSTRAINT_POINT_REFERENCE", "Rigid ID 必须唯一")
+    newindex = {p["id"]:i for i,p in enumerate(skeleton)}
+    oldids = [p["id"] for p in oldrigid]
+    if [p["id"] for p in skeleton if p["id"] in oldids] != oldids:
+        raise ConstraintError("CONSTRAINT_STRUCTURE_ORDER", "结构编辑必须保留旧 Rigid ID 与次序")
+    if any(b-a <= EPS for a,b in zip(keys,keys[1:])):
+        raise ConstraintError("CONSTRAINT_ZERO_DOMAIN", "结构编辑产生零长 Rigid 航段")
+    oldpositions = {p["id"]:p["kp_m"] for p in before["rpl"]}
+    positions = {p["id"]:keys[i] for i,p in enumerate(skeleton)}
+    old_rigid_index = {p["id"]:i for i,p in enumerate(oldrigid)}
+    def remap(kp):
+        kp = min(oldkeys[-1], max(0., kp))
+        j=max(0,min(len(oldrigid)-2,bisect.bisect_right(oldkeys,kp)-1))
+        fraction=(kp-oldkeys[j])/(oldkeys[j+1]-oldkeys[j])
+        a,b=oldids[j:j+2]
+        return positions[a]+fraction*(positions[b]-positions[a])
+    def old_at_new(kp):
+        pairs=[positions[p] for p in oldids]
+        j=max(0,min(len(oldrigid)-2,bisect.bisect_right(pairs,kp)-1))
+        fraction=(kp-pairs[j])/(pairs[j+1]-pairs[j])
+        return oldkeys[j]+fraction*(oldkeys[j+1]-oldkeys[j])
+    configured = project["route"].get("constraint_state") is not None
+    modes = {l["mode"] for l in before["legs"]}
+    mode = next(iter(modes)) if len(modes)==1 else "mixed"
+    if configured and mode == "mixed":
+        raise ConstraintError("CONSTRAINT_MIXED_MODE", "已配置约束不支持混合缆长模式")
+    manufacture = deepcopy(project["route"]["constraint_state"]["manufacturing"]) if configured else _manufacturing(project,before)
+    links = deepcopy(project["route"].get("path_links",[]))
+    linkby = {l["point_id"]:l for l in links}
+    for pid,value in (sliding_stations or {}).items():
+        item=str(linkby[pid].get("assembly_item_id",""))
+        if item in manufacture["body_stations"] and abs(value-linkby[pid]["cable_kp_m"])>EPS:
+            raise ConstraintError("CONSTRAINT_ITEM_MANUFACTURE_EDIT", "不能借沿线移点改变有限组件制造位置")
+        linkby[pid]["cable_kp_m"]=value
+        if item in manufacture.get("reference_stations",{}):
+            ref=next(r for r in result["assembly_references"] if r["id"]==item)
+            ref.update(cable_kp_m=value,start_m=value,end_m=value)
+            manufacture["reference_stations"][item]=value
+    points = list(skeleton)
+    for old in oldpoints:
+        if old.get("constraint","rigid") == "rigid":
+            continue
+        point = deepcopy(old)
+        if point["id"] in (marker_fractions or {}):
+            point["fraction"]=marker_fractions[point["id"]]
+        if point.get("constraint") == "sliding" and mode == "fixed" and configured:
+            # Its geometric placement follows after the fixed domain map exists.
+            points.append(point)
+            continue
+        a,b=point.get("anchor_start_id"),point.get("anchor_end_id")
+        if a not in newindex or b not in newindex or old_rigid_index.get(b) != old_rigid_index.get(a,-2)+1:
+            raise ConstraintError("CONSTRAINT_ANCHOR_DOMAIN", "沿线点旧锚点域无效")
+        positions[point["id"]]=positions[a]+point["fraction"]*(positions[b]-positions[a])
+        points.append(point)
+    if configured:
+        boundaries=[l for l in links if l["slack_change"]]
+        boundaries.sort(key=lambda l:oldindex[l["point_id"]])
+        if any(l["point_id"] not in positions for l in boundaries):
+            raise ConstraintError("CONSTRAINT_LINK_REFERENCE", "Slack-Change 边界必须为 Rigid 或 Clamped")
+        domains=[]
+        for a,b in zip(boundaries,boundaries[1:]):
+            pa,pb=positions[a["point_id"]],positions[b["point_id"]]
+            if pb-pa<=EPS:
+                raise ConstraintError("CONSTRAINT_LINK_ORDER", "旧 Slack-Change 域顺序翻转或缩成零")
+            ba=_physical_to_base(a["cable_kp_m"],manufacture,True)
+            bb=_physical_to_base(b["cable_kp_m"],manufacture,True)
+            oa,ob=oldpositions[a["point_id"]],oldpositions[b["point_id"]]
+            old_domain_geometry=_span_descriptors(oldsegments,oldkeys,oa,ob)
+            new_domain_geometry=_span_descriptors(segments,keys,pa,pb)
+            changed=old_domain_geometry!=new_domain_geometry or abs(pb-pa-(ob-oa))>EPS or any(abs(remap(oldpositions[pid])-positions[pid])>EPS for pid in (a["point_id"],b["point_id"]))
+            domains.append({"id":f"{a['id']}::{b['id']}","start_point_id":a["point_id"],"end_point_id":b["point_id"],
+                            "start_kp_m":pa,"end_kp_m":pb,"old_start_kp_m":oa,"old_end_kp_m":ob,
+                            "base_start_m":ba,"base_end_m":bb,"available_base_length_m":bb-ba,"changed":changed})
+    else:
+        # Unconfigured fixed/mixed legs retain their individual declared stock.
+        cumulative=0.;domains=[]
+        for leg in before["legs"]:
+            pa,pb=remap(leg["start_kp_m"]),remap(leg["end_kp_m"])
+            domains.append({"id":f"leg-{leg['index']}","start_kp_m":pa,"end_kp_m":pb,
+                            "old_start_kp_m":leg["start_kp_m"],"old_end_kp_m":leg["end_kp_m"],
+                            "base_start_m":cumulative,"base_end_m":cumulative+leg["cable_length_m"],
+                            "available_base_length_m":leg["cable_length_m"],"changed":True})
+            cumulative+=leg["cable_length_m"]
+    def new_at_base(base):
+        d=next((d for d in domains if base<=d["base_end_m"]+EPS),domains[-1])
+        if not d["changed"]:
+            return _surface_at(base,before)+d["start_kp_m"]-d["old_start_kp_m"]
+        if d["available_base_length_m"]<=EPS:
+            raise ConstraintError("CONSTRAINT_ZERO_MANUFACTURING_DOMAIN", "固定域制造量为零")
+        return d["start_kp_m"]+(base-d["base_start_m"])/d["available_base_length_m"]*(d["end_kp_m"]-d["start_kp_m"])
+    def base_at_new(kp):
+        d=next((d for d in domains if kp<=d["end_kp_m"]+EPS),domains[-1])
+        if not d["changed"]:
+            return _base_at(kp-d["start_kp_m"]+d["old_start_kp_m"],before)
+        return d["base_start_m"]+(kp-d["start_kp_m"])/(d["end_kp_m"]-d["start_kp_m"])*d["available_base_length_m"]
+    if mode=="fixed":
+        for p in points:
+            if p.get("constraint")=="sliding" and configured:
+                if p["id"] not in linkby:
+                    raise ConstraintError("CONSTRAINT_UNLINKED_SLIDING", "Fixed Sliding 缺 Path Link")
+                positions[p["id"]]=new_at_base(_physical_to_base(linkby[p["id"]]["cable_kp_m"],manufacture))
+        for left,right in zip(manufacture["segments"],manufacture["segments"][1:]):
+            if left["cable_type_id"]==right["cable_type_id"]:
+                continue
+            kp=new_at_base(left["end_m"])
+            if any(abs(kp-value)<=EPS for value in positions.values()):
+                continue
+            pid=f"constraint-transition-{len(points)+1}"
+            while any(p["id"]==pid for p in points): pid+="_"
+            point={"id":pid,"constraint":"sliding" if configured else "rigid","label":"制造缆型转换","generated_constraint_transition":True,"depth_m":None}
+            points.append(point);positions[pid]=kp
+            if configured:
+                link={"id":f"link-{pid}","point_id":pid,"slack_change":False,"cable_kp_m":_base_to_physical(left["end_m"],manufacture)}
+                links.append(link);linkby[pid]=link
+    for p in points:
+        if p["id"] in newindex: continue
+        kp=positions[p["id"]]
+        i=max(0,min(len(skeleton)-2,bisect.bisect_right(keys,kp)-1))
+        if kp<=keys[i]+EPS or kp>=keys[i+1]-EPS:
+            raise ConstraintError("CONSTRAINT_POINT_COLLISION", "沿线标记与新增 Rigid 切点重合；须显式合并，不自动解锁")
+        p["longitude"],p["latitude"]=segments[i].point_at_distance(kp-keys[i])
+        p["depth_m"]=None
+        if p.get("constraint")!="rigid":
+            p.update(anchor_start_id=skeleton[i]["id"],anchor_end_id=skeleton[i+1]["id"],fraction=(kp-keys[i])/(keys[i+1]-keys[i]))
+    ordered=sorted(points,key=lambda p:positions[p["id"]])
+    if len(ordered)>10000 or any(positions[b["id"]]-positions[a["id"]]<=EPS for a,b in zip(ordered,ordered[1:])):
+        raise ConstraintError("CONSTRAINT_RESULT_LIMIT", "结果超10,000点或沿线标记重合")
+    opts=[];oldallkeys=[p["kp_m"] for p in before["rpl"]]
+    basecuts=[s["start_m"] for s in manufacture["segments"]]
+    for a,b in zip(ordered,ordered[1:]):
+        lo,hi=positions[a["id"]],positions[b["id"]]
+        mid=(lo+hi)/2
+        oi=max(0,min(len(before["legs"])-1,bisect.bisect_right(oldallkeys,old_at_new(mid))-1))
+        opt=_effective_leg(project,before,oi)
+        for key in ("geometry","allowance_m","stop_hours","extra_cost"): opt.pop(key,None)
+        j=max(0,min(len(segments)-1,bisect.bisect_right(keys,mid)-1))
+        part=segments[j].subsegment(max(0.,lo-keys[j]),min(segments[j].length_m,hi-keys[j]))
+        if part.geometry: opt["geometry"]=part.geometry
+        if opt["mode"]=="fixed":
+            low,high=base_at_new(lo),base_at_new(hi)
+            mi=max(0,min(len(basecuts)-1,bisect.bisect_right(basecuts,(low+high)/2)-1))
+            opt.update(fixed_cable_length_m=max(0.,high-low),cable_type_id=manufacture["segments"][mi]["cable_type_id"])
+        else:
+            opt["fixed_cable_length_m"]=None
+            if opt["slack_basis"]=="bottom":
+                raise ConstraintError("CONSTRAINT_BOTTOM_REQUIRES_TERRAIN", "几何整形后的柔性底余缆须联合重新采样；未认证旧深度")
+        if b["id"] in oldindex and oldindex[b["id"]]>0:
+            oldopt=_effective_leg(project,before,oldindex[b["id"]]-1)
+            opt["stop_hours"]=oldopt.get("stop_hours",0);opt["extra_cost"]=oldopt.get("extra_cost",0)
+        opts.append(opt)
+    route["points"],route["legs"]=ordered,opts
+    route["allowances"]=[];result.pop("allowances",None)
+    for extra in manufacture["extras"]:
+        kp=new_at_base(extra["base_station_m"]) if mode=="fixed" else remap(extra["kp_m"])
+        if extra["kind"]=="allowance":
+            route["allowances"].append({**deepcopy(extra["value"]),"kp_m":kp})
+        else:
+            body=next(b for b in result.get("bodies",[]) if str(b.get("id"))==extra["body_id"])
+            body["kp_m"]=kp;body.pop("cable_kp_m",None)
+    for body,computed in zip(result.get("bodies",[]),before["bodies"]):
+        body["id"]=computed["id"]
+        if body.get("length_mode","replace")=="replace":
+            linked=next((l for l in links if l.get("assembly_item_id")==computed["id"]),None)
+            if mode=="flexible" and linked:
+                body["kp_m"]=positions[linked["point_id"]];body.pop("cable_kp_m",None)
+            else:
+                body["cable_kp_m"]=computed["cable_kp_m"];body.pop("kp_m",None)
+    result["events"]=[{**deepcopy(e),"kp_m":min(keys[-1],remap(e.get("kp_m",0.)))} for e in project.get("events",project["route"].get("events",[]))]
+    route.pop("events",None)
+    # Preserve the old signed source: stale data is visible and cannot become
+    # valid merely because a geometry tool wrote a new signature.
+    if "profile" in project: result["profile"]=deepcopy(project["profile"])
+    if "side_slopes" in project: result["side_slopes"]=deepcopy(project["side_slopes"])
+    if configured:
+        route["path_links"]=sorted(links,key=lambda l:positions[l["point_id"]])
+        route["constraint_state"]=deepcopy(project["route"]["constraint_state"])
+        route["constraint_state"]["manufacturing"]=deepcopy(manufacture)
+        route["constraint_state"]["materialized_signature"]=_signature(result)
+    if configured and mode=="flexible" and any(l.get("assembly_item_id") in manufacture.get("reference_stations",{}) for l in links):
+        preliminary=deepcopy(result)
+        preliminary["assembly_references"]=[]
+        preliminary["route"]["constraint_state"]["materialized_signature"]=_signature(preliminary)
+        rows={p["id"]:p for p in analyze_project(preliminary)["rpl"]}
+        for ref in result.get("assembly_references",[]):
+            linked=next((l for l in links if l.get("assembly_item_id")==ref["id"]),None)
+            if linked:
+                station=rows[linked["point_id"]]["cable_kp_m"]
+                ref.update(cable_kp_m=station,start_m=station,end_m=station)
+        route["constraint_state"]["materialized_signature"]=_signature(result)
+    after=analyze_project(result)
+    warnings=[]
+    if mode=="fixed":
+        tolerance=max(1e-5,manufacture["physical_length_m"]*1e-10)
+        oldmaterials={m["cable_type_id"]:m["length_m"] for m in before["materials"]}
+        newmaterials={m["cable_type_id"]:m["length_m"] for m in after["materials"]}
+        if abs(after["summary"]["cable_length_m"]-manufacture["physical_length_m"])>tolerance or any(abs(newmaterials.get(t,0)-oldmaterials.get(t,0))>tolerance for t in set(oldmaterials)|set(newmaterials)) or any(abs(b["cable_kp_m"]-manufacture["body_stations"][b["id"]])>tolerance for b in after["bodies"]):
+            raise ConstraintError("CONSTRAINT_MANUFACTURING_INVARIANT", "结构求解未通过制造数量／缆型／组件站位守恒")
+        for d in domains:
+            shortage=max(0.,d["end_kp_m"]-d["start_kp_m"]-d["available_base_length_m"])
+            d["shortage_m"]=shortage
+            if shortage>EPS:
+                warnings.append({"code":"CONSTRAINT_DOMAIN_SHORTAGE","severity":"error","message":"固定域制造量不足；候选未增加库存","domain_id":d["id"],"shortage_m":shortage})
+    elif configured:
+        rows={p["id"]:p for p in after["rpl"]}
+        for link in route["path_links"]:
+            link["cable_kp_m"]=0. if link["point_id"]==ordered[0]["id"] else rows[link["point_id"]]["cable_kp_m"]
+        # Flexible stock is intentionally recomputed, preserving its targets.
+        route["constraint_state"]["manufacturing"]=_manufacturing(result,after)
+        route["constraint_state"]["materialized_signature"]=_signature(result)
+    placements=[]
+    if configured:
+        rows={p["id"]:p for p in after["rpl"]}
+        items={p["id"]:p for p in after["bodies"]+after.get("assembly_references",[])}
+        current_manufacture=_manufacturing(result,after)
+        location_tolerance=1e-4+8*math.ulp(after["summary"]["surface_length_m"])
+        for link in route["path_links"]:
+            row=rows[link["point_id"]]
+            frozen_station=link["cable_kp_m"]
+            frozen_base=_physical_to_base(frozen_station,manufacture) if mode=="fixed" else _physical_to_base(frozen_station,current_manufacture)
+            actual_base=_base_at(row["kp_m"],after)
+            item=items.get(str(link.get("assembly_item_id","")))
+            assembly_kp=None if item is None else item["kp_m"]
+            if link.get("assembly_item_id") is not None and (item is None or abs(assembly_kp-row["kp_m"])>location_tolerance):
+                raise ConstraintError("CONSTRAINT_ITEM_GEOGRAPHIC_MISMATCH", "结构编辑使已链接组件／参考与链接点分离；未改变旧制造站位或解除链接")
+            placements.append({"id":link["id"],"point_id":link["point_id"],"slack_change":link["slack_change"],
+                               "frozen_cable_kp_m":frozen_station,"actual_postinsert_cable_kp_m":row["cable_kp_m"],
+                               "frozen_base_station_m":frozen_base,"actual_base_station_m":actual_base,"base_station_offset_m":actual_base-frozen_base,
+                               "actual_route_kp_m":row["kp_m"],"assembly_route_kp_m":assembly_kp,
+                               "assembly_item_id":link.get("assembly_item_id"),"position_tolerance_m":location_tolerance,
+                               "physical_station_basis":"point_RPL_is_after_inserts; linked_body_may_use_insert_leading_edge; compare_actual_route_KP"})
+    return {"project":result,"warnings":warnings,"report":{"mode":mode,"domains":domains,"before_summary":before["summary"],"after_summary":after["summary"],
+            "link_placements":placements,
+            "marker_rebindings":[{"point_id":p["id"],"anchor_start_id":p.get("anchor_start_id"),"anchor_end_id":p.get("anchor_end_id"),"fraction":p.get("fraction"),"kp_m":positions[p["id"]]} for p in ordered if p.get("constraint","rigid")!="rigid"]}}
+
+
+def _edit_intrinsic_constraints(project, config):
+    """The same stock/structure solver for constraints on persistent arcs."""
+    analyze_project(project)
+    if not project["route"].get("constraint_state"):
+        raise ConstraintError("CONSTRAINT_NOT_CONFIGURED", "请先配置约束")
+    rigid,segments,keys=_rigid_path(project)
+    points,by,_=_points(project)
+    candidate=deepcopy(project)
+    candidate["route"]["points"]=deepcopy(rigid)
+    newrigid={p["id"]:p for p in candidate["route"]["points"]}
+    fractions,stations={},{}
+    moves=config.get("moves",[])
+    if not isinstance(moves,list) or len(moves)>10000:
+        raise ValueError("moves 必须为数组，最多10,000项")
+    seen=set()
+    for move in moves:
+        if not isinstance(move,dict) or move.get("point_id") not in by or move["point_id"] in seen:
+            raise ConstraintError("CONSTRAINT_POINT_REFERENCE", "移点引用无效或重复")
+        pid=move["point_id"];seen.add(pid);point=by[pid]
+        typ=point.get("constraint","rigid")
+        if typ=="rigid":
+            if config.get("automatic",False):
+                raise ConstraintError("CONSTRAINT_RIGID_AUTOMOVE", "自动联动不能移动Rigid")
+            newrigid[pid]["longitude"],newrigid[pid]["latitude"]=coordinate(move.get("longitude"),move.get("latitude"))
+            newrigid[pid]["depth_m"]=None
+        elif typ=="sliding" and project["route"].get("mode")=="fixed":
+            if any(k in move for k in ("longitude","latitude","fraction")):
+                raise ConstraintError("CONSTRAINT_SLIDING_STATION", "Fixed Sliding 只能修改实物 cable_kp_m")
+            stations[pid]=finite_number(move.get("cable_kp_m"),"cable_kp_m",minimum=0,maximum=project["route"]["constraint_state"]["manufacturing"]["physical_length_m"])
+        else:
+            if "fraction" in move:
+                fraction=finite_number(move["fraction"],"fraction",minimum=0,maximum=1)
+            else:
+                j=next(i for i,p in enumerate(rigid) if p["id"]==point["anchor_start_id"])
+                target=coordinate(move.get("longitude"),move.get("latitude"))
+                from scipy.optimize import minimize_scalar
+                fraction=float(minimize_scalar(lambda f:inverse(*segments[j].point_at_fraction(f),*target,"geodesic")[0],bounds=(0,1),method="bounded",options={"xatol":1e-13}).x)
+            if not 1e-10<fraction<1-1e-10:
+                raise ConstraintError("CONSTRAINT_POINT_AT_ANCHOR", "沿线点不能与锚点重合")
+            fractions[pid]=fraction
+    # Moving an arc endpoint while keeping its old center/radius is generally
+    # infeasible. Endpoint binding rejects this instead of replacing the arc
+    # by a chord or silently selecting a new circle. Radius AC supplies the
+    # explicit replacement geometry through reconcile_route_structure.
+    candidate["route"]["legs"]=[]
+    for i,segment in enumerate(segments):
+        leg={"geometry":segment.geometry} if segment.geometry else {}
+        segment_from_leg(candidate["route"]["points"][i],candidate["route"]["points"][i+1],leg,project["route"].get("curve","rhumb"))
+        candidate["route"]["legs"].append(leg)
+    solved=reconcile_route_structure(project,candidate,marker_fractions=fractions,sliding_stations=stations)
+    solved["report"].update(operation="edit_constraints",moved_point_ids=list(seen),physical_length_delta_m=solved["report"]["after_summary"]["cable_length_m"]-solved["report"]["before_summary"]["cable_length_m"])
+    return solved
