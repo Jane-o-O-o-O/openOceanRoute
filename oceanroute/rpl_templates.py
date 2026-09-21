@@ -25,7 +25,8 @@ COORDINATES = {"longitude", "latitude"} | {
     f"{axis}_{part}" for axis in ("longitude", "latitude")
     for part in ("degrees", "minutes", "seconds", "hemisphere")}
 FIELDS = COORDINATES | {"label", "note", "depth_m", "kp_m", "cable_kp_m", "cable_type_id",
-    "slack_pct", "slack_basis", "mode", "fixed_cable_length_m", "burial", "stop_hours", "extra_cost"}
+    "slack_pct", "slack_basis", "mode", "fixed_cable_length_m", "burial", "stop_hours", "extra_cost",
+    "route_curve", "leg_geometry_json"}
 LENGTH_FACTORS = {"m": 1.0, "km": 1000.0, "ft": .3048, "nm": 1852.0}
 UNIT_FACTORS = {k: LENGTH_FACTORS for k in ("depth_m", "kp_m", "cable_kp_m", "fixed_cable_length_m")}
 UNIT_FACTORS.update(slack_pct={"percent": 1.0, "fraction": 100.0},
@@ -328,10 +329,21 @@ def _parse_record(record, template, allow_missing_optional_columns=False):
     if "cable_kp_m" in fields and typed["cable_kp_m"] is None:
         raise _RecordError("累计缆里程每个有效记录均须填写","cable_kp_m",record[fields["cable_kp_m"]["line"]-template["index_base"]][1])
     if "slack_pct" in fields: typed["slack_pct"]=number("slack_pct",-100,strict=True)
-    for name,options in (("mode",("flexible","fixed")),("slack_basis",("surface","bottom"))):
+    for name,options in (("mode",("flexible","fixed")),("slack_basis",("surface","bottom")),("route_curve",("rhumb","geodesic"))):
         if values.get(name):
             if values[name] not in options: raise _RecordError(f"{name}值无效",name,record[fields[name]["line"]-template["index_base"]][1])
             typed[name]=values[name]
+    if values.get("leg_geometry_json"):
+        try:
+            if len(values["leg_geometry_json"].encode("utf-8"))>4096:
+                raise ValueError("leg_geometry_json超过4096字节")
+            geometry=json.loads(values["leg_geometry_json"])
+            if not isinstance(geometry,dict):
+                raise ValueError("leg_geometry_json须为实际圆弧descriptor对象；普通段留空")
+            _json(geometry,4096)
+            typed["geometry"]=geometry
+        except (ValueError, TypeError, RecursionError) as exc:
+            raise _RecordError(str(exc),"leg_geometry_json",record[fields["leg_geometry_json"]["line"]-template["index_base"]][1]) from exc
     if values.get("burial"):
         word=values["burial"].casefold()
         if word not in ("true","false","1","0","yes","no","是","否"):
@@ -398,16 +410,35 @@ def parse_rpl(text, template, *, expected_columns=None):
             details={"record":count,"line_start":record[0][1],"line_end":record[-1][2],"accepted":True,"point_id":point["id"],
                      "source_kp_m":typed.get("kp_m"),"source_cable_kp_m":typed.get("cable_kp_m"),"source_slack_pct":typed.get("slack_pct")}
             points.append(point); records.append(details); accepted.append((typed,details))
-        except _RecordError as exc: problem(exc,record,count)
+        except _RecordError as exc:
+            if exc.field in {"leg_geometry_json", "route_curve"}:
+                structural_error=True
+            problem(exc,record,count)
     legs=[]; kps=[0.0]; engineering_errors=[]; defaults=template["defaults"]
-    from .geodesy import inverse
+    from .route_geometry import segment_from_leg
+    declared_curves={typed["route_curve"] for typed,_ in accepted if typed.get("route_curve")}
+    if len(declared_curves)>1:
+        raise ValueError("route_curve在同一RPL内须保持一致，不能混合两种全线普通段曲线")
+    curve=next(iter(declared_curves)) if declared_curves else defaults["curve"]
+    if accepted:
+        unused=accepted[-1] if template["leg_assignment"]=="outgoing" else accepted[0]
+        if unused[0].get("geometry") is not None:
+            item={"code":"RPL_GEOMETRY_TERMINAL","severity":"error","record":unused[1]["record"],"row":unused[1]["line_start"],
+                  "message":"终端记录声明了没有实际航段归属的geometry，不丢弃"}
+            if template["error_policy"]=="reject": raise ValueError(item["message"])
+            warnings.append(item);engineering_errors.append(item)
     for index,(a,b) in enumerate(zip(accepted,accepted[1:])):
         first,ainfo=a; second,binfo=b
         owner,info=(a if template["leg_assignment"]=="outgoing" else b)
         leg={key:value for key,value in defaults.items() if key!="curve"}
         leg.update({key:value for key,value in owner.items() if key in {"cable_type_id","slack_pct","slack_basis","mode","fixed_cable_length_m","burial","stop_hours","extra_cost"} and value is not None})
+        if owner.get("geometry") is not None:
+            leg["geometry"]=deepcopy(owner["geometry"])
         try:
-            distance,_=inverse(first["longitude"],first["latitude"],second["longitude"],second["latitude"],defaults["curve"])
+            segment=segment_from_leg(first,second,leg,curve)
+            distance=segment.length_m
+            if segment.is_arc:
+                leg["geometry"]=segment.geometry
             kps.append(kps[-1]+distance if kps[-1] is not None else None)
             if "cable_kp_m" in template["fields"]:
                 leg.update(mode="fixed",fixed_cable_length_m=max(0.0,second["cable_kp_m"]-first["cable_kp_m"]))
@@ -441,7 +472,7 @@ def parse_rpl(text, template, *, expected_columns=None):
         slack=typed.get("slack_pct")
         if slack is not None and slack!=last_slack: change_records.append(info["record"])
         if slack is not None: last_slack=slack
-    result={"points":points,"legs":legs,"route_options":{"curve":defaults["curve"],"mode":"flexible","slack_basis":defaults["slack_basis"],"slack_pct":defaults["slack_pct"]},
+    result={"points":points,"legs":legs,"route_options":{"curve":curve,"mode":"flexible","slack_basis":defaults["slack_basis"],"slack_pct":defaults["slack_pct"]},
         "warnings":warnings,"errors":errors+engineering_errors,"records":records,"accepted_rows":len(points),"rejected_rows":sum(not r["accepted"] for r in records),
         "can_apply":len(points)>=2 and not engineering_errors and not structural_error and (not errors or template["error_policy"]=="skip"),"template":template,
         "metadata":{"schema":SCHEMA,"coordinate_crs":"EPSG:4326","column_units":"unicode_code_points","depth_positive":"down","internal_length_units":"m",

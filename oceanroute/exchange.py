@@ -34,6 +34,8 @@ ALIASES = {
     "burial": ["burial", "埋设"],
     "stop_hours": ["stop_hours", "停时_h"],
     "extra_cost": ["extra_cost", "附加费"],
+    "route_curve": ["route_curve"],
+    "leg_geometry_json": ["leg_geometry_json"],
 }
 
 
@@ -198,12 +200,21 @@ def _cell(value):
 def export_csv(project: dict, analysis: dict) -> str:
     columns = ["index", "label", "longitude", "latitude", "depth_m", "kp_m", "bottom_kp_m", "cable_kp_m", "bearing_deg",
                "cable_type_id", "surface_slack_pct", "bottom_slack_pct", "note"]
+    arcs = any(o.get("geometry") is not None for o in project["route"].get("legs", []))
+    if arcs:
+        columns += ["route_curve", "leg_geometry_json"]
     output = io.StringIO(newline="")
     output.write("# OceanRoute RPL; WGS84; metres; depth positive down; slack percent\n")
     writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
     writer.writeheader()
-    for row in analysis["rpl"]:
-        writer.writerow({k: _cell(row.get(k)) for k in columns})
+    for index, row in enumerate(analysis["rpl"]):
+        values = {k: _cell(row.get(k)) for k in columns}
+        if arcs:
+            values["route_curve"] = project["route"].get("curve", "rhumb")
+            options = project["route"].get("legs", [])
+            geometry = options[index].get("geometry") if index<len(options) else None
+            values["leg_geometry_json"] = json.dumps(geometry, ensure_ascii=False, allow_nan=False, separators=(",", ":")) if geometry is not None else ""
+        writer.writerow(values)
     return "\ufeff" + output.getvalue()
 
 
@@ -213,7 +224,12 @@ def export_geojson(project: dict, analysis: dict) -> str:
     route_geometry = ({"type":"MultiLineString", "coordinates":segments} if len(segments)>1 else
                       {"type":"LineString", "coordinates":analysis.get("route_geometry", {}).get("coordinates") or [[p["longitude"],p["latitude"]] for p in points]})
     features = [{"type": "Feature", "properties": {"name": project.get("name"), "curve": project["route"].get("curve", "rhumb"),
-                 "depth_units": "m", "distance_units": "m", "summary": analysis["summary"]},
+                 "depth_units": "m", "distance_units": "m", "summary": analysis["summary"],
+                 **({"leg_geometry": [o.get("geometry") for o in project["route"].get("legs", [])],
+                     "geometry_model": analysis.get("model", {}).get("geometry"),
+                     "geometry_render": analysis.get("route_geometry_render"),
+                     "geometry_representation": "sampled_visualization_of_intrinsic_arcs; descriptor_in_JSON_is_authoritative"}
+                    if any(o.get("geometry") is not None for o in project["route"].get("legs", [])) else {})},
                  "geometry": route_geometry}]
     for p, row in zip(points, analysis["rpl"]):
         features.append({"type": "Feature", "properties": row, "geometry": {"type": "Point", "coordinates": [p["longitude"], p["latitude"]]}})
