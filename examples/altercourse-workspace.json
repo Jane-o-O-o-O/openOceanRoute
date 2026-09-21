@@ -1,0 +1,215 @@
+{
+  "schema_version": 2,
+  "id": "synthetic-altercourse-workspace",
+  "name": "合成转角示例 · 共享库存 5300 m",
+  "currency": "CNY",
+  "active_path_id": "7fde9578-cdc7-48b8-b6ec-fbd881dad8d5",
+  "cable_types": [
+    {
+      "id": "A",
+      "name": "示例缆 A",
+      "cost_per_m": 2,
+      "lay_speed_m_s": 1
+    }
+  ],
+  "layers": [],
+  "terrain_sources": [],
+  "paths": [
+    {
+      "id": "f15ddcb8-bf4e-4efb-bfd8-99862fe496f4",
+      "name": "合成转角示例 · 原路线",
+      "kind": "cable",
+      "project": {
+        "id": "f15ddcb8-bf4e-4efb-bfd8-99862fe496f4",
+        "name": "合成转角示例 · 原路线",
+        "crs": "EPSG:4326",
+        "route": {
+          "curve": "rhumb",
+          "mode": "fixed",
+          "slack_basis": "surface",
+          "slack_pct": 1,
+          "points": [
+            {
+              "id": "arc-start",
+              "longitude": 117.9957897739475,
+              "latitude": 21.9999982131205,
+              "depth_m": 50
+            },
+            {
+              "id": "arc-corner",
+              "longitude": 118.02,
+              "latitude": 22.0,
+              "depth_m": 50
+            },
+            {
+              "id": "arc-end",
+              "longitude": 118.02,
+              "latitude": 22.02257735388705,
+              "depth_m": 50
+            }
+          ],
+          "legs": [
+            {
+              "cable_type_id": "A",
+              "fixed_cable_length_m": 2600
+            },
+            {
+              "cable_type_id": "A",
+              "fixed_cable_length_m": 2700
+            }
+          ]
+        },
+        "bodies": [],
+        "costs": {
+          "currency": "CNY"
+        },
+        "schema_version": 1
+      }
+    },
+    {
+      "id": "7fde9578-cdc7-48b8-b6ec-fbd881dad8d5",
+      "name": "Radius AC 300 m · 同一固定库存",
+      "kind": "cable",
+      "project": {
+        "id": "7fde9578-cdc7-48b8-b6ec-fbd881dad8d5",
+        "name": "Radius AC 300 m · 同一固定库存",
+        "crs": "EPSG:4326",
+        "route": {
+          "curve": "rhumb",
+          "mode": "fixed",
+          "slack_basis": "surface",
+          "slack_pct": 1,
+          "points": [
+            {
+              "id": "arc-start",
+              "longitude": 117.9957897739475,
+              "latitude": 21.9999982131205,
+              "depth_m": 50
+            },
+            {
+              "id": "altercourse-arc-corner-1",
+              "constraint": "rigid",
+              "label": "转角整形切点",
+              "note": "WGS84真实几何求解；水深未重新采样",
+              "longitude": 118.01709494760296,
+              "latitude": 21.99999978558736,
+              "depth_m": null
+            },
+            {
+              "id": "arc-corner",
+              "longitude": 118.02,
+              "latitude": 22.002709097060684,
+              "depth_m": null
+            },
+            {
+              "id": "arc-end",
+              "longitude": 118.02,
+              "latitude": 22.02257735388705,
+              "depth_m": 50
+            }
+          ],
+          "legs": [
+            {
+              "cable_type_id": "A",
+              "fixed_cable_length_m": 2141.3460704319887,
+              "mode": "fixed",
+              "slack_basis": "surface",
+              "slack_pct": 1
+            },
+            {
+              "cable_type_id": "A",
+              "fixed_cable_length_m": 458.65392956801134,
+              "mode": "fixed",
+              "slack_basis": "surface",
+              "slack_pct": 1,
+              "geometry": {
+                "type": "circular_arc",
+                "schema_version": 1,
+                "center": [
+                  118.01709471766537,
+                  22.002709071326127
+                ],
+                "radius_m": 300.0,
+                "start_azimuth_deg": 179.9954652588422,
+                "sweep_deg": -89.99655372410898
+              },
+              "stop_hours": 0,
+              "extra_cost": 0
+            },
+            {
+              "cable_type_id": "A",
+              "fixed_cable_length_m": 2700.0,
+              "mode": "fixed",
+              "slack_basis": "surface",
+              "slack_pct": 1,
+              "stop_hours": 0,
+              "extra_cost": 0
+            }
+          ],
+          "allowances": []
+        },
+        "bodies": [],
+        "costs": {
+          "currency": "CNY"
+        },
+        "schema_version": 1,
+        "events": []
+      }
+    }
+  ],
+  "assemblies": [
+    {
+      "id": "6f242fc8-118a-435d-99e7-cafc473b3e8d",
+      "name": "合成转角示例 · 原路线 · 制造装配",
+      "currency": "CNY",
+      "items": [
+        {
+          "id": "78c217a5-5a3a-47e4-ae37-a2989ce78965",
+          "kind": "cable",
+          "name": "示例缆 A",
+          "start_m": 0.0,
+          "end_m": 2600.0,
+          "length_m": 2600.0,
+          "note": "",
+          "cable_type_id": "A"
+        },
+        {
+          "id": "ca910b9f-357e-44ba-92b0-f7df00451266",
+          "kind": "cable",
+          "name": "示例缆 A",
+          "start_m": 2600.0,
+          "end_m": 5300.0,
+          "length_m": 2700.0,
+          "note": "",
+          "cable_type_id": "A"
+        }
+      ],
+      "total_length_m": 5300.0,
+      "source": "captured_path_manufacturing",
+      "source_path_id": "f15ddcb8-bf4e-4efb-bfd8-99862fe496f4",
+      "manufacturing_signature": "d810719888bc0344883b27de744f21865f66721f5d2bc2dd42ca8791809aae43"
+    }
+  ],
+  "associations": [
+    {
+      "id": "d06b593b-9b92-4943-837b-73834b01ec9d",
+      "path_id": "f15ddcb8-bf4e-4efb-bfd8-99862fe496f4",
+      "assembly_id": "6f242fc8-118a-435d-99e7-cafc473b3e8d",
+      "role": "deployment"
+    },
+    {
+      "id": "6b9fef79-be88-4871-8c1c-deae6576a661",
+      "path_id": "7fde9578-cdc7-48b8-b6ec-fbd881dad8d5",
+      "assembly_id": "6f242fc8-118a-435d-99e7-cafc473b3e8d",
+      "role": "alternative"
+    }
+  ],
+  "origin_project_id": "synthetic-altercourse-reference",
+  "migration": "schema1_to_schema2",
+  "operator_metadata": {
+    "source": "synthetic-not-field-measurement",
+    "purpose": "Demonstrate intrinsic Radius AC and shared fixed inventory; no terrain or physical certification",
+    "radius_m": 300,
+    "inventory_m": 5300
+  }
+}
