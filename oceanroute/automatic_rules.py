@@ -13,6 +13,7 @@ import json
 import math
 
 from .geodesy import GEOD, finite_number, inverse, interpolate
+from .route_geometry import route_segments
 
 MODEL = "automatic-geographic-rules-v1"
 PACKAGE_SCHEMA = "oceanroute.automatic-rules/v1"
@@ -282,7 +283,7 @@ def automatic_rule_catalog(workspace):
     for path in workspace.get("paths", []):
         points = path["project"]["route"]["points"]
         curve = path["project"]["route"].get("curve", "rhumb")
-        total = sum(inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)[0] for a, b in zip(points, points[1:]))
+        total = sum(segment.length_m for segment in route_segments(path["project"]))
         paths.append({"id": path["id"], "name": path.get("name", path["id"]), "start_kp_m": 0., "end_kp_m": total})
     layers = []
     catalog_upper=1024+len(_json(paths))
@@ -446,12 +447,8 @@ def _objects(project, analysis, route, profile):
         before=route.legs[i-1] if route.legs[i-1].length>1e-7 else None
         after=route.legs[i] if route.legs[i].length>1e-7 else None
         if before and after:
-            if route.kind=='geodesic':
-                az0=(GEOD.inv(*before.a,*before.b)[1]+180)%360
-                az1=GEOD.inv(*after.a,*after.b)[0]%360
-            else:
-                az0=inverse(*before.a,*before.b,'rhumb')[1]
-                az1=inverse(*after.a,*after.b,'rhumb')[1]
+            az0=before.tangent(1.)
+            az1=after.tangent(0.)
             turn=abs((az1-az0+180)%360-180)
             if turn>1e-6:
                 rows['altercourses'].append({'kind':'altercourses','id':route.points[i]['id'],'name':route.points[i].get('label',route.points[i]['id']), 'kp_m':kp,'turn_deg':turn})
@@ -715,9 +712,17 @@ def check_automatic_rules(workspace, config=None, *, analyses=None):
             warnings.append({**d,'rule_id':row['rule_id'],'severity':'warning'})
     states=[r['status'] for r in results if r['enabled']]
     summary_status='not_configured' if not rules else 'disabled' if not states else next((s for s in ('reference_error','violations','unknown','incomplete','sampled_pass') if s in states),'clear')
+    geometry_paths=[]
+    for path in workspace['paths']:
+        route=path['project']['route']
+        item={'id':path['id'],'curve':route.get('curve','rhumb'),
+              'points':[[p['longitude'],p['latitude']] for p in route['points']]}
+        if any(o.get('geometry') is not None for o in route.get('legs',[])):
+            item['leg_geometry']=[o.get('geometry') for o in route.get('legs',[])]
+        geometry_paths.append(item)
     output={'model':MODEL,'schema_version':1,'validation_status':'research','rules':rules,'results':results,'errors':errors,
             'summary':{'status':summary_status,'enabled_rules':len(states),'disabled_rules':len(rules)-len(states),'violating_rules':sum(bool(r['violations']) for r in results),'violation_count':sum(len(r['violations']) for r in results),'reference_error_rules':states.count('reference_error'),'unknown_rules':states.count('unknown'),'incomplete_rules':states.count('incomplete'),'continuous_bed_verified':False},
-            'metadata':{'rules_signature':_hash(rules),'geometry_signature':_hash({'paths':[{'id':p['id'],'curve':p['project']['route'].get('curve','rhumb'),'points':[[q['longitude'],q['latitude']] for q in p['project']['route']['points']]} for p in workspace['paths']],'layers':[{'id':layer['id'],'features':[{'id':f.get('id'),'geometry':f.get('geometry') if f.get('type')=='Feature' else f} for f in _features(layer)]} for layer in workspace['layers']]}),'input_signature':_hash({'rules':rules,'paths':[{k:p[k] for k in ('id','project')} for p in workspace['paths']],'cable_types':workspace['cable_types'],'terrain_sources':workspace.get('terrain_sources',[]),'layers':[{k:v for k,v in layer.items() if k not in {'visible','opacity','display_order'}} for layer in workspace['layers']]}),'geometry_model':'native geographic-linear GIS primitives; actual WGS84 route curves; adaptive full-segment overlay and metric distance bounds','geometry_tolerance_m':config['geometry_tolerance_m']},
+            'metadata':{'rules_signature':_hash(rules),'geometry_signature':_hash({'paths':geometry_paths,'layers':[{'id':layer['id'],'features':[{'id':f.get('id'),'geometry':f.get('geometry') if f.get('type')=='Feature' else f} for f in _features(layer)]} for layer in workspace['layers']]}),'input_signature':_hash({'rules':rules,'paths':[{k:p[k] for k in ('id','project')} for p in workspace['paths']],'cable_types':workspace['cable_types'],'terrain_sources':workspace.get('terrain_sources',[]),'layers':[{k:v for k,v in layer.items() if k not in {'visible','opacity','display_order'}} for layer in workspace['layers']]}),'geometry_model':'native geographic-linear GIS primitives; actual WGS84 route curves; adaptive full-segment overlay and metric distance bounds','geometry_tolerance_m':config['geometry_tolerance_m']},
             'budget':{'work_units':budget.work,'features':budget.features,'vertices':budget.vertices,'pairs':budget.pairs,'events':budget.events,'terrain_query_count':budget.terrain_query_count,'work_basis':'logical rule parsing, geometry, interval bounds and checker terrain costs; preceding admission costs excluded; not FLOPs, wall-clock or RSS guarantee','admission_exclusions':['workspace_json_size_checks_and_canonical_serialization','workspace_shared_source_normalization','core_route_densification_and_profile_material_manufacture_currency_relationship_validation','pure_source_gis_admission_before_checker'],**{k:v for k,v in config.items() if k.startswith('max_')}},'warnings':warnings,
             'assumptions':['Predicates are explicit error triggers; all/any use three-valued missing-data logic.','Hidden layers participate. Native typed feature IDs and explicit source indexes remain distinct.','GIS source edges are geographic-linear, including long-way date-line edges; whole geometries may be translated by 360 degrees, never individual vertices.','Full primitives, polygon holes and recursive GeometryCollections are checked. Distance bounds span complete continuous intervals.','Geographic overlay follows adaptively rendered real route curves. Contacts near tolerance, polar scope, ambiguous tangents and missing data are unresolved rather than silently clear.','Two-dimensional terrain triangles and saved inline/side slopes are sampled research screens, not continuous terrain certification or Makai/FME native compatibility.','No route, source library, manufacture, fixed constraint or saved revision is altered or persisted.']}
     encoded=_json(output)

@@ -16,6 +16,7 @@ from shapely.geometry import Point, LineString, Polygon, shape
 from shapely.affinity import translate
 
 from .geodesy import GEOD, WGS84_A, WGS84_E2, coordinate, inverse, interpolate, longitude_delta, wrap_longitude
+from .route_geometry import segment_from_leg
 
 R_MAX = 6399600.0  # exceeds every WGS84 meridional/prime-vertical radius
 
@@ -34,15 +35,48 @@ class Curve:
     end: float = 1.
     kp0: float = 0.
     route_length: float = 0.
+    segment: object = None
+    budget: object = None
+
+    def _segment_call(self, method, fraction):
+        arc = self.segment.is_arc and self.budget is not None
+        before = self.segment.solver['work_units'] if arc else 0
+        remaining = None
+        if arc:
+            remaining = max(0, self.budget.config['max_work_units']-self.budget.work)
+            self.segment.config['max_work_units'] = min(self.segment.config['max_work_units'], before+remaining)
+        try:
+            value = getattr(self.segment, method)(fraction)
+        except ValueError as error:
+            if arc and 'max_work_units' in str(error) and self.segment.config['max_work_units'] == before+remaining:
+                self.budget.charge(remaining+1)
+            raise
+        if arc:
+            self.budget.charge(self.segment.solver['work_units']-before)
+        return value
 
     def at(self, t):
         t = self.start + (self.end-self.start)*t
         if self.kind == 'native':
             return (self.a[0]+(self.b[0]-self.a[0])*t, self.a[1]+(self.b[1]-self.a[1])*t)
+        if self.segment is not None:
+            return self._segment_call('point_at_fraction', t)
         return interpolate(*self.a, *self.b, t, self.kind)
+
+    def tangent(self, t):
+        fraction = self.start+(self.end-self.start)*t
+        if self.segment is not None:
+            return self._segment_call('tangent_at_fraction', fraction)
+        if self.kind == 'geodesic':
+            p = self.at(t)
+            return (GEOD.inv(*self.a, *p)[1]+180)%360 if fraction else GEOD.inv(*self.a, *self.b)[0]%360
+        return inverse(*self.a, *self.b, self.kind)[1]
 
     def radius(self, lo, hi):
         if self.kind != 'native':
+            if self.segment is not None and self.segment.is_arc:
+                return (self.segment.length_upper_bound_m*(self.end-self.start)*(hi-lo)/2
+                        +self.segment.position_error_allowance_m)
             return self.length*(self.end-self.start)*(hi-lo)/2
         # Length of a lon/lat-linear curve is bounded by the maximum surface
         # metric over its latitude interval, including native long-way edges.
@@ -88,7 +122,7 @@ def nearest(first, second, budget, tolerance):
         r1, r2 = first.radius(a, b), second.radius(c, d)
         lower = max(0., value-r1-r2)
         def latitude_interval(curve,lo,hi,radius):
-            if curve.kind in {'native','rhumb'} or curve.a[1]==curve.b[1]==0:
+            if curve.kind in {'native','rhumb'} or (curve.kind=='geodesic' and curve.a[1]==curve.b[1]==0):
                 return sorted((curve.at(lo)[1],curve.at(hi)[1]))
             center=curve.at((lo+hi)/2)[1]; delta=math.degrees(radius/6335439.)
             return [max(-90.,center-delta),min(90.,center+delta)]
@@ -195,10 +229,21 @@ class Route:
         self.points = project['route']['points']
         self.kind = project['route'].get('curve', 'rhumb')
         self.kps, self.legs = [0.], []
-        for a, b in zip(self.points, self.points[1:]):
-            pa = (a['longitude'], a['latitude']); pb = (b['longitude'], b['latitude'])
-            length, _ = inverse(*pa, *pb, self.kind)
-            self.legs.append(Curve(pa, pb, length, self.kind, kp0=self.kps[-1], route_length=length))
+        options = project['route'].get('legs', [])
+        for i, (a,b) in enumerate(zip(self.points, self.points[1:])):
+            remaining = max(1, budget.config['max_work_units']-budget.work)
+            try:
+                segment = segment_from_leg(a,b,options[i] if i<len(options) else None,self.kind,
+                                           {'max_work_units':min(2_000_000,remaining)})
+            except ValueError as error:
+                if 'max_work_units' in str(error) and remaining <= 2_000_000:
+                    budget.charge(remaining+1)
+                raise
+            if segment.is_arc:
+                budget.charge(segment.solver['work_units'])
+            pa, pb, length = segment.start, segment.end, segment.length_m
+            self.legs.append(Curve(pa, pb, length, 'circular_arc' if segment.is_arc else self.kind,
+                                   kp0=self.kps[-1], route_length=length, segment=segment, budget=budget))
             self.kps.append(self.kps[-1]+length)
         self.total = self.kps[-1]
 
@@ -218,7 +263,7 @@ class Route:
                     left=lo+(hi-lo)*j/count; right=lo+(hi-lo)*(j+1)/count
                     yield index, Curve(curve.a, curve.b, curve.length, curve.kind,
                                       (left-curve.kp0)/curve.length, (right-curve.kp0)/curve.length,
-                                      curve.kp0, curve.route_length)
+                                      curve.kp0, curve.route_length, curve.segment, curve.budget)
 
     def rendered(self, curve):
         config, budget = self.budget.config, self.budget
@@ -310,7 +355,7 @@ def contacts(curve, rows, primitive, budget):
                         latitude=math.radians(p[1]); scale=1-WGS84_E2*math.sin(latitude)**2
                         n=WGS84_A/math.sqrt(scale); meridian=WGS84_A*(1-WGS84_E2)/scale**1.5
                         az=math.degrees(math.atan2(n*math.cos(latitude)*dx,meridian*dy))
-                        rz=(GEOD.inv(*curve.a,*p)[1]+180)%360 if curve.kind=='geodesic' else inverse(*curve.a,*curve.b,'rhumb')[1]
+                        rz=curve.tangent(f)
                         delta = abs((az-rz+180)%360-180)
                         angle = min(delta, 180-delta)
                         event = 'crossing' if angle > 1e-7 else 'touch'
