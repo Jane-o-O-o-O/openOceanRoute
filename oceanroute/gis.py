@@ -14,15 +14,14 @@ from scipy.spatial import cKDTree, QhullError
 
 from .geodesy import coordinate, finite_number, inverse, interpolate
 from .units import length_factor
+from .route_geometry import route_segments
 
 
 def sample_route(project: dict, spacing_m: float = 1000) -> list[dict]:
     spacing = finite_number(spacing_m, "spacing_m", minimum=1, maximum=100_000)
-    points = project["route"]["points"]
-    curve = project["route"].get("curve", "rhumb")
     samples, kp = [], 0.0
-    for a, b in zip(points, points[1:]):
-        distance, _ = inverse(a["longitude"], a["latitude"], b["longitude"], b["latitude"], curve)
+    for segment in route_segments(project):
+        distance = segment.length_m
         if distance < 1e-9:
             continue
         count = max(1, math.ceil(distance / spacing))
@@ -31,7 +30,7 @@ def sample_route(project: dict, spacing_m: float = 1000) -> list[dict]:
         for j in range(count + 1):
             if samples and j == 0:
                 continue
-            lon, lat = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], j/count, curve)
+            lon, lat = segment.point_at_fraction(j/count)
             samples.append({"kp_m": kp + distance*j/count, "longitude": lon, "latitude": lat})
         kp += distance
     return samples
