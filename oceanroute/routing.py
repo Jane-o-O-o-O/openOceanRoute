@@ -23,6 +23,7 @@ from shapely.prepared import prep
 
 from .core import analyze_project, route_signature
 from .geodesy import coordinate, densify, finite_number, interpolate, inverse, split_antimeridian
+from .route_geometry import route_segments
 from .tools import _canonical_allowances, _effective_leg
 
 
@@ -464,9 +465,24 @@ def _preview_project(project, before, coordinates, anchor_old, anchor_new, start
     if len(points) > 10000:
         raise RoutingError("ROUTING_RESULT_LIMIT", "候选超过 10,000 个路线点，请加大搜索间距")
     route["points"] = points
+    # Search explicitly replaces only the selected span with new straight
+    # route segments. Intrinsic arcs outside it retain their descriptors.
+    old_options = project["route"].get("legs", [])
+    geometries = [{} for _ in range(len(points)-1)]
+    for i in range(start_index):
+        if i < len(old_options) and old_options[i].get("geometry") is not None:
+            geometries[i] = {"geometry":deepcopy(old_options[i]["geometry"])}
+    suffix = start_index+len(merged_positions)-1
+    for offset, old_i in enumerate(range(end_index, len(original_points)-1)):
+        if old_i < len(old_options) and old_options[old_i].get("geometry") is not None:
+            geometries[suffix+offset] = {"geometry":deepcopy(old_options[old_i]["geometry"])}
+    route["legs"] = geometries
     geometry_changed = route_signature(result) != route_signature(project)
     new_coords = [(p["longitude"], p["latitude"]) for p in points]
-    new_keys = _path_station(new_coords, curve)
+    new_segments = route_segments(result)
+    new_keys = [0.]
+    for segment in new_segments:
+        new_keys.append(new_keys[-1]+segment.length_m)
     old_new_keys = [remap(key) for key in old_keys]
     length_policy = config.get("length_policy", "preserve")
     if length_policy not in ("preserve", "recalculate"):
@@ -479,6 +495,9 @@ def _preview_project(project, before, coordinates, anchor_old, anchor_new, start
         middle = (left + right) / 2
         old_index = max(0, min(len(before["legs"])-1, bisect.bisect_right(old_new_keys, middle + EPS) - 1))
         opt = deepcopy(originals[old_index])
+        opt.pop("geometry", None)
+        if geometries[i].get("geometry") is not None:
+            opt["geometry"] = deepcopy(geometries[i]["geometry"])
         segment_end = old_new_keys[old_index+1]
         at_end = abs(right - segment_end) <= max(EPS, abs(segment_end) * 1e-10)
         if not at_end:
@@ -510,15 +529,15 @@ def _preview_project(project, before, coordinates, anchor_old, anchor_new, start
             body.pop("cable_kp_m", None)
     profile = []
     if terrain is not None:
-        for i, (a, b) in enumerate(zip(new_coords, new_coords[1:])):
-            length, _ = inverse(*a, *b, curve)
+        for i, segment in enumerate(new_segments):
+            length = segment.length_m
             count = max(1, math.ceil(length / min(float(config.get("grid_spacing_m", 1000)) / 2, 500)))
             if len(profile) + count + 1 > 100000:
                 raise ValueError("候选地形采样超过 100,000 点，请加大搜索间距或拆分")
             for j in range(count + 1):
                 if i and j == 0:
                     continue
-                lon, lat = interpolate(*a, *b, j / count, curve)
+                lon, lat = segment.point_at_fraction(j/count)
                 depth = terrain.sample([forward.transform(lon, lat)])[0]
                 profile.append({"kp_m": new_keys[i] + length * j / count, "depth_m": float(depth) if math.isfinite(depth) else None})
         source = "route_search_terrain_grid"
@@ -568,6 +587,9 @@ def _preview_project(project, before, coordinates, anchor_old, anchor_new, start
     return result, {"length_policy": length_policy, "old_selected_length_m": old_end-old_start,
                     "new_selected_length_m": path_keys[-1], "station_shift_m": shift,
                     "point_count": len(points), "geometry_changed": geometry_changed,
+                    "replaced_geometry_policy": "selected_span_explicitly_replaced_by_search_curves; untouched_intrinsic_arcs_preserved",
+                    "replaced_arc_count": sum(1 for o in old_options[start_index:end_index] if o.get("geometry") is not None),
+                    "retained_arc_count": sum(1 for o in geometries if o.get("geometry") is not None),
                     "preserved_constraint_links": end_index-start_index+1}
 
 
