@@ -13,6 +13,7 @@ import numpy as np
 
 from .core import analyze_project
 from .geodesy import GEOD, interpolate
+from .route_geometry import route_segments
 from .checkpoints import merge_resume_config
 from .simulation import (_cable_defaults, _config, _integer, _num, _warning,
                          _environment, _resumed_plan, simulate_lay, steady_state)
@@ -54,6 +55,7 @@ def build_ship_plan(project: dict, config: dict) -> dict:
         raise ValueError("ship plan requires a route with positive horizontal length")
     types = {str(x["id"]): x for x in project.get("cable_types", [])}
     points = project["route"]["points"]
+    segments = route_segments(project)
     curve = project["route"].get("curve", "rhumb")
     rpl = analysis["rpl"]
     total_kp = analysis["summary"]["surface_length_m"]
@@ -135,10 +137,10 @@ def build_ship_plan(project: dict, config: dict) -> dict:
         first, last = points[index], points[index+1]
         fraction = (kp-leg["start_kp_m"])/leg["surface_length_m"] if leg["surface_length_m"] > 1e-7 else 0.
         fraction = min(1, max(0, fraction))
-        lon, lat = interpolate(first["longitude"], first["latitude"], last["longitude"], last["latitude"], fraction, curve)
+        lon, lat = segments[index].point_at_fraction(fraction)
         cable = types.get(leg["cable_type_id"], {})
         speed = override_speed or _positive(cable, "lay_speed_m_s", 1, 20)
-        heading = leg["bearing_deg"] or 0.
+        heading = segments[index].tangent_at_fraction(fraction) or 0.
         depth = depth_at(kp)
         offset = None
         steady_summary = None

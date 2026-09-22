@@ -17,6 +17,7 @@ from pyproj import CRS, Transformer
 
 from .core import analyze_project
 from .geodesy import GEOD, interpolate
+from .route_geometry import route_segments
 from .shipplan import build_ship_plan
 from .plan_equilibrium_frame import PlanBathymetryFrame, initial_equilibrium_length
 from .simulation import G, _MaterialModel, _config, _environment, _integer, _num, catenary
@@ -423,8 +424,7 @@ def prepare_plan_voyage(project: dict, config: dict) -> dict:
     point_a, point_b = project["route"]["points"][index:index+2]
     leg_length = route_kps[index+1]-route_kps[index]
     fraction = (at_start["route_kp_m"]-route_kps[index])/leg_length if leg_length > 1e-9 else 0.
-    target_lon, target_lat = interpolate(point_a["longitude"], point_a["latitude"], point_b["longitude"], point_b["latitude"],
-                                         fraction, project["route"].get("curve", "rhumb"))
+    target_lon, target_lat = route_segments(project)[index].point_at_fraction(fraction)
     target_xy = list(map(float, project_position(target_lon, target_lat)))
     if frame is not None:
         anchor_xy = frame.request["anchor_position_m"][:2]
