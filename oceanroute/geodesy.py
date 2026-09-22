@@ -61,6 +61,87 @@ def isometric_latitude(phi: float) -> float:
     return math.asinh(math.tan(phi)) - WGS84_E * math.atanh(WGS84_E * sine)
 
 
+def _isometric_difference(phi1: float, phi2: float, delta_phi=None) -> float:
+    """Stable ellipsoidal Δψ, including almost east/west rhumb legs.
+
+    Subtracting two absolute isometric latitudes loses the small change.
+    The atanh subtraction identity uses a trigonometric divided difference;
+    the denominator identity also avoids cancellation near either pole.
+    A wide interval whose ratio rounds to one uses the absolute expression,
+    where subtractive cancellation is absent.
+    """
+    delta = phi2-phi1 if delta_phi is None else delta_phi
+    if delta == 0:
+        return 0.
+    midpoint = phi1+delta/2
+    half_sine = math.sin(delta/2)
+    cosine = math.cos(midpoint)
+    difference = 2*cosine*half_sine
+    denominator = cosine*cosine+half_sine*half_sine
+    ratio = difference/denominator
+    spherical = (math.atanh(ratio) if abs(ratio) < 1 else
+                 math.asinh(math.tan(phi2))-math.asinh(math.tan(phi1)))
+    ellipsoidal_ratio = WGS84_E*difference/(1-WGS84_E2+WGS84_E2*denominator)
+    return spherical-WGS84_E*math.atanh(ellipsoidal_ratio)
+
+
+def _rhumb_psi_per_meridian(phi1: float, phi2: float, *, latitude1=None, latitude2=None) -> float:
+    """Smooth Δψ/ΔM divided difference for a near-parallel interval.
+
+    Both derivatives are integrated on the same normalized interval. The
+    small latitude difference cancels algebraically, before any division;
+    four-point Gauss quadrature replaces subtraction of rounded positions.
+    This helper is restricted below to |Δφ| < .001*cos(midlatitude).
+    """
+    midpoint, half = (phi1+phi2)/2, (phi2-phi1)/2
+    nodes = ((.3399810435848563, .6521451548625461),
+             (.8611363115940526, .3478548451374538))
+    psi_terms, meridian_terms = [], []
+    for node, weight in nodes:
+        for sign in (-1., 1.):
+            phi = midpoint+sign*node*half
+            sine, cosine = math.sin(phi), math.cos(phi)
+            if latitude1 is not None and abs(latitude1)>45 and latitude1*latitude2>0:
+                # Form the small polar complement before converting to
+                # radians. Subtracting rounded radians from π/2 loses it.
+                fraction=(1+sign*node)/2
+                polar_degrees=(90-abs(latitude1))-math.copysign(1.,latitude1)*(latitude2-latitude1)*fraction
+                theta=math.radians(polar_degrees)
+                sine, cosine = math.copysign(math.cos(theta),latitude1), math.sin(theta)
+            scale = 1-WGS84_E2*sine*sine
+            psi_terms.append(weight*(1-WGS84_E2)/(cosine*scale))
+            meridian_terms.append(weight*WGS84_A*(1-WGS84_E2)/scale**1.5)
+    return math.fsum(psi_terms)/math.fsum(meridian_terms)
+
+
+def _isometric_latitude_degrees(latitude: float) -> float:
+    if abs(latitude)<=45:
+        return isometric_latitude(math.radians(latitude))
+    theta=math.radians(90-abs(latitude))
+    spherical=-math.log(math.tan(theta/2))
+    ellipsoidal=WGS84_E*math.atanh(WGS84_E*math.cos(theta))
+    return math.copysign(spherical-ellipsoidal,latitude)
+
+
+def _isometric_delta_degrees(latitude1: float, latitude2: float) -> float:
+    delta=math.radians(latitude2-latitude1)
+    if delta==0:
+        return 0.
+    p1,p2=map(math.radians,(latitude1,latitude2))
+    if abs(delta)<1e-3*abs(math.cos((p1+p2)/2)) and max(abs(latitude1),abs(latitude2))<89:
+        return _isometric_difference(p1,p2,delta)
+    # The atanh subtraction ratio is ill-conditioned near ±1 even before
+    # rounding to one. Wide intervals instead subtract stable absolute ψ.
+    return _isometric_latitude_degrees(latitude2)-_isometric_latitude_degrees(latitude1)
+
+
+def _meridian_degrees(latitude1,latitude2):
+    if latitude1==latitude2:
+        return 0.
+    distance=GEOD.inv(0.,latitude1,0.,latitude2)[2]
+    return math.copysign(distance,latitude2-latitude1)
+
+
 def _meridian(phi1: float, phi2: float) -> float:
     if phi1 == phi2:
         return 0.0
@@ -84,19 +165,17 @@ def inverse(lon1, lat1, lon2, lat2, curve="rhumb") -> tuple[float, float | None]
     if abs(lat1) == 90 or abs(lat2) == 90:
         if abs(dl) > 1e-14:
             raise ValueError("恒向线不能以非子午方向连接极点，请使用 geodesic")
-        return abs(_meridian(p1, p2)), 0.0 if p2 > p1 else 180.0
-    dp = p2 - p1
+        return abs(_meridian_degrees(lat1, lat2)), 0.0 if p2 > p1 else 180.0
+    dp = math.radians(lat2-lat1)
     pm = (p1 + p2) / 2.0
-    if abs(dp) < 1e-8 and abs(dp) < 1e-5 * abs(math.cos(pm)):
-        # Stable midpoint divided difference, including an exact parallel.
-        sinm = math.sin(pm)
-        n = WGS84_A / math.sqrt(1.0 - WGS84_E2 * sinm * sinm)
-        meridian_radius = WGS84_A * (1.0 - WGS84_E2) / (1.0 - WGS84_E2 * sinm * sinm) ** 1.5
-        dpsi = dp * (1.0 - WGS84_E2) / (math.cos(pm) * (1.0 - WGS84_E2 * sinm * sinm))
-        distance = math.hypot(meridian_radius * dp, n * math.cos(pm) * dl)
+    if abs(dp) < 1e-3*abs(math.cos(pm)):
+        # Cancel the near-zero meridian difference algebraically. Native
+        # meridian inverse results cannot resolve nanometre latitude spans.
+        dpsi = _isometric_delta_degrees(lat1, lat2)
+        distance = math.hypot(dl, dpsi)/_rhumb_psi_per_meridian(p1, p2, latitude1=lat1, latitude2=lat2)
     else:
-        dpsi = isometric_latitude(p2) - isometric_latitude(p1)
-        distance = abs(_meridian(p1, p2) / dpsi) * math.hypot(dl, dpsi)
+        dpsi = _isometric_delta_degrees(lat1, lat2)
+        distance = abs(_meridian_degrees(lat1, lat2) / dpsi) * math.hypot(dl, dpsi)
     bearing = math.degrees(math.atan2(dl, dpsi)) % 360.0
     return distance, bearing
 
@@ -120,15 +199,22 @@ def interpolate(lon1, lat1, lon2, lat2, fraction: float, curve="rhumb") -> tuple
     if lat2 == lat1:
         return wrap_longitude(lon1 + dl * fraction), lat1 + (lat2 - lat1) * fraction
     # Constant bearing means meridian arc progresses linearly with distance.
-    signed_meridian = _meridian(math.radians(lat1), math.radians(lat2))
+    signed_meridian = _meridian_degrees(lat1, lat2)
     north = 0.0 if signed_meridian > 0 else 180.0
     _, lat, _ = GEOD.fwd(lon1, lat1, north, abs(signed_meridian) * fraction)
     if abs(lat1) == 90 or abs(lat2) == 90:
         return lon1, lat
-    psi1 = isometric_latitude(math.radians(lat1))
-    psi2 = isometric_latitude(math.radians(lat2))
-    psif = isometric_latitude(math.radians(lat))
-    return wrap_longitude(lon1 + dl * (psif - psi1) / (psi2 - psi1)), lat
+    phi1, phi2, phif = map(math.radians, (lat1, lat2, lat))
+    delta_phi = math.radians(lat2-lat1)
+    if abs(delta_phi) < 1e-3*abs(math.cos((phi1+phi2)/2)):
+        # Meridian fraction is the requested physical fraction. Multiplying
+        # it by the smooth divided-difference ratio avoids dividing a rounded
+        # latitude by an extremely small end-to-end latitude difference.
+        ratio = fraction*_rhumb_psi_per_meridian(phi1, phif,latitude1=lat1,latitude2=lat)/_rhumb_psi_per_meridian(phi1, phi2,latitude1=lat1,latitude2=lat2)
+        return wrap_longitude(lon1+dl*ratio), lat
+    change = _isometric_delta_degrees(lat1, lat2)
+    partial = _isometric_delta_degrees(lat1, lat)
+    return wrap_longitude(lon1 + dl * partial/change), lat
 
 
 def densify(lon1, lat1, lon2, lat2, curve="rhumb", spacing_m=5000.0, maximum=1000):
