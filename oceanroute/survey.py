@@ -15,6 +15,7 @@ import numpy as np
 
 from .core import analyze_project
 from .geodesy import GEOD, coordinate, densify, finite_number, interpolate, inverse, split_antimeridian
+from .route_geometry import segment_from_leg
 
 EPS = 1e-7
 
@@ -114,6 +115,26 @@ class _NearestCurve:
         self.separation=finite_number(config.get("ambiguity_kp_separation_m",100),"ambiguity_kp_separation_m",minimum=1,maximum=1e7)
         self.budget=_integer(config.get("max_work_evaluations",2_000_000),"max_work_evaluations",1,10_000_000)
         self.evaluations=0;self.cells=[];self.nodes=[]
+        self.segments=[]
+        options=project["route"].get("legs",[])
+        for i,(a,b) in enumerate(zip(self.points,self.points[1:])):
+            option=options[i] if i<len(options) else None
+            is_arc=option is not None and option.get("geometry") is not None
+            native_config=None
+            if is_arc:
+                remaining=self.budget-self.evaluations
+                if remaining<=0:
+                    raise SurveyError("SURVEY_WORK_LIMIT","圆弧构造没有剩余原生计算预算；不返回部分测量结果")
+                native_config={"max_work_units":min(remaining,2_000_000)}
+            try:
+                segment=segment_from_leg(a,b,option,self.curve,native_config)
+            except ValueError as error:
+                if is_arc and self._native_work_limit(error):
+                    raise SurveyError("SURVEY_WORK_LIMIT","圆弧构造超过剩余原生计算预算；不使用端点弦替代") from error
+                raise
+            if segment.is_arc:
+                self.charge(segment.solver["work_units"])
+            self.segments.append(segment)
         for i,leg in enumerate(self.legs):
             length=leg["surface_length_m"]
             if length<=EPS:continue
@@ -126,13 +147,52 @@ class _NearestCurve:
                 for fraction in fractions:
                     position=self.at(i,fraction)
                     indices.append(len(self.nodes));self.nodes.append((i,fraction,position))
-                self.cells.append((i,fractions[0],fractions[2],length/count,indices))
+                upper=self.segments[i].length_upper_bound_m/count
+                pad=self.segments[i].position_error_allowance_m if self.segments[i].is_arc else 0.
+                self.cells.append((i,fractions[0],fractions[2],upper+2*pad,indices))
         if not self.cells:raise SurveyError("SURVEY_EMPTY_ROUTE","规划路线没有正长度区段，无法定义横向偏差")
         self.xy=np.array([n[2] for n in self.nodes])
 
     def at(self, leg_index, fraction):
+        segment=self.segments[leg_index]
+        if not segment.is_arc:
+            # Preserve the pre-arc straight-route query accounting. Search
+            # distance/vector queries, rather than interpolation preparation,
+            # consume the historical survey logical work units.
+            a,b=self.points[leg_index:leg_index+2]
+            return interpolate(a["longitude"],a["latitude"],b["longitude"],b["latitude"],fraction,self.curve)
+        return self._arc_call(segment,segment.point_at_fraction,fraction)
+
+    @staticmethod
+    def _native_work_limit(error):
+        # Only translate the primitive's explicit work-limit failure. Invalid
+        # geometry and numerical convergence failures retain their own cause.
+        return str(error).startswith("route geometry max_work_units exceeded;")
+
+    def _arc_call(self,segment,method,fraction):
+        before=segment.solver["work_units"]
+        remaining=self.budget-self.evaluations
+        segment.config["max_work_units"]=min(segment.config["max_work_units"],before+remaining)
+        try:
+            return method(fraction)
+        except ValueError as error:
+            if self._native_work_limit(error):
+                raise SurveyError("SURVEY_WORK_LIMIT","圆弧查询超过剩余原生计算预算；不返回部分测量结果") from error
+            raise
+        finally:
+            # Failed inversions/quadrature may already have performed native
+            # calls. Charge those actual calls too; the cap prevents overspend.
+            self.charge(segment.solver["work_units"]-before)
+
+    def tangent(self,leg_index,fraction):
+        segment=self.segments[leg_index]
+        if segment.is_arc:
+            return self._arc_call(segment,segment.tangent_at_fraction,fraction)
         a,b=self.points[leg_index:leg_index+2]
-        return interpolate(a["longitude"],a["latitude"],b["longitude"],b["latitude"],fraction,self.curve)
+        length,bearing=inverse(a["longitude"],a["latitude"],b["longitude"],b["latitude"],self.curve)
+        if self.curve=="geodesic" and bearing is not None:
+            _,_,bearing=GEOD.fwd(a["longitude"],a["latitude"],bearing,length*fraction,return_back_azimuth=False)
+        return bearing
 
     def charge(self,amount):
         self.evaluations+=int(amount)
@@ -149,7 +209,11 @@ class _NearestCurve:
         distances=np.asarray(GEOD.inv(self.xy[:,0],self.xy[:,1],np.full(len(self.nodes),lon),np.full(len(self.nodes),lat))[2])
         initial=int(np.argmin(distances))
         li,frac,_=self.nodes[initial]
-        candidates=[(float(distances[initial]),self.legs[li]["start_kp_m"]+frac*self.legs[li]["surface_length_m"],li,frac)]
+        # Retain all sampled witnesses, including coincident full-circle
+        # endpoints with distinct physical manufacturing stations. A cell's
+        # single minimum must not erase another equally near station.
+        candidates=[(float(distances[i]),self.legs[leg]["start_kp_m"]+fraction*self.legs[leg]["surface_length_m"],leg,fraction)
+                    for i,(leg,fraction,_) in enumerate(self.nodes)]
         best=float(distances[initial])
         # A midpoint-distance minus half the surface arc is a valid geodesic
         # triangle-inequality lower bound even when the curve is a rhumb line.
@@ -175,10 +239,8 @@ class _NearestCurve:
         distance,kp,leg,fraction=closest
         ambiguous=any(c[0]<=best+self.ambiguity and abs(c[1]-kp)>=self.separation for c in candidates)
         position=self.at(leg,fraction)
-        a,b=self.points[leg:leg+2]
-        length,bearing=inverse(a["longitude"],a["latitude"],b["longitude"],b["latitude"],self.curve)
-        if self.curve=="geodesic":
-            _,_,bearing=GEOD.fwd(a["longitude"],a["latitude"],bearing,length*fraction,return_back_azimuth=False)
+        length=self.segments[leg].length_m
+        bearing=self.tangent(leg,fraction)
         residual_bearing=GEOD.inv(*position,lon,lat)[0]
         difference=math.radians((residual_bearing-bearing+180)%360-180)
         cross=distance*math.sin(difference) if distance>1e-5 else 0.0
