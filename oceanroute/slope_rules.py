@@ -12,6 +12,7 @@ import json
 import math
 
 from .geodesy import finite_number, inverse
+from .route_geometry import route_segments
 
 MODEL = "kp-slope-rules-v1"
 SIDE_MODEL = "route-side-slopes-v1"
@@ -390,7 +391,12 @@ def check_slope_rules(project, config=None, *, analysis=None, terrain_signature=
     output_budget.charge(len(_json(rules))+512+len(enabled)*1024)
     from .core import _profiles, _validate_points, route_signature
     points=_validate_points(route);keys=[0.]
-    for a,b in zip(points,points[1:]):keys.append(keys[-1]+inverse(a["longitude"],a["latitude"],b["longitude"],b["latitude"],route.get("curve","rhumb"))[0])
+    geometry_segments=route_segments(project,{"max_work_units":min(config["max_work_units"],10_000_000)})
+    for segment in geometry_segments:keys.append(keys[-1]+segment.length_m)
+    arc_work=sum(s.solver["work_units"] for s in geometry_segments if s.is_arc)
+    work+=arc_work
+    if work>config["max_work_units"]:
+        _error("SLOPE_RULE_WORK_BUDGET", "真实圆弧KP工作超过max_work_units，不按弦长替代")
     length=keys[-1];signature=route_signature(project)
     if length<=EPS_M:_error("SLOPE_RULE_ROUTE_EMPTY", "全部路线点重合，规则没有正长度KP域")
     profile_model=(profile_object.get("metadata") or {}).get("model")

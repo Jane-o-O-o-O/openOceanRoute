@@ -8,6 +8,7 @@ import math
 
 from .core import route_signature
 from .geodesy import GEOD, coordinate, finite_number, interpolate, inverse
+from .route_geometry import route_segments
 from .terrain_sources import MAX_QUERY_POINTS, normalize_sources, query_terrain
 
 MODEL = "route-side-slopes-v1"
@@ -49,7 +50,7 @@ def _config(value):
     return result
 
 
-def _route(project):
+def _route(project, max_work_units=30_000_000):
     if not isinstance(project, dict) or not isinstance(project.get("route"), dict):
         raise ValueError("side slopes requires a project with an explicit WGS84 route")
     route = project["route"]
@@ -65,13 +66,14 @@ def _route(project):
             raise ValueError("each route point must be a coordinate object")
         coordinates.append(coordinate(point.get("longitude"), point.get("latitude")))
     legs, kps = [], [0.]
-    for a, b in zip(coordinates, coordinates[1:]):
-        length, heading = inverse(*a, *b, curve)
+    segments = route_segments(project, {"max_work_units": min(10_000_000, max_work_units)})
+    for a, b, segment in zip(coordinates, coordinates[1:], segments):
+        length, heading = segment.length_m, segment.tangent_at_fraction(0)
         if length > 0:
             if heading is None:
                 raise ValueError("a positive route leg has numerically unresolved azimuth")
             legs.append({"a": a, "b": b, "start": kps[-1], "end": kps[-1]+length,
-                         "length": length, "initial_heading": heading})
+                         "length": length, "initial_heading": heading, "segment": segment})
         kps.append(kps[-1]+length)
     if not legs or kps[-1] <= 0:
         raise ValueError("all route points coincide; a transverse direction is undefined")
@@ -84,7 +86,10 @@ def _station(kp, curve, legs, starts):
     index = min(len(legs)-1, max(0, bisect.bisect_right(starts, kp)-1))
     leg = legs[index]
     distance = min(leg["length"], max(0., kp-leg["start"]))
-    if curve == "geodesic":
+    if leg["segment"].is_arc:
+        lon, lat = leg["segment"].point_at_distance(distance)
+        heading = leg["segment"].tangent_at_distance(distance)
+    elif curve == "geodesic":
         lon, lat, heading = GEOD.fwd(*leg["a"], leg["initial_heading"], distance,
                                     return_back_azimuth=False)
         if distance == 0:
@@ -106,7 +111,7 @@ def side_slopes_from_sources(project, config=None, *, sources=None):
     They are finite sampled secants, not point derivatives or continuous maxima.
     """
     config = _config(config)
-    curve, legs, waypoint_kps = _route(project)
+    curve, legs, waypoint_kps = _route(project, config["max_work_units"])
     total = waypoint_kps[-1]
     start = finite_number(config.get("start_kp_m", 0), "start_kp_m", minimum=0, maximum=total)
     end_value = config.get("end_kp_m")
@@ -154,6 +159,13 @@ def side_slopes_from_sources(project, config=None, *, sources=None):
                 azimuth = section["heading_deg"]+(90 if offset > 0 else -90)
                 lon, lat, _ = GEOD.fwd(section["longitude"], section["latitude"], azimuth, abs(offset))
             queries.append([float(lon), float(lat)])
+    # Count true arc integration/inversion in addition to legacy normalized
+    # geometry allowances. The remaining budget, not the original cap, goes to
+    # actual source preparation/querying; no per-arc cap multiplies the job cap.
+    arc_work = sum(leg["segment"].solver["work_units"] for leg in legs if leg["segment"].is_arc)
+    geometry_work += arc_work
+    if geometry_work >= config["max_work_units"]:
+        raise ValueError("side slopes true-arc geometry work exceeds max_work_units before source preparation")
     query_config = {key: config[key] for key in ("max_query_points", "max_output_bytes")}
     query_config["max_work_units"] = config["max_work_units"]-geometry_work
     if "vertical_datum" in config:
@@ -193,7 +205,8 @@ def side_slopes_from_sources(project, config=None, *, sources=None):
                 "slope_units": "degrees", "slope_definition": "finite_width_endpoint_secants_and_adjacent_sampled_segments",
                 "station_policy": "maximum_spacing_plus_range_endpoints_and_all_route_vertices",
                 "cross_track_geometry": "WGS84 geodesic normal rays at each station; signed surface distance from station",
-                "completeness_basis": "all_declared_probe_points_known_not_continuous_seabed_coverage"}
+                "completeness_basis": "all_declared_probe_points_known_not_continuous_seabed_coverage",
+                "leg_geometry_policy": "explicit_circular_arcs_use_true_integrated_KP_and_actual_circle_tangent; otherwise route.curve"}
     side = {"model": MODEL, "schema_version": 1, "route_signature": route_signature(project), "metadata": metadata, "samples": sections}
     candidate = candidate_base
     candidate["side_slopes"] = deepcopy(side)
@@ -215,6 +228,7 @@ def side_slopes_from_sources(project, config=None, *, sources=None):
               "budget": {**query["budget"], "work_units": geometry_work+query["budget"]["work_units"],
                          "max_work_units": config["max_work_units"], "geometry_work_units": geometry_work,
                          "terrain_query_work_units": query["budget"]["work_units"], "query_point_count": point_count,
+                         "arc_geometry_work_units": arc_work,
                          "output_preflight_upper_bound_bytes": output_upper,
                          "work_basis": "normalized route-inverse/station/geodesic-probe/section allowances plus genuine terrain preparation and point-query charges; not CPU FLOPs"},
               "warnings": warnings,
@@ -223,7 +237,7 @@ def side_slopes_from_sources(project, config=None, *, sources=None):
                   "Half/full angles are finite-width endpoint secants, not local derivatives; sampled maximum uses only adjacent known probes.",
                   "Complete means all declared probes have depth; narrow hazards/NoData between probes and between route stations may remain undetected.",
                   "Source transitions may create apparent slopes. They remain explicitly uncertain even when all probes have values.",
-                  "Geodesic forward azimuth varies along a leg; rhumb heading is constant. Corners use the outgoing one-sided tangent and the terminal uses the incoming tangent.",
+                  "Explicit circular arcs use integrated physical length and their actual radius-normal tangent. Geodesic forward azimuth varies along a straight leg; rhumb heading is constant. Corners use the outgoing one-sided tangent and the terminal uses the incoming tangent.",
                   "Each cross section follows station-normal WGS84 geodesic rays. Parallel offsets, a globally orthogonal corridor mesh, and a continuous-area maximum are not inferred.",
                   "No profile, route geometry, cable material, assembly or manufacture inventory is modified; the caller reviews the separate side-slopes candidate."]}
     volume = len(_json(result))
