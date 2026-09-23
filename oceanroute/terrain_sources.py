@@ -23,6 +23,7 @@ from pyproj.transformer import TransformerGroup
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
 from .geodesy import coordinate, finite_number, inverse, interpolate
+from .route_geometry import route_segments
 from .surfer import read_grid, _sample as _surfer_sample
 from .units import length_factor
 
@@ -666,22 +667,39 @@ def _route_samples(project, config):
         _error("TERRAIN_ROUTE", "路线须含2～10,000个点")
     curve = route.get("curve", "rhumb"); spacing = config["spacing_m"]
     segments, needed = [], 1
-    for a, b in zip(points, points[1:]):
+    # Legacy straight evaluation retains its previous admission/error contract.
+    # Explicit arcs additionally obey a native numerical work counter.
+    has_arc = any(isinstance(leg, dict) and leg.get("geometry") is not None for leg in route.get("legs", []))
+    try:
+        route_parts = route_segments(project, {"max_work_units": min(config["max_work_units"], 10_000_000)} if has_arc else None)
+    except ValueError as error:
+        if "max_work_units" in str(error):
+            _error("TERRAIN_WORK_BUDGET", "真实圆弧几何求解工作超过max_work_units")
+        raise
+    for a, b, segment in zip(points, points[1:], route_parts):
         if not isinstance(a, dict) or not isinstance(b, dict):_error("TERRAIN_ROUTE", "每个路线点须为对象")
-        distance, _ = inverse(a.get("longitude"), a.get("latitude"), b.get("longitude"), b.get("latitude"), curve)
+        distance = segment.length_m
         count = math.ceil(distance/spacing) if distance > 1e-9 else 0
         needed += count
         if needed > config["max_query_points"]:_error("TERRAIN_LIMIT", "路线采样超过max_query_points，请增大spacing_m，不自动删点")
-        segments.append((a, b, distance, count))
+        segments.append((a, b, distance, count, segment))
     first = points[0]; longitude, latitude = coordinate(first.get("longitude"), first.get("latitude"))
     samples, kp = [{"longitude": longitude, "latitude": latitude, "kp_m": 0.}], 0.
-    for a, b, distance, count in segments:
+    for a, b, distance, count, segment in segments:
         for j in range(1, count+1):
-            longitude, latitude = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], j/count, curve)
+            try:
+                longitude, latitude = segment.point_at_fraction(j/count)
+            except ValueError as error:
+                if "max_work_units" in str(error):
+                    _error("TERRAIN_WORK_BUDGET", "真实圆弧KP反解工作超过max_work_units，不采用角分数或端点弦回退")
+                raise
             samples.append({"longitude": longitude, "latitude": latitude, "kp_m": kp+distance*j/count})
         kp += distance
     if kp <= 1e-9:_error("TERRAIN_ROUTE", "全部路线点重合，无正长度剖面")
-    return samples
+    arc_work = sum(segment.solver["work_units"] for segment in route_parts if segment.is_arc)
+    if arc_work >= config["max_work_units"]:
+        _error("TERRAIN_WORK_BUDGET", "真实圆弧KP采样工作超过max_work_units，不按端点弦代替")
+    return samples, arc_work
 
 
 def profile_from_sources(project, config=None, *, sources=None):
@@ -689,14 +707,17 @@ def profile_from_sources(project, config=None, *, sources=None):
     from .core import route_signature
     config = _config(config, profile=True)
     normalized = normalize_sources(project.get("terrain_sources", []) if sources is None else sources)
-    rows = _route_samples(project, config)
-    result = _query(normalized, rows, config)
+    rows, arc_work = _route_samples(project, config)
+    result = _query(normalized, rows, {**config, "max_work_units": config["max_work_units"]-arc_work})
+    result["budget"].update(work_units=result["budget"]["work_units"]+arc_work,
+                            max_work_units=config["max_work_units"], arc_geometry_work_units=arc_work)
     metadata = {"model": MODEL, "name": "共享多源地形", "terrain_library_signature": result["quality"]["library_signature"],
                 "vertical_datum": result["quality"]["vertical_datum"], "depth_positive": "down", "units": "m",
                 "spacing_m": config["spacing_m"], "priority_policy": "descending_priority_then_id", "sources": result["sources"],
                 "source_counts": result["quality"]["source_counts"], "fallback_count": result["quality"]["fallback_count"],
                 "missing_count": result["quality"]["missing_count"], "excluded_datum_source_ids": result["quality"]["excluded_datum_source_ids"],
-                "query_budget": result["budget"]}
+                "query_budget": result["budget"],
+                "route_geometry_policy": "explicit_circular_arc_integrated_KP_and_true_positions; otherwise route.curve"}
     profile = {"route_signature": route_signature(project), "source": metadata["name"], "metadata": metadata,
                "samples": [{key: row[key] for key in ("kp_m", "depth_m", "source_id", "source_fingerprint", "fallback", "fallback_count")} for row in result["samples"]]}
     candidate = deepcopy(project); candidate["terrain_sources"] = normalized; candidate["profile"] = profile

@@ -11,6 +11,7 @@ import json
 import math
 
 from .core import route_signature
+from .route_geometry import route_segments
 from .geodesy import GEOD, coordinate, finite_number, interpolate, inverse
 from .terrain_sources import (MAX_QUERY_POINTS, _bytes, _query, _raster_header,
                               _surfer_dimensions, normalize_sources)
@@ -159,23 +160,34 @@ class SlopeNeighborhoodSampler:
                     raise ValueError("route points must be coordinate objects")
                 points.append(coordinate(p.get("longitude"), p.get("latitude")))
             curve, total, legs = route.get("curve", "rhumb"), 0., []
-            for a, b in zip(points, points[1:]):
-                length, heading = inverse(*a, *b, curve)
+            geometry_segments = route_segments(self.project, {"max_work_units": min(self.config["max_work_units"], 10_000_000)})
+            for segment in geometry_segments:
+                length, heading = segment.length_m, segment.tangent_at_fraction(0)
                 if length > 0:
                     if heading is None:
                         raise ValueError("a positive route leg has unresolved azimuth")
-                    legs.append((a, b, total, length))
+                    legs.append((segment, total, length))
                     total += length
-            self._route = (curve, legs, [leg[2] for leg in legs], total, points[0], route_signature(self.project))
+            self._route = (curve, legs, [leg[1] for leg in legs], total, points[0], route_signature(self.project))
         curve, legs, starts, total, first, signature = self._route
-        kp = finite_number(kp, "center.kp_m", minimum=0, maximum=total)
+        kp = finite_number(kp, "center.kp_m", minimum=0)
+        if kp > total:
+            # Native distance engines can differ by a few representable
+            # floats at an otherwise identical terminal station. This admits
+            # at most eight successor floats, not a metre engineering margin.
+            terminal_limit = total
+            for _ in range(8):
+                terminal_limit = math.nextafter(terminal_limit, math.inf)
+            if kp > terminal_limit:
+                raise ValueError(f"center.kp_m 必须 ≤ {total}")
+            kp = total
         if not legs:
             # A 2D circular window needs no route tangent. All-zero legs are
             # valid at KP0, unlike a route-normal transverse section.
             return first, kp, signature
-        a, b, start, length = legs[min(len(legs)-1, max(0, bisect.bisect_right(starts, kp)-1))]
+        segment, start, length = legs[min(len(legs)-1, max(0, bisect.bisect_right(starts, kp)-1))]
         fraction = min(1., max(0., (kp-start)/length))
-        return interpolate(*a, *b, fraction, curve), kp, signature
+        return segment.point_at_fraction(fraction), kp, signature
 
     def _windows(self, windows):
         if not isinstance(windows, list) or not 1 <= len(windows) <= MAX_WINDOWS:
@@ -210,7 +222,8 @@ class SlopeNeighborhoodSampler:
         route = self.project.get("route")
         points = route.get("points") if isinstance(route, dict) else None
         route_work = 16*max(0, len(points)-1) if isinstance(points, list) else 0
-        geometry = route_work+128*len(windows)+32*vertices+48*q+128*t
+        arc_work = sum(s.solver["work_units"] for s, _, _ in self._route[1] if s.is_arc) if self._route else 0
+        geometry = route_work+arc_work+128*len(windows)+32*vertices+48*q+128*t
         enabled_ids = [len(_json(s["id"])) for s in self.sources if s["enabled"]]
         # Full source payloads are not returned. Account for long UTF-8 IDs in
         # every attempt and provenance record, and complete triangle evidence.
@@ -224,6 +237,7 @@ class SlopeNeighborhoodSampler:
         estimated = self.normalization_work+geometry+self.preparation_upper+q*self.query_cost_upper
         return {"window_count": len(windows), "query_count_upper_bound": q, "triangle_count": t,
                 "normalization_work_units": self.normalization_work, "geometry_work_units": geometry,
+                "arc_geometry_work_units": arc_work,
                 "terrain_work_units_upper_bound": self.preparation_upper+q*self.query_cost_upper,
                 "estimated_work_units": estimated, "output_upper_bound_bytes": output,
                 "max_query_points": self.config["max_query_points"], "max_work_units": self.config["max_work_units"],
