@@ -13,6 +13,7 @@ import math
 
 from .core import analyze_project, route_signature
 from .geodesy import finite_number, inverse
+from .route_geometry import route_segments
 from .terrain_sources import normalize_sources, _library_signature, profile_from_sources
 from .workspace import (_validate, _analyzed, _materialize, _strip, _manufacturing,
                         _physical, _equivalent, _assembly_from, validate_workspace,
@@ -115,17 +116,25 @@ def _bound(project):
     return isinstance(metadata, dict) and metadata.get("model") in BOUND_MODELS
 
 
-def _sample_count(project, spacing):
+def _sample_count(project, spacing, *, max_work_units=None, with_work=False):
     route = project.get("route")
     if not isinstance(route, dict) or not isinstance(route.get("points"), list) or not 2 <= len(route["points"]) <= 10000:
         _error("WORKSPACE_TERRAIN_DRAFT", "草稿route须为2..10,000点路线")
     count = 1
-    for a, b in zip(route["points"], route["points"][1:]):
+    has_arc = any(isinstance(leg, dict) and leg.get("geometry") is not None for leg in route.get("legs", []))
+    try:
+        parts = route_segments(project, {"max_work_units": min(10_000_000, max_work_units)} if has_arc and max_work_units is not None else None)
+    except ValueError as error:
+        if "max_work_units" in str(error):
+            _error("TERRAIN_WORK_BUDGET", "真实圆弧路线采样预估超过工作预算")
+        raise
+    for a, b, segment in zip(route["points"], route["points"][1:], parts):
         if not isinstance(a, dict) or not isinstance(b, dict):
             _error("WORKSPACE_TERRAIN_DRAFT", "草稿路线点须为对象")
-        distance, _ = inverse(a.get("longitude"), a.get("latitude"), b.get("longitude"), b.get("latitude"), route.get("curve", "rhumb"))
+        distance = segment.length_m
         count += math.ceil(distance/spacing) if distance > 1e-9 else 0
-    return count
+    arc_work = sum(s.solver["work_units"] for s in parts if s.is_arc)
+    return (count, arc_work) if with_work else count
 
 
 def _admit_draft(old, draft):
@@ -213,6 +222,7 @@ def preview_workspace_terrain(workspace, sources, config=None, *, draft=None):
     initial = deepcopy(old)
     diagnostics, errors, warnings, manufacturing = [], [], [], []
     work, completed_query_work, completed_points, estimated_points = 0, 0, 0, 0
+    preflight_arc_work = 0
     draft_report = None
 
     def finish(candidate=None, analysis=None):
@@ -225,7 +235,8 @@ def preview_workspace_terrain(workspace, sources, config=None, *, draft=None):
                   "before_summary": before, "after_summary": analysis["summary"] if analysis else None,
                   "budget": {"estimated_query_points": estimated_points, "completed_query_points": completed_points,
                              "work_units": work, "completed_query_work_units": completed_query_work,
-                             "work_accounting": "completed query allowances plus conservative remaining reservation on work-budget failure; not CPU FLOPs",
+                             "preflight_arc_geometry_work_units": preflight_arc_work,
+                             "work_accounting": "actual arc preflight numerical evaluations plus completed query allowances and conservative remaining reservation on work-budget failure; not CPU FLOPs",
                              "max_total_query_points": c["max_total_query_points"],
                              "max_total_work_units": c["max_total_work_units"],
                              "max_total_output_bytes": c["max_total_output_bytes"]},
@@ -274,7 +285,15 @@ def preview_workspace_terrain(workspace, sources, config=None, *, draft=None):
 
     counts = {}
     try:
-        counts = {p["id"]: _sample_count(p["project"], c["spacing_m"]) for p in base["paths"] if p["id"] in selected}
+        for p in base["paths"]:
+            if p["id"] not in selected:
+                continue
+            count, arc_work = _sample_count(p["project"], c["spacing_m"], max_work_units=max(1, c["max_total_work_units"]-work), with_work=True)
+            counts[p["id"]] = count
+            preflight_arc_work += arc_work
+            work += arc_work
+            if work >= c["max_total_work_units"]:
+                _error("TERRAIN_WORK_BUDGET", "真实圆弧路线采样预估耗尽整体工作预算")
     except ValueError as exc:
         errors.append(_failure(exc, "preflight"))
         for row in diagnostics:

@@ -196,6 +196,12 @@ def _geometry_work(project):
     route = _object(project.get("route"), "route")
     raw = _array(route.get("points"), "route.points", 10000)
     points = [_object(p, "route.point") for p in raw]
+    if any(isinstance(leg, dict) and leg.get("geometry") is not None for leg in route.get("legs", [])):
+        from .route_geometry import render_route
+        # Curvature may require extra drawing points even on a short circle.
+        # Count the actual admitted rendering rather than the endpoint chord.
+        rendered = render_route(project, max_vertices=MAX_GEOMETRY_VERTICES)
+        return len(rendered["coordinates"])
     vertices = 1 if points else 0
     for a, b in zip(points, points[1:]):
         distance, _ = inverse(a.get("longitude"), a.get("latitude"), b.get("longitude"), b.get("latitude"), route.get("curve", "rhumb"))
