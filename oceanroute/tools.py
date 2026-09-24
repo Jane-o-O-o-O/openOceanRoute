@@ -204,6 +204,8 @@ def _insert_kps(project, cuts, analysis=None):
     points, legs = [deepcopy(original_points[0])], []
     ids = {str(p.get("id", f"p{i+1}")) for i, p in enumerate(original_points)}
     inserted = []
+    from .route_geometry import route_segments
+    actual_segments = route_segments(project)
     for i, calculated in enumerate(analysis["legs"]):
         start, end = calculated["start_kp_m"], calculated["end_kp_m"]
         interior = [kp for kp in cuts if start + EPS < kp < end - EPS]
@@ -212,6 +214,11 @@ def _insert_kps(project, cuts, analysis=None):
         assigned_fixed = 0.0
         for j, (left, right) in enumerate(zip(partition, partition[1:])):
             leg = deepcopy(base_options)
+            child = actual_segments[i].subsegment(max(0., left-start), min(actual_segments[i].length_m, right-start))
+            if child.geometry is None:
+                leg.pop("geometry", None)
+            else:
+                leg["geometry"] = child.geometry
             for prop in ("allowance_m", "stop_hours", "extra_cost"):
                 if j != len(partition) - 2:
                     leg[prop] = 0
@@ -227,7 +234,7 @@ def _insert_kps(project, cuts, analysis=None):
                 point = deepcopy(original_points[i + 1])
             else:
                 a, b = original_points[i], original_points[i + 1]
-                lon, lat = interpolate(a["longitude"], a["latitude"], b["longitude"], b["latitude"], (right - start) / (end - start), curve)
+                lon, lat = actual_segments[i].point_at_fraction((right-start)/(end-start))
                 index = len(inserted) + 1
                 point_id = f"insert-{index}"
                 while point_id in ids:
@@ -260,6 +267,8 @@ def subdivide_project(project: dict, config: dict | None = None) -> dict:
             raise ValueError("细分后超过 10,000 个路线点，请增加间距")
         result, inserted = _insert_kps(project, cuts, before)
     elif mode == "geodesic_as_rhumb":
+        if any(l.get("geometry") is not None for l in project["route"].get("legs", [])):
+            raise ValueError("圆弧不能通过更改全局 curve 转换；请使用显式圆弧转恒向线工具")
         # New shape: exact geodesic vertices connected by short rhumb segments.
         source = _clean_project(project)
         source["route"]["curve"] = "geodesic"
@@ -564,12 +573,16 @@ def reverse_project(project: dict) -> dict:
 
     result["route"]["points"] = list(reversed(result["route"]["points"]))
     effective = [_effective_leg(project, before, i) for i in range(len(before["legs"]))]
+    from .route_geometry import route_segments
+    original_segments = route_segments(project)
     # A per-leg allowance is anchored to its old endpoint. Keeping it in the
     # reversed leg would anchor it to the opposite end, changing physical spans.
     allowances = _canonical_allowances(project, before, include_leg=True)
     for i, leg in enumerate(effective):
         if leg.get("allowance_m", 0):
             leg["allowance_m"] = 0
+        if original_segments[i].geometry is not None:
+            leg["geometry"] = original_segments[i].reversed().geometry
     result["route"]["legs"] = list(reversed(effective))
     result["route"]["allowances"] = [{**a, "kp_m": flip(a["kp_m"])} for a in reversed(allowances)]
     result.pop("allowances", None)
