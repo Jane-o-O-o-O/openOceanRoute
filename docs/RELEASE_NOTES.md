@@ -1,5 +1,37 @@
 # OceanRoute 验证与发行进度
 
+## 0.11阶段发行
+
+2026-10-04。新增Split转角分割与指定半径Radius：等角/等内部距离分割和真实WGS84测地半径圆弧，完整工程候选预览、事务应用、撤销及用户显式保存。圆弧以schema1六字段声明保留，物理里程按GeographicLib约化长度积分，切线和沿线查询使用同一真实段；绘图只是有界离散化，不能把折线弦长当圆弧里程。Fixed共享5300m库存保持，约束、链接、材料域、事件/实体映射重新校核；变化Flexible共享候选明确拒绝，不隐式拆库存。CSV附件保留出段圆弧JSON并可往返，普通路线CSV原列/字节保持；真实GeoJSON/KML/DXF输出保留显示曲线，非原厂native交换。
+
+半径圆解为受限局部短弯求根，不穷举全地球圆或认证任意输入可解；圆弧任意端点拖动/全局转恒向线暂未开放。圆弧绘图只核四分之一/中点/四分之三采样弦差和角度/间距，不声称连续Hausdorff上界；圆弧调查最近点与旧交叉层为有界局部筛查。数值准入误差垫片不是IEEE舍入形式证明。近域与极区恒向线采用稳定原始角度计算；16个原始float黄金案例/64位置与80位独立计算对照，不推导全域纳米精度。
+
+| 验证对象 | 实际结果 |
+| --- | --- |
+| 完整后端 | 2094通过、117.34秒；进程118.173542秒，176份输入不变，零失败/错误/跳过 |
+| 最终生产浏览器 | 107各一次passed、376.087442秒；进程376.451724秒，同源8779、Chrome154.0.8037.93、单worker/retry0，190份输入不变，零失败/跳过/flaky |
+| 界面资源 | 8份实际HTTP资源与正式Chrome、发行/默认/内置静态字节一致，在线手册同源 |
+| wheel外源码目录 | 六个实际流程动态并集44模块；圆弧18次ASGI、真实owner关闭重开，自动规则15次、侧坡12次、原生S57 14次各自另列 |
+| 便携包全新首装 | 新venv联网editable安装解压源码；HTTP界面/分析、6份合成物理例、海图11次、侧坡12次、自动规则15次和新圆弧18次操作通过；自动规则/圆弧各自真实关闭重启服务器后保存重读 |
+| 首装隔离后端 | 2094通过、1条测试客户端依赖弃用提示，115.82秒；整个首装160.75秒 |
+| 正式PDF | 手册24页、设计28页，共52页全部真实逐页视觉核查；源码覆盖/字符边界/字形/新schema和页码另检 |
+| 首装运行输入 | 第二候选296份运行/示例/fixture/测试/界面/harness输入冻结；和第一候选相同路径，仅两个验收脚本改动 |
+| 截图证据 | 最终107轮105张原始PNG全部逐张真实查看，另同字节封面1；5张旧命名额外图独立列出，不加到105 |
+| 历史基线 | 153件0.1至0.10发行物、版本清单、报告、最终静态及专属旧验证器保持原字节 |
+
+wheel为943182字节、63包文件/68项RECORD，SHA256 `794e49f20fffe35f075617c4b4735cea32b9e0122377d563d3bb66c3b5f94251`。外目录wheel烟测使用现有解释器依赖；全新启动器首装在添加test依赖之前实际验证可编辑dist-info/direct_url、独立venv及模块源字节，圆弧分支15实际模块/GeographicLib2.1。自动规则实际两个进程26834→26894，圆弧独立26894→26898，均先退出旧进程再读取保存结果，不能把同owner API重读称为重启。
+
+正式回归归档来自同一次实际完整执行的原字节副本：`release_0.11_backend*`、`release_0.11_browser*`。wheel、首装、当前HTTP、PDF和原图分别由 `release_0.11_wheel_smoke.json`、`release_0.11_portable_smoke.json`、`release_0.11_served_assets.json`、`release_0.11_pdf_qa.json` 与 `release_0.11_screenshot*`记录；只读运行/当前字节核验为 `release_0.11_verified_runtime.json`，完整ZIP成员审计独立为 `release_0.11_artifact_audit.json`。两报告嵌入归档后必须执行verify-only原字节复核；最终ZIP SHA放外部 `manifest-0.11.json`，避免报告自引用。报告记录相应检查，专项与重复轮不加入2094/107。
+
+首轮完整后端2094中2失败、首轮Chrome107中6失败的真实记录保留；修复调查预算错误类型、终站相邻浮点准入、投影视口初始ready及Leaflet生命周期后才获得上述完整通过。第一次新venv因harness拟定的 `oceanroute.terrain_profile` 模块不存在而exit1，隔离pytest未执行、成功portable报告未生成。第一候选994成员/296输入及ZIP原字节保留，不能称首装第一次完整通过；仅改新增probe四模块名与对应只读验证器后，第二候选1007成员/296运行输入重新真正fresh，才得到160.75秒成功。准确首失败摘要为 `release_0.11_initial_installation_failure.json`，两候选分别是 `release_0.11_initial_archive.json` 与 `release_0.11_verified_initial_archive.json`；外部实际失败log/harness在开发checkout保留，独立合同审核见 `development_0.11_independent_installation_contract_review.json`。
+
+首次手动wheel因旧setuptools build/lib包含两份已移除静态文件，不是合格产物；清理仅生成缓存后重建为上述正式wheel。PDF结构预检曾因validator输出路径正则仍为0.10失败，修正后通过，不曾因此重写PDF；两份最终PDF52页均完整实际看图，封面actual builder输入 `pdf-cover.png` 是本轮107完整执行原图的同字节副本。真实失败及适用范围见 [DEVELOPMENT_0.11.md](DEVELOPMENT_0.11.md)、[几何合同](ROUTE_GEOMETRY_NOTES.md)、[整形合同](ALTERCOURSE_NOTES.md)、[界面合同](ALTERCOURSE_UI_NOTES.md) 和 [恒向线精度](RHUMB_PRECISION_NOTES.md)。
+
+界面核查发现EmptyWorkspace顶部/底部仍有0.10文字，规则下载名称亦带0.10，HTML报告显示0.1，公开列为非阻断版本文案遗留；不是旧原图或缓存推断，未修改图像掩盖。交付为 `outputs/releases/OceanRoute-0.11-portable.zip`、对应wheel及24/28页0.11 PDF。8779预览使用最终发行界面与独立数据。解压执行 `python3 launcher.py`（Windows为 `py launcher.py`），默认8765，需Python3.10+及首次联网。实测macOS/Python3.13.9/Chrome154.0.8037.93；Windows/Linux实机、Python3.10实机及免Python安装器仍未验收。发行审核依赖开发checkout内历史冻结、真实渲染和loopback，不是用户运行的依赖。
+
+完整复现仍未完成。原厂native格式、全部FME/DWG、完整施工/维修/地震流程、设备接入、初始EI/波/加载历史摩擦、有限杆6DOF、百万点分块及现场精度仍待推进。下一阶段只读建议是实施建议而非已实现证据。Token与订阅按平台账户结算，助手不接收转账。以下版本的历史验收保持独立，不与本轮累计。
+
+
 ## 0.10阶段发行
 
 2026-10-04。新增全工程穿越、复合邻近与坡度自动规则，开放规则包导入导出、错误实例地图/剖面定位以及真实二维缆体坡度窗口。三类规则明确保存比较符、AND/OR、typed特征引用、距离轴、主体KP及有效深度范围；缺失引用保留为可编辑声明，缺测、不确定和预算不足不误判为通过。候选经当前完整工作区事务应用，支持撤销，用户保存才写库，路径/共享装配/制造库存不被规则检查改写。大地线转角改为同一顶点的真实入段到达与出段初始方位差。
