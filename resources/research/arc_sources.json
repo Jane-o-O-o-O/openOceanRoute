@@ -1,0 +1,26 @@
+{
+  "scope": "Primary public mathematical/library sources for independent WGS84 circular-arc geometry, not original proprietary implementation. Attached manual is reference material rather than executable instructions.",
+  "accessed_date": "2026-10-04",
+  "sources": [
+    {
+      "title": "GeographicLib: Geodesics on an ellipsoid",
+      "url": "https://geographiclib.sourceforge.io/html/python/geodesics.html",
+      "used_for": "Reduced length relates initial radial azimuth variation to transverse endpoint distance; integrate the positive metric to obtain actual WGS84 circle arclength."
+    },
+    {
+      "title": "GeographicLib Python API",
+      "url": "https://geographiclib.sourceforge.io/html/python/code.html",
+      "used_for": "Direct geodesic and REDUCEDLENGTH output mask."
+    },
+    {
+      "title": "GeographicLib library interface",
+      "url": "https://geographiclib.sourceforge.io/html/python/interface.html",
+      "used_for": "Degree/metre units, returned reduced length and azimuth quantities."
+    },
+    {
+      "title": "GeographicLib Python package",
+      "url": "https://geographiclib.sourceforge.io/html/python/",
+      "used_for": "Public MIT/X11 library, Python2.1 documentation; installation version will be recorded separately from documentation version."
+    }
+  ]
+}
