@@ -109,6 +109,7 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             {"id": "terrain_sources", "name": "共享多源地形 / 来源追溯", "status": "implemented", "note": "优先级、NoData回退、同名垂直基准及库摘要失效；8源/12MiB/50k点上限"},
             {"id": "side_slopes", "name": "路线侧坡 / 横向采样带", "status": "research", "note": "实际曲线法向探点、右舷上坡为正；左右割线和局部最大坡度，保留缺测、来源边界及路线/源库失效"},
             {"id": "slope_rules", "name": "KP 区间纵坡 / 侧坡规则", "status": "implemented", "note": "每路径最多512条持久规则，报告采样超限、缺测与过期；采样通过不代表连续海底安全"},
+            {"id": "arc_edit", "name": "真圆弧端点编辑", "status": "research", "note": "保留半径与有向小弧／大弧分支，重构所有相邻弧并重验原制造域；完整工作区候选不自动保存"},
             {"id": "automatic_rules", "name": "自动穿越 / 邻近 / 坡度规则", "status": "research", "note": "共享声明、typed GIS引用、真实逐实例结果与定位；开放包候选导入导出、缺引用保留及整笔应用；明确比较方向、实际曲线几何与未知范围"},
             {"id": "terrain_slope_neighborhoods", "name": "组件周边二维坡度窗口", "status": "research", "note": "真实二维源探点及六子片坡度；缺测与接缝停用，报告未覆盖圆域边缘；不证明连续海床安全"},
             {"id": "workspace_terrain", "name": "整工程地形重采样", "status": "implemented", "note": "多路径、底余缆及共享库存一笔预览验收；缺测、固定域不足或不同制造结果整笔拒绝"},
@@ -180,6 +181,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             raise ValueError("altercourse preview须仅含workspace/path_id/kind/config")
         return preview_altercourse_workspace(payload["workspace"], payload["path_id"], payload["kind"], payload["config"])
 
+    @app.post("/api/workspace/arc-edit-preview")
+    def preview_workspace_arc_edit(payload: dict):
+        from .arc_edit_workspace import preview_arc_edit_workspace
+        if set(payload) != {"workspace", "path_id", "config"}:
+            raise ValueError("arc-edit preview须仅含workspace/path_id/config")
+        return preview_arc_edit_workspace(payload["workspace"], payload["path_id"], payload["config"])
+
     def automatic_rule_workspace(payload: dict, *, importing=False):
         from .workspace import _validate
         allowed = {"workspace", "config", "package"} if importing else {"workspace", "config"}
@@ -219,7 +227,9 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     def automatic_rule_export(payload: dict):
         from .automatic_rules import export_automatic_rules
         workspace, _, _ = automatic_rule_workspace(payload)
-        return automatic_rule_response(export_automatic_rules(workspace, payload.get("config")))
+        result = export_automatic_rules(workspace, payload.get("config"))
+        result["filename"] = exchange.export_filename(workspace, "automatic_rules")
+        return automatic_rule_response(result)
 
     @app.post("/api/automatic-rules/import")
     def automatic_rule_import(payload: dict):
@@ -242,8 +252,9 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     @app.post("/api/workspace/export")
     def export_workspace(payload: dict):
         from .workspace import export_workspace as write
-        return Response(write(payload), media_type="application/json",
-                        headers={"Content-Disposition": 'attachment; filename="workspace.oceanroute.json"'})
+        content = write(payload)
+        return Response(content, media_type="application/json",
+                        headers={"Content-Disposition": exchange.export_content_disposition(json.loads(content), "workspace")})
 
     @app.get("/api/workspaces")
     def workspaces():
@@ -676,16 +687,16 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         }
         if format_name == "assembly":
             from .assembly import export_assembly
-            return Response(export_assembly(payload), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="manufacturing.csv"'})
+            return Response(export_assembly(payload), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": exchange.export_content_disposition(payload, format_name)})
 
         if format_name == "project":
             content = json.dumps(payload, ensure_ascii=False, allow_nan=False, indent=2)
-            return Response(content, media_type="application/json", headers={"Content-Disposition": 'attachment; filename="project.oceanroute.json"'})
+            return Response(content, media_type="application/json", headers={"Content-Disposition": exchange.export_content_disposition(payload, format_name)})
         if format_name not in exporters:
             raise HTTPException(404, "不支持的导出格式")
         function, mime, filename = exporters[format_name]
         return Response(function(payload, analysis), media_type=mime,
-                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+                        headers={"Content-Disposition": exchange.export_content_disposition(payload, format_name)})
 
     @app.post("/api/route/reverse")
     def reverse_route(payload: dict):
@@ -710,6 +721,11 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
                 raise ValueError("altercourse tool须仅含project/config")
             from .altercourse import split_altercourse, radius_altercourse
             functions.update({"split-altercourse": split_altercourse, "radius-altercourse": radius_altercourse})
+        if kind == "arc-edit":
+            if set(payload) != {"project", "config"}:
+                raise ValueError("arc-edit tool须仅含project/config")
+            from .arc_edit import edit_arc_project
+            functions["arc-edit"] = edit_arc_project
         if kind == "reverse":
             return _inherit_revision(project, reverse_project(project))
         if kind not in functions:
