@@ -117,6 +117,86 @@ report.update(isolated_modules=modules, version=sys.argv[1],
 print(json.dumps(report, ensure_ascii=False, allow_nan=False))
 '''
 
+ALTERCOURSE_SMOKE_WRAPPER = r'''
+import hashlib
+import importlib
+import json
+from pathlib import Path
+import runpy
+import sys
+from fastapi.testclient import TestClient
+from oceanroute.api import create_app
+from oceanroute.storage import ProjectStore
+
+root = Path.cwd().resolve()
+checkout = Path(sys.argv[3]).resolve()
+assert not root.is_relative_to(checkout), (root, checkout)
+modules, module_hashes = {}, {}
+for name in ('oceanroute', 'oceanroute.api', 'oceanroute.core', 'oceanroute.geodesy',
+             'oceanroute.route_geometry', 'oceanroute.altercourse',
+             'oceanroute.altercourse_workspace', 'oceanroute.constraints',
+             'oceanroute.tools', 'oceanroute.exchange', 'oceanroute.rpl_templates',
+             'oceanroute.workspace', 'oceanroute.workspace_storage',
+             'oceanroute.storage', 'oceanroute.sqlite_lifecycle'):
+    module = importlib.import_module(name)
+    location = Path(module.__file__).resolve()
+    assert location.is_relative_to(root / 'oceanroute'), (name, location, root)
+    modules[name] = str(location.relative_to(root))
+    module_hashes[name] = hashlib.sha256(location.read_bytes()).hexdigest()
+assert importlib.import_module('oceanroute').__version__ == sys.argv[1]
+helper = root / 'harnesses' / 'altercourse_smoke.py'
+assert helper.resolve().is_relative_to(root), helper
+helper_bytes = helper.read_bytes()
+helper_digest = hashlib.sha256(helper_bytes).hexdigest()
+assert helper_digest == sys.argv[2], (helper_digest, sys.argv[2])
+run_altercourse_smoke = runpy.run_path(str(helper))['run_altercourse_smoke']
+
+database = root / 'installed-altercourse-workflow.sqlite3'
+client = TestClient(create_app(ProjectStore(database)))
+client.__enter__()
+reads, owner_reopened = 0, False
+owner_events = [{'event': 'client_enter', 'owner': 1}]
+def post(path, payload):
+    response = client.post(path, json=payload)
+    if response.status_code == 422:
+        return {'_http_status': 422, '_error': response.json()}
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    if path == '/api/export/csv':
+        return {'_http_status': response.status_code,
+                '_content_type': response.headers['content-type'], '_text': response.text}
+    return response.json()
+def get(path):
+    global client, reads, owner_reopened
+    reads += 1
+    if reads == 2:
+        old_client, old_app = client, client.app
+        old_client.__exit__(None, None, None)
+        owner_events.append({'event': 'client_exit', 'owner': 1, 'before_get_number': reads})
+        client = TestClient(create_app(ProjectStore(database)))
+        assert client is not old_client and client.app is not old_app
+        client.__enter__()
+        owner_events.append({'event': 'client_enter', 'owner': 2, 'before_get_number': reads})
+        owner_reopened = True
+    response = client.get(path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    return response.json()
+try:
+    report = run_altercourse_smoke(post, get)
+finally:
+    client.__exit__(None, None, None)
+    owner_events.append({'event': 'client_exit', 'owner': 2 if owner_reopened else 1})
+assert owner_reopened and reads == 3
+assert report['storage_owner_close_verified_by_harness'] is False
+report.update(isolated_modules=modules, isolated_module_sha256=module_hashes,
+              version=sys.argv[1], harness_sha256=sys.argv[2],
+              harness_copy_sha256=helper_digest, harness_path=str(helper.relative_to(root)),
+              child_outside_checkout_verified=True,
+              actual_asgi_owner_closed_and_reopened=True,
+              actual_read_count=reads, owner_lifecycle_events=owner_events,
+              scope='OceanRoute modules imported only from the extracted wheel; explicitly copied stdlib harness; actual ASGI owner close/reopen and CSV HTTP attachment; existing interpreter dependencies, not clean installation, native Makai format, or field accuracy')
+print(json.dumps(report, ensure_ascii=False, allow_nan=False))
+'''
+
 # Execute in a fresh process, with only the extracted wheel on PYTHONPATH. Keep
 # the checks here so the test cannot accidentally import the checkout's package.
 SMOKE_CODE = r'''
@@ -1442,6 +1522,23 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if automatic.stderr:
                 print(automatic.stderr, file=sys.stderr, end="")
             report["automatic_geographic_rules"] = json.loads(automatic.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 11, 0):
+            helper = Path(__file__).resolve().parent / "altercourse_smoke.py"
+            helper_bytes = helper.read_bytes()
+            helper_digest = hashlib.sha256(helper_bytes).hexdigest()
+            helper_destination = destination / "harnesses" / "altercourse_smoke.py"
+            helper_destination.parent.mkdir(parents=True)
+            helper_destination.write_bytes(helper_bytes)
+            if helper_destination.read_bytes() != helper_bytes:
+                raise RuntimeError("Shipped altercourse harness bytes changed during explicit copy")
+            altercourse = subprocess.run(
+                [sys.executable, "-c", ALTERCOURSE_SMOKE_WRAPPER,
+                 metadata["Version"], helper_digest, str(Path(__file__).resolve().parents[1])],
+                cwd=destination, env=environment, check=True, capture_output=True,
+                text=True, timeout=120)
+            if altercourse.stderr:
+                print(altercourse.stderr, file=sys.stderr, end="")
+            report["altercourse_geometry"] = json.loads(altercourse.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size

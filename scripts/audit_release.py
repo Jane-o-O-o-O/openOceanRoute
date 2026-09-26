@@ -56,6 +56,9 @@ def audit(archive: Path, wheel: Path, report: Path, frozen: Path, *, verify_only
                                "resources/run_0_10_browser_gate.py",
                                "resources/validate_0_10_pdf_structure.py",
                                "resources/documentation_0_10_automatic_rules_contract.md"])
+    if tuple(map(int, expected_version.split("."))) >= (0, 11, 0):
+        required_files.extend(["resources/run_0_11_backend_gate.py", "resources/run_0_11_browser_gate.py",
+                               "resources/validate_0_11_pdf_structure.py", "resources/research/arc_sources.json"])
     source_paths = {ROOT / name for name in required_files}
     for folder in ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public",
                    "web/tests", f"web/artifacts/release-{label}", "resources/validation"]:

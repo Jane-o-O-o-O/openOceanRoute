@@ -382,6 +382,108 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                             "sys_prefix": installed["sys_prefix"], "resolved_sys_prefix": installed["resolved_sys_prefix"],
                             "metadata": registration, "resolved_direct_url_source_root": str(declared_root)},
                         scope="Shipped stdlib harness through the launcher's fresh venv editable source[terrain] HTTP server; server actually stopped/restarted before saved reread; actual editable metadata/direct_url and module source bytes verified before adding test dependencies; distinct from extracted-wheel smoke, synthetic screening only")
+                if tuple(map(int, expected_version.split("."))) >= (0, 11, 0):
+                    helper = checkout / "scripts/altercourse_smoke.py"
+                    namespace = {"__name__": "portable_altercourse_smoke"}
+                    exec(compile(helper.read_text(encoding="utf-8"), str(helper), "exec"), namespace)
+                    altercourse_reads = 0
+                    altercourse_owner_restarted = False
+                    altercourse_process_ids = [process.pid]
+
+                    def post_altercourse(path, value):
+                        request = urllib.request.Request(url + path,
+                            json.dumps(value, allow_nan=False).encode("utf-8"),
+                            {"Content-Type": "application/json"})
+                        try:
+                            with urllib.request.urlopen(request, timeout=30) as response:
+                                content_type = response.headers.get("Content-Type", "")
+                                if path == "/api/export/csv":
+                                    return {"_http_status": response.status,
+                                        "_content_type": content_type,
+                                        "_text": response.read().decode("utf-8")}
+                                return json.load(response)
+                        except urllib.error.HTTPError as error:
+                            if error.code != 422:
+                                raise
+                            return {"_http_status": 422, "_error": json.load(error)}
+
+                    def get_altercourse(path):
+                        nonlocal process
+                        nonlocal altercourse_reads, altercourse_owner_restarted
+                        altercourse_reads += 1
+                        if altercourse_reads == 2:
+                            # Independent of the automatic-rule owner's earlier
+                            # restart: this is the arc workflow's post-save read.
+                            if os.name == "nt":
+                                process.terminate()
+                            else:
+                                os.killpg(process.pid, signal.SIGINT)
+                            try:
+                                process.wait(timeout=20)
+                            except subprocess.TimeoutExpired:
+                                if os.name == "nt":
+                                    process.kill()
+                                else:
+                                    os.killpg(process.pid, signal.SIGKILL)
+                                process.wait(timeout=10)
+                            process = subprocess.Popen(
+                                [sys.executable, "launcher.py", "--port", str(port)],
+                                cwd=checkout, env=environment, stdout=stream, stderr=subprocess.STDOUT,
+                                start_new_session=os.name != "nt")
+                            altercourse_process_ids.append(process.pid)
+                            restart_health = None
+                            deadline = time.monotonic() + 60
+                            while time.monotonic() < deadline:
+                                if process.poll() is not None:
+                                    raise RuntimeError("Arc restarted launcher stopped: " + log.read_text()[-4000:])
+                                try:
+                                    with urllib.request.urlopen(url + "/api/health", timeout=1) as response:
+                                        restart_health = json.load(response)
+                                    break
+                                except (OSError, ValueError):
+                                    time.sleep(.1)
+                            assert restart_health is not None and restart_health["version"] == expected_version
+                            assert len(set(altercourse_process_ids)) == 2
+                            altercourse_owner_restarted = True
+                        with urllib.request.urlopen(url + path, timeout=30) as response:
+                            return json.load(response)
+
+                    altercourse = namespace["run_altercourse_smoke"](post_altercourse, get_altercourse)
+                    assert altercourse_owner_restarted
+                    # A new interpreter outside the checkout verifies actual
+                    # arc consumers in the launcher's editable installation.
+                    arc_modules = ["oceanroute.altercourse", "oceanroute.altercourse_workspace",
+                        "oceanroute.route_geometry", "oceanroute.rpl_templates", "oceanroute.exchange",
+                        "oceanroute.geodesy", "oceanroute.gis", "oceanroute.survey", "oceanroute.shipplan",
+                        "oceanroute.plan_voyage", "oceanroute.routing", "oceanroute.terrain_bathymetry",
+                        "oceanroute.terrain_slice", "oceanroute.side_slopes",
+                        "oceanroute.slope_rules"]
+                    arc_code = (
+                        "import importlib,importlib.metadata as md,json,pathlib,hashlib,sys,oceanroute; names="
+                        + repr(arc_modules) + "; rows={}; "
+                        "\nfor name in names:\n p=pathlib.Path(importlib.import_module(name).__file__).resolve(); "
+                        "data=p.read_bytes(); rows[name]={'path':str(p),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}"
+                        "\nprint(json.dumps({'version':oceanroute.__version__,'sys_prefix':str(pathlib.Path(sys.prefix).resolve()),"
+                        "'modules':rows,'geographiclib_version':md.version('geographiclib')}))")
+                    arc_installed = json.loads(subprocess.check_output([str(installed_python), "-c", arc_code],
+                        cwd=root, env=environment, text=True))
+                    assert arc_installed["version"] == expected_version
+                    assert Path(arc_installed["sys_prefix"]).resolve() == environment_root
+                    assert tuple(map(int, arc_installed["geographiclib_version"].split(".")[:1])) == (2,)
+                    for name, row in arc_installed["modules"].items():
+                        source = (source_root / (name.replace(".", "/") + ".py")).resolve()
+                        assert Path(row["path"]).resolve() == source
+                        assert row["bytes"] == source.stat().st_size
+                        assert row["sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+                    altercourse.update(version=expected_version,
+                        harness_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                        actual_http_server_owner_closed_and_restarted=True,
+                        launcher_process_ids=altercourse_process_ids,
+                        installation_kind="fresh_venv_editable_source",
+                        launcher_installed_modules_before_test_dependencies=arc_installed["modules"],
+                        launcher_installation=automatic_rules["launcher_installation"],
+                        geographiclib_version=arc_installed["geographiclib_version"],
+                        scope="Shipped stdlib arc harness through fresh launcher-installed editable source[terrain] HTTP server; independently stopped/restarted before this workflow's saved reread; actual source bytes, venv and editable metadata verified before adding test dependencies; own synthetic geometry, not original-product equivalence")
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -429,6 +531,9 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
             result["side_slopes_and_kp_rules"] = side_slopes
         if tuple(map(int, expected_version.split("."))) >= (0, 10, 0):
             result["automatic_geographic_rules"] = automatic_rules
+        if tuple(map(int, expected_version.split("."))) >= (0, 11, 0):
+            result["altercourse_geometry"] = altercourse
+            result["versions"]["geographiclib"] = arc_installed["geographiclib_version"]
         if report is not None:
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
