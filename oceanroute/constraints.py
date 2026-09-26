@@ -945,54 +945,12 @@ def reconcile_route_structure(project, candidate, *, marker_fractions=None, slid
 
 
 def _edit_intrinsic_constraints(project, config):
-    """The same stock/structure solver for constraints on persistent arcs."""
-    analyze_project(project)
-    if not project["route"].get("constraint_state"):
-        raise ConstraintError("CONSTRAINT_NOT_CONFIGURED", "请先配置约束")
-    rigid,segments,keys=_rigid_path(project)
-    points,by,_=_points(project)
-    candidate=deepcopy(project)
-    candidate["route"]["points"]=deepcopy(rigid)
-    newrigid={p["id"]:p for p in candidate["route"]["points"]}
-    fractions,stations={},{}
-    moves=config.get("moves",[])
-    if not isinstance(moves,list) or len(moves)>10000:
-        raise ValueError("moves 必须为数组，最多10,000项")
-    seen=set()
-    for move in moves:
-        if not isinstance(move,dict) or move.get("point_id") not in by or move["point_id"] in seen:
-            raise ConstraintError("CONSTRAINT_POINT_REFERENCE", "移点引用无效或重复")
-        pid=move["point_id"];seen.add(pid);point=by[pid]
-        typ=point.get("constraint","rigid")
-        if typ=="rigid":
-            if config.get("automatic",False):
-                raise ConstraintError("CONSTRAINT_RIGID_AUTOMOVE", "自动联动不能移动Rigid")
-            newrigid[pid]["longitude"],newrigid[pid]["latitude"]=coordinate(move.get("longitude"),move.get("latitude"))
-            newrigid[pid]["depth_m"]=None
-        elif typ=="sliding" and project["route"].get("mode")=="fixed":
-            if any(k in move for k in ("longitude","latitude","fraction")):
-                raise ConstraintError("CONSTRAINT_SLIDING_STATION", "Fixed Sliding 只能修改实物 cable_kp_m")
-            stations[pid]=finite_number(move.get("cable_kp_m"),"cable_kp_m",minimum=0,maximum=project["route"]["constraint_state"]["manufacturing"]["physical_length_m"])
-        else:
-            if "fraction" in move:
-                fraction=finite_number(move["fraction"],"fraction",minimum=0,maximum=1)
-            else:
-                j=next(i for i,p in enumerate(rigid) if p["id"]==point["anchor_start_id"])
-                target=coordinate(move.get("longitude"),move.get("latitude"))
-                from scipy.optimize import minimize_scalar
-                fraction=float(minimize_scalar(lambda f:inverse(*segments[j].point_at_fraction(f),*target,"geodesic")[0],bounds=(0,1),method="bounded",options={"xatol":1e-13}).x)
-            if not 1e-10<fraction<1-1e-10:
-                raise ConstraintError("CONSTRAINT_POINT_AT_ANCHOR", "沿线点不能与锚点重合")
-            fractions[pid]=fraction
-    # Moving an arc endpoint while keeping its old center/radius is generally
-    # infeasible. Endpoint binding rejects this instead of replacing the arc
-    # by a chord or silently selecting a new circle. Radius AC supplies the
-    # explicit replacement geometry through reconcile_route_structure.
-    candidate["route"]["legs"]=[]
-    for i,segment in enumerate(segments):
-        leg={"geometry":segment.geometry} if segment.geometry else {}
-        segment_from_leg(candidate["route"]["points"][i],candidate["route"]["points"][i+1],leg,project["route"].get("curve","rhumb"))
-        candidate["route"]["legs"].append(leg)
-    solved=reconcile_route_structure(project,candidate,marker_fractions=fractions,sliding_stations=stations)
-    solved["report"].update(operation="edit_constraints",moved_point_ids=list(seen),physical_length_delta_m=solved["report"]["after_summary"]["cable_length_m"]-solved["report"]["before_summary"]["cable_length_m"])
+    """Use the same endpoint reconstruction and frozen-domain service as arc-edit."""
+    from .arc_edit import _edit_intrinsic_project
+    solved = _edit_intrinsic_project(project, config, constraint_editor=True)
+    report = solved["report"]
+    reconciliation = report.get("constraint_reconciliation")
+    if reconciliation:
+        report.update(reconciliation)
+    report.update(operation="edit_constraints", physical_length_delta_m=report["manufacturing"]["physical_delta_m"])
     return solved
