@@ -1,3 +1,4 @@
+import type {ArcMove} from './arcEdits';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {layerOpacity,layerVisible} from './layerDisplay';
 import L from 'leaflet';
@@ -23,7 +24,7 @@ function routePositions(points:Point[],curve:string):L.LatLngTuple[]{
   }return result;
 }
 
-type MapProps={project:Project;geometry?:number[][];geometrySegments?:number[][][];selected:string|null;onSelect:(id:string)=>void;onMove:(id:string,lat:number,lon:number)=>void|Promise<boolean>;onAdd:(lat:number,lon:number)=>void;fitVersion:number;editable?:boolean;allowAdd?:boolean;pathOverlays?:PathOverlay[];onPathPick?:(id:string)=>void;contextKey?:string;analysis?:Analysis|null;analysisReady?:boolean;onProjectedApply?:(project:Project,expectedContext:string,selected:string|null)=>boolean|Promise<boolean>;ruleLocation?:RuleLocationView|null};
+type MapProps={project:Project;geometry?:number[][];geometrySegments?:number[][][];selected:string|null;onSelect:(id:string)=>void;onMove:(id:string,lat:number,lon:number)=>void|Promise<boolean>;onAdd:(lat:number,lon:number)=>void;fitVersion:number;editable?:boolean;allowAdd?:boolean;pathOverlays?:PathOverlay[];onPathPick?:(id:string)=>void;contextKey?:string;analysis?:Analysis|null;analysisReady?:boolean;onProjectedApply?:(project:Project,expectedContext:string,selected:string|null)=>boolean|Promise<boolean>;ruleLocation?:RuleLocationView|null;onArcEdit?:(moves:ArcMove[],expectedContext:string)=>boolean};
 export default function MapView(props:MapProps){const [display,setDisplay]=useState('geographic');return <div className="map-view-container"><nav className="map-display-mode" aria-label="地图显示方式"><button className={display==='geographic'?'active':''} onClick={()=>setDisplay('geographic')}>经纬地图</button><button className={display==='projected'?'active':''} onClick={()=>setDisplay('projected')}>投影视图</button></nav>{display==='projected'?<ProjectedMapView {...props} pathOverlays={props.pathOverlays||noPathOverlays}/>:<GeographicMapView {...props}/>}</div>}
 function GeographicMapView({project,geometry,geometrySegments,analysisReady,selected,onSelect,onMove,onAdd,fitVersion,editable=true,allowAdd=true,pathOverlays=noPathOverlays,onPathPick,ruleLocation}:MapProps){
   const element=useRef<HTMLDivElement>(null),mapRef=useRef<L.Map|null>(null),content=useRef<L.LayerGroup|null>(null),gridRef=useRef<L.LayerGroup|null>(null),initial=useRef(false);
