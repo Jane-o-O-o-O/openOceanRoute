@@ -1,3 +1,4 @@
+import type {ArcMove} from './arcEdits';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {Crosshair,Download,Minus,Plus,Play,MousePointer2,Trash2,X,LoaderCircle} from 'lucide-react';
 import {request} from './api';
@@ -10,7 +11,7 @@ import {previewProjectedPointEdit,projectedPointLocked,removeRoutePoint,StalePro
 import {ruleGeographicCircle} from './automaticRuleLocation';
 type XY=[number,number];
 type Camera={x:number;y:number;span:number};
-type Props={project:Project;geometry?:number[][];geometrySegments?:number[][][];selected:string|null;onSelect:(id:string)=>void;fitVersion:number;pathOverlays:PathOverlay[];onPathPick?:(id:string)=>void;editable?:boolean;allowAdd?:boolean;contextKey?:string;analysis?:Analysis|null;analysisReady?:boolean;onProjectedApply?:(project:Project,expectedContext:string,selected:string|null)=>boolean|Promise<boolean>;ruleLocation?:RuleLocationView|null};
+type Props={project:Project;geometry?:number[][];geometrySegments?:number[][][];selected:string|null;onSelect:(id:string)=>void;fitVersion:number;pathOverlays:PathOverlay[];onPathPick?:(id:string)=>void;editable?:boolean;allowAdd?:boolean;contextKey?:string;analysis?:Analysis|null;analysisReady?:boolean;onProjectedApply?:(project:Project,expectedContext:string,selected:string|null)=>boolean|Promise<boolean>;ruleLocation?:RuleLocationView|null;onArcEdit?:(moves:ArcMove[],expectedContext:string)=>boolean};
 type Gesture={kind:'pan'|'point'|'add';clientX:number;clientY:number;camera:Camera;pointerId:number;width:number;rect:DOMRect;pointId?:string;xy?:XY;context:string;inputs:string;moved:boolean};
 type EditInfo={status:'processing'|'submitted'|'rejected';message:string;action?:string;target?:XY;actual?:XY;longitude?:number;latitude?:number;warnings?:any[];report?:any};
 const f=(v:number)=>v.toLocaleString('zh-CN',{maximumFractionDigits:3});
@@ -36,7 +37,7 @@ function Geometry({geometry,toScreen,name,stroke,selectedPoint,onPick}:{geometry
 }
 function gridStep(span:number){const raw=Math.max(1e-9,span/7),power=10**Math.floor(Math.log10(raw)),ratio=raw/power;return (ratio<=1?1:ratio<=2?2:ratio<=5?5:10)*power}
 function activeBounds(result:any){const active=result?.routes?.find((r:any)=>r.role==='active');if(!active)return result?.bounds;const box=[Infinity,Infinity,-Infinity,-Infinity];function visit(coords:any){if(typeof coords?.[0]==='number'){box[0]=Math.min(box[0],coords[0]);box[1]=Math.min(box[1],coords[1]);box[2]=Math.max(box[2],coords[0]);box[3]=Math.max(box[3],coords[1])}else if(Array.isArray(coords))coords.forEach(visit)}visit(active.geometry.coordinates);return Number.isFinite(box[0])?box:result.bounds}
-export default function ProjectedMapView({project,geometry,geometrySegments,selected,onSelect,fitVersion,pathOverlays,onPathPick,editable=true,allowAdd=true,contextKey,analysis=null,analysisReady=false,onProjectedApply,ruleLocation}:Props){
+export default function ProjectedMapView({project,geometry,geometrySegments,selected,onSelect,fitVersion,pathOverlays,onPathPick,editable=true,allowAdd=true,contextKey,analysis=null,analysisReady=false,onProjectedApply,ruleLocation,onArcEdit}:Props){
  const [crs,setCrs]=useState(''),[density,setDensity]=useState(5000),[maxVertices,setMaxVertices]=useState(100000),[maxOperations,setMaxOperations]=useState(2048),[busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<any>(null),[resultSignature,setResultSignature]=useState(''),[camera,setCamera]=useState<Camera>({x:0,y:0,span:100}),[cursor,setCursor]=useState<XY|null>(null),[size,setSize]=useState({width:1000,height:500});
  const [adding,setAdding]=useState(false),[editBusy,setEditBusy]=useState(false),[editInfo,setEditInfo]=useState<EditInfo|null>(null),[ghost,setGhost]=useState<{xy:XY;context:string;inputs:string}|null>(null),[autoRefresh,setAutoRefresh]=useState(false);
  const [addLabel,setAddLabel]=useState(''),[addCable,setAddCable]=useState(''),[addMode,setAddMode]=useState<'flexible'|'fixed'>(project.route.mode==='fixed'?'fixed':'flexible'),[addFixed,setAddFixed]=useState('');
@@ -45,6 +46,7 @@ export default function ProjectedMapView({project,geometry,geometrySegments,sele
  const pendingFit=useRef<{signature:string;sequence:number;bounds:number[]}|null>(null);
  const ruleSequence=useRef(0);
  const svg=useRef<SVGSVGElement>(null),host=useRef<HTMLDivElement>(null),gesture=useRef<Gesture|null>(null),editSequence=useRef(0),mapSequence=useRef(0),mounted=useRef(true),suppressClick=useRef(false);
+ const selectionEpoch=useRef({id:selected,revision:0});if(selectionEpoch.current.id!==selected)selectionEpoch.current={id:selected,revision:selectionEpoch.current.revision+1};
  const arcPending=project.route.legs.some(leg=>leg.geometry?.type==='circular_arc')&&!analysisReady;
  const segments=useMemo(()=>arcPending?[]:geometrySegments?.length?geometrySegments:geometry?.length?[geometry]:[],[geometrySegments,geometry,arcPending]);
  const routes=useMemo(()=>[...(segments.length?[{id:project.id,name:project.name,role:'active',geometry:segmentsGeometry(segments)}]:[]),...pathOverlays.filter(p=>p.segments.length).map(p=>({id:p.id,name:p.name,role:p.role,geometry:segmentsGeometry(p.segments)}))],[segments,project.id,project.name,pathOverlays]);
@@ -79,13 +81,14 @@ export default function ProjectedMapView({project,geometry,geometrySegments,sele
  function cancel(){editSequence.current++;gesture.current=null;setGhost(null);setEditBusy(false);setEditInfo(null)}
  useEffect(()=>{const escape=(e:KeyboardEvent)=>{if(e.key==='Escape')cancel()};window.addEventListener('keydown',escape);return()=>window.removeEventListener('keydown',escape)},[]);
  async function submit(action:'move'|'add',pointId:string,xy:XY,snapshotContext=context,snapshotInputs=inputs){
-  const sequence=++editSequence.current,snapshot=project,sourceCRS=crs.trim();
-  const valid=()=>mounted.current&&sequence===editSequence.current&&latest.current.context===snapshotContext&&latest.current.inputs===snapshotInputs;
+  const sequence=++editSequence.current,snapshot=project,sourceCRS=crs.trim(),selection=selectionEpoch.current.revision;
+  const valid=()=>mounted.current&&sequence===editSequence.current&&selectionEpoch.current.revision===selection&&latest.current.context===snapshotContext&&latest.current.inputs===snapshotInputs;
   setEditBusy(true);setError('');setGhost({xy,context:snapshotContext,inputs:snapshotInputs});setEditInfo({status:'processing',message:'正在真实反算 WGS84 并校核制造域…',action,target:xy});
   try{
    if(!valid())throw new StaleProjectedEdit();
    const append=action==='add'?{label:addLabel,cable_type_id:cableId,mode:addMode,...(addMode==='fixed'?{fixed_cable_length_m:addFixed.trim()?Number(addFixed):undefined}:{})}:undefined;
-   const preview=await previewProjectedPointEdit(snapshot,sourceCRS,[{id:pointId,x:xy[0],y:xy[1]}],valid,append);
+   const preview=await previewProjectedPointEdit(snapshot,sourceCRS,[{id:pointId,x:xy[0],y:xy[1]}],valid,append,!!onArcEdit);
+   if(preview.arc_moves){if(!valid()||!onArcEdit?.(preview.arc_moves,snapshotContext))throw new StaleProjectedEdit();setGhost(null);setEditInfo({status:'submitted',message:'真实投影目标已进入圆弧重建候选；原路线尚未修改',action,target:xy});return}
    if(!preview.transform.can_apply||!preview.project)throw new Error(preview.transform.errors?.map((e:any)=>e.message).join('；')||'坐标转换未通过，路线保持原值');
    const actual=preview.project.route.points.find(p=>p.id===pointId)!;
    const forward=await request<any>('/coordinates/transform',{source_crs:'EPSG:4326',target_crs:sourceCRS,points:[{id:pointId,x:actual.longitude,y:actual.latitude}],error_policy:'collect'});

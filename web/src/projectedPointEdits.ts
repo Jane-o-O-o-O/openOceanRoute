@@ -1,15 +1,17 @@
 import {request} from './api';
 import type {Analysis,Leg,Point,Project} from './types';
+import {movesTouchArc} from './arcEdits';
+import type {ArcMove} from './arcEdits';
 
 export type ProjectedInput={id:string;x:number;y:number};
 export type AppendPointOptions={label:string;cable_type_id:string;mode:'flexible'|'fixed';fixed_cable_length_m?:number};
-export type ProjectedPointPreview={transform:any;project:Project|null;constraint_report:any;constraint_warnings:any[]};
+export type ProjectedPointPreview={transform:any;project:Project|null;constraint_report:any;constraint_warnings:any[];arc_moves?:ArcMove[]};
 export class StaleProjectedEdit extends Error{constructor(){super('工作区、路径、修订或投影参数已改变，本次点位结果已丢弃');this.name='StaleProjectedEdit'}}
 function current(check:()=>boolean){if(!check())throw new StaleProjectedEdit()}
 export function projectedPointLocked(project:Project,pid:string){return !!project.route.constraint_state&&project.route.mode==='fixed'&&project.route.points.find(p=>p.id===pid)?.constraint==='sliding'}
 
 /** Actual horizontal transform followed by the same manufacturing-domain solver as XY editing. */
-export async function previewProjectedPointEdit(project:Project,sourceCRS:string,points:ProjectedInput[],check:()=>boolean=()=>true,append?:AppendPointOptions):Promise<ProjectedPointPreview>{
+export async function previewProjectedPointEdit(project:Project,sourceCRS:string,points:ProjectedInput[],check:()=>boolean=()=>true,append?:AppendPointOptions,deferArcs=false):Promise<ProjectedPointPreview>{
  current(check);
  if(append){
   if(project.route.constraint_state)throw new Error('请先明确解除旧制造域，再追加路线点');
@@ -21,6 +23,10 @@ export async function previewProjectedPointEdit(project:Project,sourceCRS:string
  current(check);
  if(!transform.can_apply)return {transform,project:null,constraint_report:null,constraint_warnings:[]};
  const moves=transform.points.map((p:any)=>({point_id:p.id,longitude:p.output.x,latitude:p.output.y}));
+ if(!append&&deferArcs&&movesTouchArc(project,moves)){
+  if(moves.some((move:ArcMove)=>{const point=project.route.points.find(p=>p.id===move.point_id);return point?.constraint&&point.constraint!=='rigid'}))throw new Error('同一圆弧重建批次仅接受 Rigid 点；Clamped / Sliding 点请保留制造域入口的原有语义');
+  return {transform,project:null,constraint_report:null,constraint_warnings:[],arc_moves:moves};
+ }
  if(append){
   const candidate=structuredClone(project),move=moves[0];
   if(candidate.route.points.some(p=>p.id===move.point_id))throw new Error('新点标识已被使用');
