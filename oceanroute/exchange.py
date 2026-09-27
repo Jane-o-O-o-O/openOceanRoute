@@ -4,13 +4,63 @@ from __future__ import annotations
 
 from copy import deepcopy
 import csv
+import hashlib
 import html
 import io
 import json
 import math
 import re
+import unicodedata
+from urllib.parse import quote
 from xml.etree.ElementTree import Element, SubElement, tostring
 from uuid import uuid4
+
+from . import __version__
+
+
+_EXPORT_EXTENSIONS = {
+    "csv": "csv", "assembly": "csv", "kml": "kml", "geojson": "geojson",
+    "dxf": "dxf", "sld": "svg", "report": "html", "project": "oceanroute.json",
+    "workspace": "oceanroute.json", "automatic_rules": "json",
+}
+
+
+def _export_label(value: str, maximum_bytes: int = 90) -> str:
+    """A readable, bounded filename component shared by every HTTP exporter."""
+    text = unicodedata.normalize("NFC", str(value))
+    text = "".join("-" if char in '<>:"/\\|?*' or unicodedata.category(char).startswith("C")
+                   else char for char in text)
+    text = re.sub(r"[-\s]+", "-", text).strip(" .-")
+    bounded = []
+    size = 0
+    for char in text:
+        length = len(char.encode("utf-8"))
+        if size + length > maximum_bytes:
+            break
+        bounded.append(char)
+        size += length
+    return "".join(bounded).strip(" .-") or "未命名"
+
+
+def export_filename(document: dict, format_name: str) -> str:
+    """Identify full-workspace versus active-path exports without changing content."""
+    if not isinstance(document, dict) or not isinstance(format_name, str) or format_name not in _EXPORT_EXTENSIONS:
+        raise ValueError("Unsupported engineering export filename scope/format")
+    name = _export_label(document.get("name") or "未命名")
+    identity = str(document.get("id") or document.get("name") or "unnamed")
+    token = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
+    scope = "workspace" if format_name in {"workspace", "automatic_rules"} else "path"
+    version = __version__.removesuffix(".0")
+    return f"OceanRoute-{version}-{scope}-{name}-{token}-{format_name}.{_EXPORT_EXTENSIONS[format_name]}"
+
+
+def export_content_disposition(document: dict, format_name: str) -> str:
+    """RFC 5987 Unicode name plus an ASCII fallback, safe for HTTP headers."""
+    filename = export_filename(document, format_name)
+    token = hashlib.sha256(str(document.get("id") or document.get("name") or "unnamed").encode("utf-8")).hexdigest()[:16]
+    scope = "workspace" if format_name in {"workspace", "automatic_rules"} else "path"
+    fallback = f"OceanRoute-{__version__.removesuffix('.0')}-{scope}-{token}-{format_name}.{_EXPORT_EXTENSIONS[format_name]}"
+    return f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{quote(filename, safe="")}'
 
 
 def coordinate(value: str, *, latitude: bool) -> float:
@@ -322,7 +372,7 @@ def export_report(project: dict, analysis: dict) -> str:
     warnings = "".join(f"<li>{escape(w.get('message',w))}</li>" for w in analysis.get("warnings", []))
     return f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>{escape(project.get('name','工程'))}</title>
 <style>body{{font:14px sans-serif;margin:40px;color:#173247}}table{{border-collapse:collapse;width:100%;margin:20px 0}}th,td{{border:1px solid #cedce4;padding:8px;text-align:left}}th{{background:#eef4f8}}h1{{color:#007c85}}@media print{{body{{margin:10mm;font-size:10px}}}}</style>
-<h1>{escape(project.get('name','OceanRoute'))} · 路由规划报告</h1><p>OceanRoute 0.1 · WGS84 · 长度 m / 水深正向下 / 余缆 % · 路线模型 {escape(project['route'].get('curve','rhumb'))}</p>
+<h1>{escape(project.get('name','OceanRoute'))} · 路由规划报告</h1><p>OceanRoute {__version__.removesuffix(".0")} · WGS84 · 长度 m / 水深正向下 / 余缆 % · 路线模型 {escape(project['route'].get('curve','rhumb'))}</p>
 <h2>规划汇总与假设</h2><table>{summary}</table><h2>校核信息</h2><ul>{warnings or '<li>当前规则未发现问题</li>'}</ul>
 <h2>RPL</h2><table><thead><tr><th>序号</th><th>标签</th><th>经度</th><th>纬度</th><th>水深 m</th><th>表面 KP m</th><th>电缆里程 m</th><th>缆型</th></tr></thead><tbody>{rows}</tbody></table>
 <h2>SLD</h2>{export_sld(project,analysis)}<p>报告表示输入数据与明确模型下的规划结果。测深来源、缺测信息及近似应结合校核信息解读。成本为所设单价和速度下的初步估算。</p></html>'''
