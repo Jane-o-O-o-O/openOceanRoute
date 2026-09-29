@@ -1,8 +1,8 @@
 # OceanRoute 软件设计文档
 
-版本 0.11 独立实现 / 2026-10-04 / 与实际代码同步
+版本 0.12 独立实现 / 2026-10-04 / 与实际代码同步
 
-本文保留既有投影、地形、原生S-57、制造、侧坡、自动地理规则和完整恢复合同，新增Split AC等角等距整形、Radius AC真实WGS84圆弧、保留制造域的结构求解，以及实际曲线消费者和整工作区应用。本文描述0.11的实际数据与计算合同；整版后端、生产浏览器、PDF、wheel和全新安装的执行结果以发行记录为准，模块专项不能代替这些门禁。历史0.1至0.10包、PDF和报告独立保留。
+本文保留既有投影、地形、原生S-57、制造、侧坡、自动地理规则、Split/Radius AC和完整恢复合同，新增严格保半径与有向分支的圆弧端点编辑、关联弧整批重构、接缝诊断及工程成果名称。本文描述0.12的实际数据与计算合同；整版后端、生产浏览器、PDF、wheel和全新安装的执行结果以发行记录为准，模块专项不能代替这些门禁。历史0.1至0.11包、PDF和报告独立保留。
 
 ## 1. 目标和依据
 
@@ -24,6 +24,7 @@ FastAPI 本地服务执行计算并提供编译后的 React/TypeScript 界面。
 | workspace.py、workspace_storage.py | 同工程多路径、共享库/GIS、物理库存、关联与完整修订 | schema2 → 多路径分析；完整装配守恒、独占更新/互斥方案、真实关系事务 |
 | tools.py | 加密、按深度分缆、模板、反向、拆分、合并 | 输入不原地修改，输出新工程/报告/警告 |
 | altercourse.py、altercourse_workspace.py | Split/Radius有限域构造与全工程候选 | 真等角/等距或连续圆弧；原制造/Path Link校核，无自动保存或fork |
+| arc_edit_geometry.py、arc_edit.py、arc_edit_workspace.py | 真圆弧端点、半径和有向分支编辑 | 真实WGS84候选中心/绑定/弧长/接缝，整笔制造重验与read-only工作区预览 |
 | constraints.py、assembly.py | 路径约束、制造域、装配回写和参考点 | 固定制造量、完整性签名、显式映射政策 |
 | routing.py | 有限网格避让、带权区域与地形路由搜索 | 有界 A* 候选，不承诺全局最优 |
 | gis.py、dtm.py、terrain_boundaries.py、terrain_slice.py、surfer.py、geoformats.py | 沿线地形、网格、掩膜/切片、Surfer/KML/SHP | 实际稀疏平滑、缺测/投影、完整栅格采样 |
@@ -79,7 +80,7 @@ RoutePoint 是地理点和注释；RouteLeg 对应相邻点对，定义缆型、
 
 map_projection复用显式水平转换操作，把已分析日期线分段曲线、点位及合法GIS拓扑实际投影到同一平面。投影边按明确顶点/工作预算加密，保留多边形孔洞及源长边语义。Leaflet用于地理底图；自定义平面使用真实投影坐标和原生轴刻度，原生英尺与米坐标通过单位比例计算局部物理尺度。显示投影不改变WGS84源或路线测地模型，也没有自动重投影在线瓦片/栅格底图。
 
-投影画布支持实际拖点、背景点击追加末端点和选点删除。目标X/Y真实反算WGS84；制造域存在时调用同一constraints/edit求解，再把实际约束后的点正算回目标投影，分别显示目标与实际坐标。Rigid允许明确移动，Clamped保持实际锚线位置，Fixed Sliding只允许实物KP编辑；此入口的制造域内普通结构增删必须先显式解除，第5.1节的Split/Radius另有保留域的求解。任意移动/删除圆弧端点或把其间插点当直腿会拒绝，不能丢geometry解除绑定。追加明确缆型和分段模式，固定量缺省不补零，新点水深保持null。内部删点拒绝缆型/分段语义冲突，固定量求和，混合柔性量只使用当前有效分析。它不是任意段材料重划工具。
+投影画布支持实际拖点、背景点击追加末端点和选点删除。目标X/Y真实反算WGS84；制造域存在时调用同一constraints/edit求解，再把实际约束后的点正算回目标投影，分别显示目标与实际坐标。Rigid允许明确移动，Clamped保持实际锚线位置，Fixed Sliding只允许实物KP编辑；此入口的制造域内普通结构增删必须先显式解除，第5.1节的Split/Radius另有保留域的求解。圆弧Rigid端点的明确移动走第5.2节完整候选；删除端点或把其间插点当直腿仍拒绝，不能丢geometry解除绑定。追加明确缆型和分段模式，固定量缺省不补零，新点水深保持null。内部删点拒绝缆型/分段语义冲突，固定量求和，混合柔性量只使用当前有效分析。它不是任意段材料重划工具。
 
 转换与提交绑定完整workspace/draft、活跃路径、保存修订、CRS及编辑参数；改变输入、切换路径、取消或修订后，迟到结果不得应用。成功只先提交完整路径草稿和一次document撤销记录，再经原工作区制造事务校核，不直接修改共享库存。旧剖面失效或共享制造量分歧时保留草稿、隐藏旧分析/投影并拒绝保存；多路线地形重采样通过后才能原子应用完整工作区。详见 `MAP_PROJECTION_NOTES.md`、`DEVELOPMENT_0.6.md` 与第8节。
 
@@ -143,6 +144,24 @@ Radius以入切点真实切线的测地法向正算圆心，在出段求另一�
 事件按旧Rigid锚段距离分数映射，原转角事件随保留ID到新点；旧端停时和费用只保留一次。新增/移动点depth_m为null；profile/side_slopes和旧签名保留，以当前几何显示stale/unknown，不能换签名使其假有效。固定域、原实物站和shared保存修订不随绘图参数变化。
 
 report含normalized config、changed、原/结果选择ID、inserted_point_ids、before/after长度与点数、geometry_evidence、manufacturing、profile_invalidation、side_slopes_invalidation和constraint_reconciliation。Split证据给实际turns_deg/internal_lengths_m；Radius给center/radius_m/sweep_deg/arc_length_m及实际半径/切线残差。制造报告分base/physical及每缆型delta，link_placements给冻结/实际站位与实体地理核验，不只显示一个总长相等标志。公开接口和失败范围见 [ALTERCOURSE_NOTES.md](ALTERCOURSE_NOTES.md)。
+
+### 5.2 保半径的圆弧编辑与关联跨度
+
+公开`POST /api/tools/arc-edit`严格接收`{project,config}`，`POST /api/workspace/arc-edit-preview`严格接收`{workspace,path_id,config}`。config为moves、arc_options、max_arc_rebuilds、max_work_units、max_output_bytes，未知字段拒绝。moves为最多256个唯一真实Rigid point_id及有限WGS84 longitude/latitude；arc_options为最多256个唯一真实Rigid骨架跨度的start_point_id/end_point_id，可指定radius_m、branch和full_circle_policy。至少一个move或option，不能把Clamped/Sliding子腿边界当原始弧身份；bool不能作为数值。原constraints/edit中的弧分支复用同一服务，并保留其fraction、Fixed cable_kp_m、automatic不得移Rigid等旧约束语义。
+
+原弧在重构前独立校验严格六字段descriptor和实际存储端点绑定。纯模块的`original_endpoints`由服务提供，不属于可由HTTP替换的用户配置；它保留旧真实坐标作为判定无变化与闭合的证据，避免Direct数纳米roundtrip被误认成用户移动。显式非preserve分支或半径变化仍触发重构，即使坐标相同。原descriptor保持只适用于实际未变跨度，不能把旧圆心移到新坐标而忽略绑定。
+
+数值模型为`wgs84-fixed-radius-arc-edit-v1`。新起点A至终点B先做实际Geod inverse；候选圆心C为自A按半径R做Geod Direct的位置，在两个方位半域分别括根求`distance(C,B)-R=0`。求解实际WGS84测地等半径圆，不把局部平面circle、球面弧或R乘转角替代。保原sweep正负方向，默认preserve保原minor/major；显式minor/major选择长度分支，left/right按A→B初始测地方位选择圆心侧。已知180度的编辑需显式分支，无法可靠区分的近重合/直径退化根typed拒绝，不猜测中心。半径范围0.001–1,000,000m；有效径向容差是配置值与R×1e-4的较小值，属于独立数值准入，不是原厂或全局浮点精度证书。
+
+候选中心用原生inverse重新验证两端半径，随后以现有RouteSegment验证实际Direct端点绑定、reduced-length积分弧长及端切向。各次native Direct/Inverse和RouteSegment实际积分/反解均计入纯重构budget，失败调用也计量。服务逐关联跨度传剩余预算，默认32个重构/hard256、默认200,000工作单位/hard2,000,000；前置源准入、旧段构造、marker投影、制造重排、joins、全路线分析及编码不计入该预算，不把它描述成整个HTTP耗时、CPU、内存、FLOPs或token硬限。direct候选JSON默认16MiB/hard64MiB，workspace整体另64MiB；超限整笔拒绝，不截断报告。
+
+完整圆默认reject_move。显式preserve_endpoint_center_bearing仅接受两新真实端点重合的联合移动：保旧实际端点→中心的initial bearing，在新端点按R重建中心并保±360度。单端移动破坏闭合、两端不同或整圈使用非preserve分支均typed拒绝。严格相同实际坐标判定无变化；原生inverse可能产生非零极小残差，不据此扩大相等容差吞掉真实输入。
+
+所有incident弧整批求解，所有旧业务点ID及Rigid相对次序必须保留；Clamped/Sliding按真实KP重定位可改变其相对顺序；不相关弧保持原descriptor。实际制造边界允许生成明确列出的真实marker，显示加密不进入RPL。重验复用reconcile_route_structure，Fixed原制造快照/量/Path Links/实体/事件不重capture；Clamped/Flexible Sliding按真骨架fraction，Fixed Sliding按原实物站。Flexible独占库存可更新，共享alternative量变仍按原明确policy拒绝。无法保持link实体几何同站、缆型量、body/reference或原身份则整笔拒绝；实际固定域库存不足可保留error warning供审查，不能据accepted候选称库存已满足。
+
+移动/重定位marker水深null，未变跨度的实际未动marker保持原坐标/水深和原子腿descriptor，不能因roundtrip清测深或漂移旧参数。Fixed Sliding真实重定位不套未变恢复。原profile/side_slopes对象和旧签名保留作为失效证据；不补零，不重新贴签名。report.joins逐受影响点比较before/after实际前段arrival切向、后段起始切向、有符号turn_deg，缺相邻腿为null；保持半径不等于保旧中心或C1接缝。
+
+pure返回accepted/geometry/evidence/budget/rejection_codes/warnings/assumptions；numerical拒绝不能被服务当成功project，转换为ArcEditError及具体ARC_EDIT_* code，HTTP422。input结构非法也422；非法枚举列表/对象不能因set membership抛TypeError成为500。preview_arc_edit_workspace经完整validate/materialize/update_path auto_exclusive，返回完整workspace/analysis/tool_report/operation/result_selection_point_id，操作不保存数据库。合同详见 [ARC_EDIT_NOTES.md](ARC_EDIT_NOTES.md)和 [ARC_EDIT_GEOMETRY_NOTES.md](ARC_EDIT_GEOMETRY_NOTES.md)。原手册Radius Remove、Fix points转恒向线和原生兼容未由此编辑模块完成。
 
 ## 6. GIS与DTM
 
@@ -387,7 +406,7 @@ Root应用只从候选取 `automatic_rules`，以原工作区重新提交 `updat
 
 本功能的实际186项联合后端专项由62项引擎、25项HTTP／持久化、51项独立规则与48项二维窗口测试组成；前端迟到响应与保存流程另有专属测试文件，实际整版执行结果单独记录。正式整版数量和发行对象只在实际冻结门禁后记录；不能从专项通过推断原厂算法、native数据库、设备接口或现场施工精度等效。
 
-接口细节与独立方法见 [AUTOMATIC_RULES_NOTES.md](AUTOMATIC_RULES_NOTES.md)、[TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md](TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md)；该功能的0.10首次失败、修复和历史专项范围见 [DEVELOPMENT_0.10.md](DEVELOPMENT_0.10.md)，不替代当前0.11门禁。
+接口细节与独立方法见 [AUTOMATIC_RULES_NOTES.md](AUTOMATIC_RULES_NOTES.md)、[TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md](TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md)；该功能的0.10首次失败、修复和历史专项范围见 [DEVELOPMENT_0.10.md](DEVELOPMENT_0.10.md)，不替代当前0.12门禁。
 
 ## 7. 物理求解和施工计划
 
@@ -547,13 +566,21 @@ Voyage后台单工作线程、最多四个运行/排队任务，以规范UUID定
 
 App.applyAltercourseCandidate仅将候选中指定路径的stored project提交原`/api/workspace/action`，明确update_path、auto_exclusive；不发布任意候选顶层字段，不同步共享库、不调用持久保存。请求前后分别核当前完整document、草稿/忙碌状态、身份/修订/活跃路径、选点修订、mounted与最新isCurrent；返回所选点必须真实存在于该路径。全部成立才加入一次完整document撤销、清redo、发布完整返回工作区、清旧analysis/规则定位、选实际结果点并标dirty。明确保存后才由原修订事务落库。
 
-当前UI普通经纬拖动、坐标输入、投影应用、端点删除和直线插点不接受任意改变圆弧端点/描述符；保留原弧而不是静默清geometry。后端仍独立核端点。真实曲线的地图采样不创造RPL控制点；过期弧analysis等待重算，不显示替代弦。原profile/side签名只保留失效证据，null深度显示为未知，不转0。选择、输入、保存和apply慢响应的完整事务合同见 [ALTERCOURSE_UI_NOTES.md](ALTERCOURSE_UI_NOTES.md)。
+当前UI经纬拖动、坐标输入和投影移动圆弧Rigid端点走第8.2节完整候选；端点删除和直线插点仍不接受任意破坏圆弧绑定。后端仍独立核端点。真实曲线的地图采样不创造RPL控制点；过期弧analysis等待重算，不显示替代弦。原profile/side签名只保留失效证据，null深度显示为未知，不转0。选择、输入、保存和apply慢响应的完整事务合同见 [ALTERCOURSE_UI_NOTES.md](ALTERCOURSE_UI_NOTES.md)。
+
+### 8.2 人工圆弧候选与成果身份
+
+地图端点拖动、RPL经纬输入、ProjectedCoordinateEditor及投影地图拖点先构造WGS84 moves意图，保原document/descriptor，再进入ArcEditPanel。项目工具支持多Rigid move及逐原始弧option；非Rigid混合投影批次整笔拒绝，普通无弧点维持原编辑语义。候选地图消费服务analysis真实route_geometry及分段，表格列actual arc evidence与joins；无有效analysis等待，不画替代直弦。
+
+guard绑定完整document对象及内容、active path、保存revision、selected point及selectionRevision、入口token、request序号、mounted身份和规范/raw输入签名。onInputCapture同步增加raw revision，未blur输入可丢弃迟到success及typed error。离开再回到同点、修订变化或面板卸载都不能复用旧候选。投影转换也绑定原选择上下文。应用仅把候选path project经现有workspace/action update_path auto_exclusive提交，不以update_shared替换库存；响应再次核验身份/revision/结果选择后原子替换完整工作区且仅一笔undo。预览/应用不写库，显式save创建完整修订。
+
+web/src/version.ts从package.json读取实际版本，普通与空workspace页眉/帮助/页脚及规则下载fallback同源。后端exchange.export_filename使用实际__version__、path/workspace scope、NFC归一中文名称、身份16hex SHA256和格式注册扩展；替换路径/控制/Windows非法字符，名称最长90 UTF-8 bytes且不截断字符，空名称有明确fallback。Content-Disposition提供ASCII filename及RFC5987 UTF-8 filename*；前端优先UTF-8并防decoded路径/控制字符。8种当前路径成果、完整工作区和规则包按实际范围命名，正文/MIME不变；HTML报告版本来自实际后端版本。名称身份摘要用于区分同名对象，不是数据真实性或许可认证。详细入口与guard见 [ARC_EDIT_UI_NOTES.md](ARC_EDIT_UI_NOTES.md)。
 
 ## 9. 验证与后续工程证据
 
 验证层次为解析/测地基准、材料/费用不变量、缺测/失效、文件生命周期、API集成及浏览器操作。覆盖日期线、剖面山谷、缆型转换点附加量、有限体跨度、平衡/接触和真实下载；通过测试不证明实海误差或未覆盖规模。
 
-0.11专项检查真实WGS84等角/等内部距离、半径/切线、独立reduced-length积分和极地平行圈基准、KP与绘图分离、日期线、Fixed/Path Link/组件制造守恒、Flexible量变及共享冲突、来源失效、真实消费者与开放CSV往返。专项执行、首次失败和修正须绑定各自实际源码，不将模块数量重复相加或沿用旧发行结果。当前整版后端、生产浏览器、正式PDF视觉QA、wheel和全新安装仍待各自执行；历史0.10及更早门禁由冻结发行记录给出，不代表这份开发文档或新源码已发布。
+0.11专项检查真实WGS84等角/等内部距离、半径/切线、独立reduced-length积分和极地平行圈基准、KP与绘图分离、日期线、Fixed/Path Link/组件制造守恒、Flexible量变及共享冲突、来源失效、真实消费者与开放CSV往返。专项执行、首次失败和修正须绑定各自实际源码，不将模块数量重复相加或沿用旧发行结果。0.11正式冻结发行已分别完成2094后端、107真实Chrome、52页PDF视觉QA，以及源码目录外的wheel解包运行和便携包全新venv editable源码安装；前者使用当前解释器依赖，不能称为wheel干净安装。各项原始记录独立保留，不能代替0.12新源码。0.12整版后端、生产浏览器、正式PDF视觉QA、wheel和全新安装分别核验；结果只从本轮实际记录产生，未记录的项目不认定为通过。
 
 0.8的原生S-57按官方真实二进制、独立ISO8211整数/空间指针、GDAL原生读取、严格API及完整工作区持久化分别验证。GIS同时核对真实SVG合成、两图坐标与完整保存；生命周期子进程检查实际SQLite WAL并发，而不是模拟锁。失败首轮及修正后的记录保留，各执行对象、完整数量、环境及摘要以 `RELEASE_NOTES.md` 与 `DEVELOPMENT_0.8.md` 为准。
 
