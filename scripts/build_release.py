@@ -68,6 +68,8 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
     # Ship this release's reviewed screenshots; older releases retain their
     # own evidence without duplicating every historical image in each bundle.
     roots = ["oceanroute", "docs", "examples", "tests", "scripts", "web/src", "web/public", "web/tests", f"web/artifacts/release-{label}", "resources/validation"]
+    if tuple(map(int, version.split("."))) >= (0, 12, 0):
+        roots.append(dist.relative_to(ROOT).as_posix())
     files = ["README.md", "pyproject.toml", "launcher.py", "web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts", "web/playwright.config.ts"]
     files += documents
     files += ["resources/research/manual_findings.md", "resources/research/website_findings.md",
@@ -84,6 +86,12 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
     if tuple(map(int, version.split("."))) >= (0, 11, 0):
         files += ["resources/run_0_11_backend_gate.py", "resources/run_0_11_browser_gate.py",
                   "resources/validate_0_11_pdf_structure.py", "resources/research/arc_sources.json"]
+    if tuple(map(int, version.split("."))) >= (0, 12, 0):
+        files += ["resources/run_0_12_backend_gate.py", "resources/run_0_12_browser_gate.py",
+                  "resources/run_0_12_ui_build.py",
+                  "resources/validate_0_12_pdf_structure.py",
+                  "resources/run_0_12_arc_geometry_probe.py",
+                  "resources/run_0_12_arc_edit_consumer_probe.py"]
     files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
     for name in roots:
