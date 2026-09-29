@@ -2,9 +2,9 @@
 
 基于用户提供的 MakaiPlan / MakaiPlan Pro 公开说明与手册独立开发。包含多路径/制造关系、地图/RPL/剖面/SLD、约束、余缆和费用、地形/避让、实敷调查、施工指令、动力/海况、海流反算、维修研究及连续后台计算。0.5整合真实投影地图、整工程地形原子更新、坡床/变深定端静力及四边界悬链线Calculator；自然长和伸长弧长明确区分，下坡多解逐根验收并显式选择。程序与界面为自有实现，不包含原厂程序、授权或付费资源。
 
-当前稳定交付冻结在0.12，按用户要求停止新增功能。已完成圆弧端点编辑：经纬地图、投影坐标和RPL编辑先产生完整工程候选，再显式应用；保留真实WGS84半径圆弧、固定库存及制造关系，过期候选拒绝应用。下载文件名显示真实版本、工程/路径范围和稳定标识。完整原厂文件、设备接入、完整施工能力与现场精度等效尚未完成，历史发行物保持原字节。
+当前稳定交付冻结在0.12.1，按用户要求停止新增功能。已完成圆弧端点编辑：经纬地图、投影坐标和RPL编辑先产生完整工程候选，再显式应用；保留真实WGS84半径圆弧、固定库存及制造关系，过期候选拒绝应用。下载文件名显示真实版本、工程/路径范围和稳定标识。完整原厂文件、设备接入、完整施工能力与现场精度等效尚未完成，历史发行物保持原字节。
 
-Windows用户使用 `outputs/releases/OceanRoute-0.12.0-Windows-x64-Setup.exe`。该离线安装包内置Python与GIS/地形依赖，无需另装Python或Node.js。安装/退出/数据目录见 [Windows安装说明](docs/WINDOWS_INSTALL.md)。本版验证记录区分macOS、Windows二进制在Wine中的测试和Windows实机测试。
+Windows用户使用 `outputs/releases/OceanRoute-0.12.1-Windows-x64-Setup.exe`。该离线安装包内置Python与GIS/地形依赖，无需另装Python或Node.js。安装/退出/数据目录见 [Windows安装说明](docs/WINDOWS_INSTALL.md)。本版验证记录区分macOS、Windows二进制在Wine中的测试和Windows实机测试。 实际完整后端2232通过、Chrome116通过；Windows PE完整2232中2231通过、1个POSIX专属自然跳过，零失败/错误。EXE实测升级、双启动、四种保存重开流程、卸载保留数据与重装4152文件同字节，生产分发严格32项。兼容层为Wine/Rosetta，原生Windows实机验收尚未进行，安装器未签名。
 
 0.11合同见 [真实路线几何](docs/ROUTE_GEOMETRY_NOTES.md)、[转角整形](docs/ALTERCOURSE_NOTES.md)、[近域与极区恒向线](docs/RHUMB_PRECISION_NOTES.md)、[整形界面](docs/ALTERCOURSE_UI_NOTES.md) 和 [开发/实际门禁](docs/DEVELOPMENT_0.11.md)。公开资料没有原厂隐藏算法；半径求解是受限局部解，显示采样不证明连续误差或海底安全。
 
@@ -18,7 +18,7 @@ Windows用户使用 `outputs/releases/OceanRoute-0.12.0-Windows-x64-Setup.exe`�
 
 ## 运行
 
-源码便携包为 `outputs/releases/OceanRoute-0.12-portable.zip`；解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），需要Python3.10+及首次联网。源码启动器创建新虚拟环境并安装解压目录的可编辑源码，另提供独立wheel。Windows离线EXE使用另一条内置运行时启动路径，不能将源码首装记录当作EXE验收。两份PDF为 `output/pdf/OceanRoute_用户手册_0.12.pdf` 与 `output/pdf/OceanRoute_设计文档_0.12.pdf`，历史PDF冻结。
+源码便携包为 `outputs/releases/OceanRoute-0.12.1-portable.zip`；解压后执行 `python3 launcher.py`（Windows为 `py launcher.py`），需要Python3.10+及首次联网。源码启动器创建新虚拟环境并安装解压目录的可编辑源码，另提供独立wheel。第二封存候选已实际全新安装、HTTP界面/计算/保存关闭重开和完整2232项回归通过。Windows离线EXE使用另一条内置运行时启动路径，不能将源码首装记录当作EXE验收。两份PDF为 `output/pdf/OceanRoute_用户手册_0.12.1.pdf` 与 `output/pdf/OceanRoute_设计文档_0.12.1.pdf`，历史PDF冻结。
 
 要求 Python 3.10 或更高版本。发布包包含已编译界面，不需要 Node.js；源码开发使用 Node.js 20 或更高版本。
 
@@ -34,7 +34,7 @@ Windows 使用 `.venv\Scripts\python.exe` 替换 Python 路径。也可执行 `p
 
 工作空间：<http://127.0.0.1:8765>。接口说明：<http://127.0.0.1:8765/docs>。工程及完整修订保存于当前目录 `.oceanroute/projects.sqlite3`，可用 `OCEANROUTE_DATA_DIR` 指定目录。
 
-0.12发行预览入口为 <http://127.0.0.1:8781>，使用独立数据与最终发行界面。历史预览和动态在线手册不替代相应冻结安装包。Windows安装版默认端口8765，被占用时另选空闲端口。
+0.12.1发行预览入口为 <http://127.0.0.1:8782>，使用独立数据与最终发行界面。历史预览和动态在线手册不替代相应冻结安装包。Windows安装版默认端口8765，被占用时另选空闲端口。
 
 ## 文档
 
