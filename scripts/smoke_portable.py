@@ -484,6 +484,129 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
                         launcher_installation=automatic_rules["launcher_installation"],
                         geographiclib_version=arc_installed["geographiclib_version"],
                         scope="Shipped stdlib arc harness through fresh launcher-installed editable source[terrain] HTTP server; independently stopped/restarted before this workflow's saved reread; actual source bytes, venv and editable metadata verified before adding test dependencies; own synthetic geometry, not original-product equivalence")
+                if tuple(map(int, expected_version.split("."))) >= (0, 12, 0):
+                    helper = checkout / "scripts/arc_edit_smoke.py"
+                    namespace = {"__name__": "portable_arc_edit_smoke"}
+                    exec(compile(helper.read_text(encoding="utf-8"), str(helper), "exec"), namespace)
+                    arc_edit_reads = 0
+                    arc_edit_owner_restarted = False
+                    arc_edit_process_ids = [process.pid]
+
+                    def post_arc_edit(path, value):
+                        request = urllib.request.Request(url + path,
+                            json.dumps(value, allow_nan=False).encode("utf-8"),
+                            {"Content-Type": "application/json"})
+                        try:
+                            with urllib.request.urlopen(request, timeout=30) as response:
+                                content_type = response.headers.get("Content-Type", "")
+                                if path == "/api/export/csv":
+                                    return {"_http_status": response.status,
+                                        "_content_type": content_type,
+                                        "_text": response.read().decode("utf-8")}
+                                return json.load(response)
+                        except urllib.error.HTTPError as error:
+                            if error.code != 422:
+                                raise
+                            return {"_http_status": 422, "_error": json.load(error)}
+
+                    def get_arc_edit(path):
+                        nonlocal process
+                        nonlocal arc_edit_reads, arc_edit_owner_restarted
+                        arc_edit_reads += 1
+                        if arc_edit_reads == 2:
+                            # This workflow independently restarts the actual
+                            # current owner after its own explicit save; prior
+                            # automatic/altercourse restarts do not prove this.
+                            if os.name == "nt":
+                                process.terminate()
+                            else:
+                                os.killpg(process.pid, signal.SIGINT)
+                            try:
+                                process.wait(timeout=20)
+                            except subprocess.TimeoutExpired:
+                                if os.name == "nt":
+                                    process.kill()
+                                else:
+                                    os.killpg(process.pid, signal.SIGKILL)
+                                process.wait(timeout=10)
+                            process = subprocess.Popen(
+                                [sys.executable, "launcher.py", "--port", str(port)],
+                                cwd=checkout, env=environment, stdout=stream, stderr=subprocess.STDOUT,
+                                start_new_session=os.name != "nt")
+                            arc_edit_process_ids.append(process.pid)
+                            restart_health = None
+                            deadline = time.monotonic() + 60
+                            while time.monotonic() < deadline:
+                                if process.poll() is not None:
+                                    raise RuntimeError("Arc-edit restarted launcher stopped: " + log.read_text()[-4000:])
+                                try:
+                                    with urllib.request.urlopen(url + "/api/health", timeout=1) as response:
+                                        restart_health = json.load(response)
+                                    break
+                                except (OSError, ValueError):
+                                    time.sleep(.1)
+                            assert restart_health is not None and restart_health["version"] == expected_version
+                            assert len(set(arc_edit_process_ids)) == 2
+                            arc_edit_owner_restarted = True
+                        with urllib.request.urlopen(url + path, timeout=30) as response:
+                            return json.load(response)
+
+                    arc_editing = namespace["run_arc_edit_smoke"](post_arc_edit, get_arc_edit)
+                    assert arc_edit_owner_restarted
+                    # A fresh child outside the extracted source verifies the
+                    # real launcher-installed editable registration and all
+                    # three new modules before installing test dependencies.
+                    arc_edit_modules = ["oceanroute.arc_edit_geometry", "oceanroute.arc_edit",
+                                        "oceanroute.arc_edit_workspace"]
+                    arc_edit_code = (
+                        "import importlib,importlib.metadata as md,json,pathlib,hashlib,sys,oceanroute; names="
+                        + repr(arc_edit_modules) + "; rows={}; "
+                        "\nfor name in names:\n p=pathlib.Path(importlib.import_module(name).__file__).resolve(); "
+                        "data=p.read_bytes(); rows[name]={'path':str(p),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}"
+                        "\nd=md.distribution('oceanroute'); f=next(f for f in d.files if str(f).endswith('.dist-info/METADATA')); "
+                        "mp=pathlib.Path(d.locate_file(f)).resolve(); data=mp.read_bytes(); "
+                        "du=json.loads(d.read_text('direct_url.json')); "
+                        "print(json.dumps({'version':oceanroute.__version__,'modules':rows,'sys_prefix':sys.prefix,"
+                        "'resolved_sys_prefix':str(pathlib.Path(sys.prefix).resolve()),'metadata':{'name':d.metadata['Name'],"
+                        "'version':d.version,'dist_info_path':str(mp.parent),'metadata_bytes':len(data),"
+                        "'metadata_sha256':hashlib.sha256(data).hexdigest(),'direct_url':du}}))")
+                    arc_edit_installed = json.loads(subprocess.check_output(
+                        [str(installed_python), "-c", arc_edit_code], cwd=root, env=environment, text=True))
+                    assert arc_edit_installed["version"] == expected_version
+                    arc_edit_source_root = checkout.resolve()
+                    arc_edit_environment_root = (checkout / ".venv").resolve()
+                    assert Path(arc_edit_installed["sys_prefix"]).resolve() == arc_edit_environment_root
+                    assert Path(arc_edit_installed["resolved_sys_prefix"]).resolve() == arc_edit_environment_root
+                    arc_edit_registration = arc_edit_installed["metadata"]
+                    assert arc_edit_registration["name"].lower() == "oceanroute"
+                    assert arc_edit_registration["version"] == expected_version
+                    assert Path(arc_edit_registration["dist_info_path"]).resolve().is_relative_to(arc_edit_environment_root)
+                    arc_edit_direct_url = arc_edit_registration["direct_url"]
+                    assert arc_edit_direct_url.get("dir_info", {}).get("editable") is True
+                    arc_edit_parsed_source = urllib.parse.urlsplit(arc_edit_direct_url["url"])
+                    assert arc_edit_parsed_source.scheme == "file" and arc_edit_parsed_source.netloc in ("", "localhost")
+                    assert not arc_edit_parsed_source.query and not arc_edit_parsed_source.fragment
+                    arc_edit_declared_root = Path(urllib.request.url2pathname(arc_edit_parsed_source.path)).resolve()
+                    assert arc_edit_declared_root == arc_edit_source_root
+                    assert set(arc_edit_installed["modules"]) == set(arc_edit_modules)
+                    for name, row in arc_edit_installed["modules"].items():
+                        source = (arc_edit_source_root / (name.replace(".", "/") + ".py")).resolve()
+                        assert source.is_relative_to(arc_edit_source_root / "oceanroute")
+                        assert Path(row["path"]).resolve() == source
+                        assert row["bytes"] == source.stat().st_size
+                        assert row["sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+                    arc_editing.update(version=expected_version,
+                        harness_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                        actual_http_server_owner_closed_and_restarted=True,
+                        actual_read_count=arc_edit_reads,
+                        launcher_process_ids=arc_edit_process_ids,
+                        installation_kind="fresh_venv_editable_source",
+                        launcher_installed_modules_before_test_dependencies=arc_edit_installed["modules"],
+                        launcher_installation={"checkout_path": str(checkout), "resolved_checkout_path": str(arc_edit_source_root),
+                            "environment_path": str(checkout / ".venv"), "resolved_environment_path": str(arc_edit_environment_root),
+                            "sys_prefix": arc_edit_installed["sys_prefix"], "resolved_sys_prefix": arc_edit_installed["resolved_sys_prefix"],
+                            "metadata": arc_edit_registration, "resolved_direct_url_source_root": str(arc_edit_declared_root)},
+                        scope="Shipped stdlib endpoint-edit harness through fresh launcher-installed editable source[terrain] HTTP server; independently stopped/restarted before this workflow's own saved reread; three new actual module source bytes, venv metadata and editable direct_url verified before adding test dependencies; distinct from extracted-wheel smoke, synthetic geometry only")
                 assert "创建本地 Python 环境" in log.read_text(), "Launcher reused an environment"
                 assert "安装 OceanRoute" in log.read_text(), "Launcher skipped installation"
                 print("Clean launcher, isolated environment, HTTP UI and real analysis passed.", flush=True)
@@ -534,6 +657,8 @@ def smoke(archive: Path, report: Path | None = None) -> dict:
         if tuple(map(int, expected_version.split("."))) >= (0, 11, 0):
             result["altercourse_geometry"] = altercourse
             result["versions"]["geographiclib"] = arc_installed["geographiclib_version"]
+        if tuple(map(int, expected_version.split("."))) >= (0, 12, 0):
+            result["arc_endpoint_editing"] = arc_editing
         if report is not None:
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

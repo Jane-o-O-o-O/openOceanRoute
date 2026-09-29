@@ -197,6 +197,13 @@ report.update(isolated_modules=modules, isolated_module_sha256=module_hashes,
 print(json.dumps(report, ensure_ascii=False, allow_nan=False))
 '''
 
+ARC_EDIT_SMOKE_WRAPPER = (ALTERCOURSE_SMOKE_WRAPPER
+    .replace('altercourse_smoke', 'arc_edit_smoke')
+    .replace('installed-altercourse-workflow', 'installed-arc-edit-workflow')
+    .replace("'oceanroute.altercourse_workspace', 'oceanroute.constraints',",
+             "'oceanroute.altercourse_workspace', 'oceanroute.arc_edit_geometry', "
+             "'oceanroute.arc_edit', 'oceanroute.arc_edit_workspace', 'oceanroute.constraints',"))
+
 # Execute in a fresh process, with only the extracted wheel on PYTHONPATH. Keep
 # the checks here so the test cannot accidentally import the checkout's package.
 SMOKE_CODE = r'''
@@ -1539,6 +1546,23 @@ def smoke(wheel: Path, report_path: Path | None = None) -> dict:
             if altercourse.stderr:
                 print(altercourse.stderr, file=sys.stderr, end="")
             report["altercourse_geometry"] = json.loads(altercourse.stdout)
+        if tuple(map(int, metadata["Version"].split("."))) >= (0, 12, 0):
+            helper = Path(__file__).resolve().parent / "arc_edit_smoke.py"
+            helper_bytes = helper.read_bytes()
+            helper_digest = hashlib.sha256(helper_bytes).hexdigest()
+            helper_destination = destination / "harnesses" / "arc_edit_smoke.py"
+            helper_destination.parent.mkdir(parents=True, exist_ok=True)
+            helper_destination.write_bytes(helper_bytes)
+            if helper_destination.read_bytes() != helper_bytes:
+                raise RuntimeError("Shipped arc-edit harness changed during explicit copy")
+            arc_edit = subprocess.run(
+                [sys.executable, "-c", ARC_EDIT_SMOKE_WRAPPER,
+                 metadata["Version"], helper_digest, str(Path(__file__).resolve().parents[1])],
+                cwd=destination, env=environment, check=True, capture_output=True,
+                text=True, timeout=120)
+            if arc_edit.stderr:
+                print(arc_edit.stderr, file=sys.stderr, end="")
+            report["arc_endpoint_editing"] = json.loads(arc_edit.stdout)
         report["wheel_metadata_version"] = metadata["Version"]
         report["wheel"] = str(wheel)
         report["wheel_bytes"] = wheel.stat().st_size
