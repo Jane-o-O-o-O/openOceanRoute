@@ -129,7 +129,8 @@ class TerrainGrid:
 
 
 class _EdgeCost:
-    def __init__(self, blocked, allowed, cables, weighted, bounds, config, terrain):
+    def __init__(self, blocked, allowed, cables, weighted, bounds, config, terrain,
+                 *, forward=None, backward=None, curve="rhumb", geographic_anchors=None):
         self.blocked = blocked
         self.blocked_prepared = prep(blocked) if not blocked.is_empty else None
         self.allowed = allowed
@@ -150,6 +151,17 @@ class _EdgeCost:
         self.step = finite_number(config.get("terrain_sample_step_m", min(spacing / 2, 500)), "terrain_sample_step_m", minimum=1, maximum=100000)
         self.cache = {}
         self.evaluated_edges = 0
+        self.forward, self.backward, self.curve = forward, backward, curve
+        self.geographic_anchors = geographic_anchors or {}
+        self.check_step = max(1.0, min(100.0, spacing / 8))
+        self.geographic_screened_edges = 0
+        self.geographic_screened_subedges = 0
+
+    def geographic_coordinate(self, point):
+        key = tuple(point)
+        if key in self.geographic_anchors:
+            return self.geographic_anchors[key]
+        return self.backward.transform(*point)
 
     def point_ok(self, point):
         shape_point = Point(point)
@@ -165,17 +177,41 @@ class _EdgeCost:
                 return False
         return True
 
-    def evaluate(self, a, b):
-        key = tuple(sorted((tuple(a), tuple(b))))
+    def evaluate(self, a, b, *, geographic=True):
+        # Cache the same oriented native sampling used by the eventual output;
+        # reverse geographic interpolation may differ by floating-point ULPs.
+        endpoints = (tuple(a), tuple(b))
+        key = (geographic, endpoints if geographic else tuple(sorted(endpoints)))
         if key in self.cache:
             return self.cache[key]
         self.evaluated_edges += 1
-        result = self._evaluate(a, b)
+        result = self._evaluate(a, b) if geographic else self._evaluate_projected(a, b)
         if len(self.cache) < 250_000:
             self.cache[key] = result
         return result
 
     def _evaluate(self, a, b):
+        result = self._evaluate_projected(a, b)
+        if result is None or self.backward is None:
+            return result
+        # A projected grid edge or shortcut is only a proposal. The output is
+        # the selected WGS84 curve between its endpoints; screen that same
+        # curve before A* or visibility simplification can accept the proposal.
+        # Reuse the final check's bounded densification and its existing
+        # bounds/obstacle/allowed/terrain operator, without widening clearance.
+        self.geographic_screened_edges += 1
+        start, end = self.geographic_coordinate(a), self.geographic_coordinate(b)
+        dense = densify(*start, *end, self.curve, self.check_step, 20000)
+        actual = [self.forward.transform(*point) for point in dense]
+        if not all(math.isfinite(v) for point in actual for v in point):
+            return None
+        for left, right in zip(actual, actual[1:]):
+            self.geographic_screened_subedges += 1
+            if self._evaluate_projected(left, right) is None:
+                return None
+        return result
+
+    def _evaluate_projected(self, a, b):
         length = math.hypot(b[0] - a[0], b[1] - a[1])
         if length < EPS:
             return {"total": 0, "distance_m": 0, "slope_cost_m": 0, "crossing_cost_m": 0, "zone_cost_m": 0, "crossing_units": 0, "max_slope_deg": 0}
@@ -317,7 +353,9 @@ def _smooth(path, costs):
 
 
 def _cost_report(path, costs):
-    values = [costs.evaluate(a, b) for a, b in zip(path, path[1:])]
+    # The caller already supplies the actual densified WGS84 curve here.
+    # Do not recursively rebuild a new geographic curve for its subedges.
+    values = [costs.evaluate(a, b, geographic=False) for a, b in zip(path, path[1:])]
     if any(value is None for value in values):
         raise RoutingError("ROUTING_VALIDATION_FAILED", "候选路径未通过区间约束校核")
     keys = ("total", "distance_m", "slope_cost_m", "crossing_cost_m", "zone_cost_m", "crossing_units")
@@ -643,9 +681,11 @@ def search_route(project: dict, config: dict | None = None) -> dict:
     bounds = box(xmin, ymin, xmax, ymax)
     blocked, allowed, cables, weighted, obstacles = _constraints(project, config, forward, clearance, cable_clearance)
     terrain = TerrainGrid(config["terrain_grid"], local) if config.get("terrain_grid") is not None else None
-    costs = _EdgeCost(blocked, allowed, cables, weighted, bounds, {**config, "grid_spacing_m": spacing}, terrain)
-    projected_path, segment_reports, anchor_new, old_keys = [], [], [0.0], [p["kp_m"] for p in before["rpl"]]
     curve = project["route"].get("curve", "rhumb")
+    costs = _EdgeCost(blocked, allowed, cables, weighted, bounds, {**config, "grid_spacing_m": spacing}, terrain,
+                      forward=forward, backward=backward, curve=curve,
+                      geographic_anchors={tuple(p): anchor for p, anchor in zip(xy, anchor_coords)})
+    projected_path, segment_reports, anchor_new, old_keys = [], [], [0.0], [p["kp_m"] for p in before["rpl"]]
     for index, (start, goal) in enumerate(zip(xy, xy[1:])):
         remaining_expansions = max_expansions - sum(r["expanded_nodes"] for r in segment_reports)
         if remaining_expansions < 1:
@@ -653,13 +693,13 @@ def search_route(project: dict, config: dict | None = None) -> dict:
         path, report = _search_segment(tuple(start), tuple(goal), (xmin,ymin,spacing,nx,ny), costs, remaining_expansions)
         if config.get("simplify", True):
             path = _smooth(path, costs)
-        coordinates = [backward.transform(*p) for p in path]
+        coordinates = [costs.geographic_coordinate(p) for p in path]
         # Keep user anchors bit-for-bit, avoiding endpoint projection roundoff.
         coordinates[0], coordinates[-1] = anchor_coords[index], anchor_coords[index+1]
         # Validate actual selected geographic curves, not merely the straight
         # projected grid edges. Denser edges remain explicit numerical screening.
         actual = []
-        check_step = max(1.0, min(100.0, spacing/8))
+        check_step = costs.check_step
         for a, b in zip(coordinates, coordinates[1:]):
             dense = densify(*a, *b, curve, check_step, 20000)
             actual.extend([forward.transform(*p) for p in dense] if not actual else [forward.transform(*p) for p in dense[1:]])
@@ -693,6 +733,8 @@ def search_route(project: dict, config: dict | None = None) -> dict:
                        "cable_clearance_m": cable_clearance, "obstacle_layer_ids": sorted(set(str(p["layer_id"]) for p in obstacles)),
                        "selected_start_index": start_index, "selected_end_index": end_index, "via_point_indices": via,
                        "segments": segment_reports, "objective_m_equivalent": objectives, "evaluated_edges": costs.evaluated_edges,
+                       "geographic_search_screened_edges": costs.geographic_screened_edges,
+                       "geographic_search_screened_subedges": costs.geographic_screened_subedges,
                        "constraint_validation": {"selected_section_passed": True, "obstacle_collision": False,
                                                 "within_allowed_area": True if allowed is not None else None,
                                                 "terrain_constraints_checked": costs.terrain_required,
@@ -704,5 +746,5 @@ def search_route(project: dict, config: dict | None = None) -> dict:
                                        "所有代价非负，启发式为目标点欧氏距离；目标值单位是等效米，不是费用报价。",
                                        "沿边地形采用二维网格双线性插值与明确采样间距；缺测和网格外部不外推。",
                                        "允许区域扣除走廊宽度，禁止区域按指定净距缓冲；连边碰撞检测避免仅检测节点导致的穿障。",
-                                       "完成后加密检查实际恒向／测地曲线；投影误差、地形采样误差、测深质量和工程可施工性仍需复核。",
+                                       "搜索连边和简化捷径接受前及完成后均加密检查实际恒向／测地曲线；仍为有界采样筛查，投影误差、地形采样误差、测深质量和工程可施工性须复核。",
                                        "保持必经锚点；其间旧缆型／固定约束链接按分段比例映射，原地形只保留空间未改变部分。"]}}
