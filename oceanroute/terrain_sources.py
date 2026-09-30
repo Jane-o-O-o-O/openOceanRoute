@@ -483,13 +483,20 @@ def _query_one(source, prepared, longitude, latitude, budget):
         indexes = np.flatnonzero(finite)
         if len(indexes):
             tri = prepared["tri"]; simplices = tri.find_simplex(queries)
-            nearest, _ = prepared["tree"].query(queries)
+            nearest, nearest_nodes = prepared["tree"].query(queries)
             statuses[indexes] = "outside_convex_hull"
             inside = simplices >= 0
             statuses[indexes[inside]] = "gap_exceeded"
             valid = inside & (nearest <= source["sampling"]["max_gap_m"])
             ii, qq, ss = indexes[valid], queries[valid], simplices[valid]
             statuses[ii] = "nodata"
+            # A true source-node hit is a measured value, not an interpolation.
+            # Native Delaunay roundoff can give a zero-depth vertex a tiny
+            # negative barycentric estimate. Do not clamp arbitrary estimates
+            # or relax convex-hull/max-gap admission to conceal that error.
+            exact = nearest[valid] == 0.0
+            numbers[ii[exact]] = prepared["values"][nearest_nodes[valid][exact]]
+            ii, qq, ss = ii[~exact], qq[~exact], ss[~exact]
             if len(ii) and source["sampling"]["method"] == "linear":
                 bary = np.einsum("ijk,ik->ij", tri.transform[ss, :2], qq-tri.transform[ss, 2])
                 weights = np.column_stack([bary, 1-bary.sum(axis=1)])

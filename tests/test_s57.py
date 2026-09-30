@@ -30,7 +30,12 @@ def bundle(entries):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
         for name, payload in entries:
-            z.writestr(name, payload)
+            # Passing a string would normalize backslashes on Windows before
+            # the malformed input ever reaches the application.
+            info = zipfile.ZipInfo()
+            info.filename = name
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, payload)
     return buffer.getvalue()
 
 

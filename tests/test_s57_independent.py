@@ -164,7 +164,10 @@ def zip_bytes(entries, compression=zipfile.ZIP_DEFLATED):
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", compression=compression) as z:
         for name, data in entries:
-            z.writestr(name, data)
+            info = zipfile.ZipInfo()
+            info.filename = name  # Preserve actual adversarial header bytes.
+            info.compress_type = compression
+            z.writestr(info, data)
     return out.getvalue()
 
 
@@ -455,6 +458,21 @@ def test_unsafe_zip_member_paths_fail_before_native_reader(name):
     data = zip_bytes([(name, native())])
     with pytest.raises(ValueError, match="unsafe|noncanonical"):
         inspect_s57(data, filename="bad.zip")
+
+
+def test_original_zip_header_is_rejected_before_host_filename_cleanup(monkeypatch):
+    monkeypatch.setattr("oceanroute.s57.subprocess.run",
+                        lambda *a, **k: pytest.fail("unsafe original ZIP header launched native reader"))
+    for name in ("a\\" + J + ".000", "a\x00" + J + ".000"):
+        data = zip_bytes([(name, native())], zipfile.ZIP_STORED)
+        # Independent ZIP local-header bytes prove the input is genuinely
+        # malformed rather than a name already sanitized by the test helper.
+        filename_size = struct.unpack_from("<H", data, 26)[0]
+        assert data[30:30 + filename_size] == name.encode("ascii")
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            assert z.infolist()[0].orig_filename == name
+        with pytest.raises(ValueError, match="unsafe|noncanonical"):
+            inspect_s57(data, filename="bad.zip")
 
 
 def test_duplicate_and_case_conflicting_zip_members_are_rejected():

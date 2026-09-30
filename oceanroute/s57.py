@@ -122,6 +122,12 @@ def _container(data, filename):
             raise ValueError("S57 ZIP exceeds 1000 members or 128 MiB uncompressed bytes")
         names = {}
         for item in infos:
+            # ZipInfo normalizes host separators on Windows and truncates NUL
+            # names. Validate the decoded original header before that cleanup;
+            # otherwise a rejected raw ZIP name can become an accepted path.
+            _safe_path(item.orig_filename, directory=item.is_dir())
+            if item.orig_filename != item.filename:
+                raise ValueError("S57 ZIP member path is noncanonical")
             _safe_path(item.filename, directory=item.is_dir())
             if item.flag_bits & 1 or stat.S_ISLNK(item.external_attr >> 16):
                 raise ValueError("S57 ZIP encrypted members and symlinks are unsupported")

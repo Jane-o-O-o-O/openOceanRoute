@@ -151,6 +151,54 @@ def test_xyz_projected_coordinate_order_plane_no_extrapolation_gap_and_known_zer
     assert query_terrain([source], [[118, 22]])["samples"][0]["attempts"][0]["status"] == "gap_exceeded"
 
 
+def test_linear_xyz_exact_measured_zero_survives_one_ulp_native_transform_roundoff():
+    from oceanroute import terrain_sources as sampler
+
+    local = CRS.from_proj4("+proj=aeqd +lat_0=22 +lon_0=118 +datum=WGS84 +units=m")
+    source = descriptor("xyz", id="native-zero-vertex-regression", source_crs=local.to_string(),
+        coordinate_order="yx", text="y x z\n-100 -100 0\n-100 100 2\n100 -100 4\n100 100 6",
+        sampling={"method": "linear", "max_gap_m": 1000})
+    reverse = Transformer.from_crs(local, 4326, always_xy=True)
+    point = list(reverse.transform(-100, -100))
+    clear_cache()
+    try:
+        normalized = normalize_sources([source])[0]
+        prepared = sampler._prepare(normalized, sampler._Budget(1_000_000))
+        query = np.array([prepared["converter"].transform(*point)])
+        distance, node = prepared["tree"].query(query)
+        assert distance[0] == 0 and prepared["values"][node[0]] == 0
+        simplex = int(prepared["tri"].find_simplex(query)[0])
+        affine = prepared["tri"].transform[simplex]
+        values = prepared["values"][prepared["tri"].simplices[simplex]]
+        original = affine.copy()
+        # Reproduce the actual Windows diagnostic without requiring that every
+        # LAPACK/Qhull build happens to choose the same cancellation sign.
+        # Only one coefficient of the complete 3x2 affine transform moves one
+        # floating-point ULP, including its reference-point offset. Qhull may
+        # put this zero-depth vertex in that reference row, so perturbing only
+        # the linear 2x2 block would multiply an exactly zero displacement.
+        # Source coordinates/depth, coverage and the exact nearest hit stay.
+        negative_estimate = None
+        for row, col, direction in ((r, c, d) for r in range(3) for c in range(2)
+                                    for d in (-math.inf, math.inf)):
+            affine[:] = original
+            affine[row, col] = np.nextafter(affine[row, col], direction)
+            bary = affine[:2] @ (query[0] - affine[2])
+            estimate = float(np.dot(np.r_[bary, 1 - bary.sum()], values))
+            if estimate < 0:
+                negative_estimate = estimate
+                break
+        assert negative_estimate is not None and abs(negative_estimate) < 1e-12
+        result = query_terrain([source], [point, list(reverse.transform(300, 0))])
+        assert result["samples"][0]["depth_m"] == 0.0
+        assert result["samples"][0]["attempts"][0]["status"] == "valid"
+        assert result["samples"][1]["depth_m"] is None
+        assert result["samples"][1]["attempts"][0]["status"] == "outside_convex_hull"
+        json.dumps(result, allow_nan=False)
+    finally:
+        clear_cache()
+
+
 @pytest.mark.parametrize("method", ["linear", "idw"])
 def test_xyz_explicit_missing_nodes_do_not_become_zero_or_deleted_hole(method):
     source = descriptor("xyz", nodata_value=-9999,

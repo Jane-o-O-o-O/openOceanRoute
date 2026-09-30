@@ -79,7 +79,9 @@ def test_real_s57_three_stage_upload_and_full_reference_layer_persistence(client
 @pytest.mark.parametrize("setting", ["[]", "null", '{"name":"a","name":"b"}',
                                       '{"timeout_s":NaN}', '{"timeout_s":1e999}',
                                       '{"name":"\\ud800"}', "[" * 1200 + "]" * 1200,
-                                      '{"name":"' + "a" * 32768 + '"}'])
+                                      '{"name":"' + "a" * 32768 + '"}'],
+                         ids=["array", "null", "duplicate-key", "nan", "infinity",
+                              "surrogate", "nesting-limit", "name-size-limit"])
 def test_bad_multipart_config_is_an_http_input_error_not_partial_native_success(client, stage, setting):
     result = client.post("/api/import/s57" + stage, data={"config_json": setting},
                          files={"file": ("US5A1KMJ.zip", FIXTURE.read_bytes())})
