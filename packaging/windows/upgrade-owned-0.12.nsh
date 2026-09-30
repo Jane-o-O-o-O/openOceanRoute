@@ -1,0 +1,13 @@
+; Exactly 11 old OceanRoute-owned files confirmed against the frozen original payload.
+Delete "$INSTDIR\documents\OceanRoute_用户手册_0.12.pdf"
+Delete "$INSTDIR\documents\OceanRoute_设计文档_0.12.pdf"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\INSTALLER"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\METADATA"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\RECORD"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\REQUESTED"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\WHEEL"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\direct_url.json"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\entry_points.txt"
+Delete "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info\top_level.txt"
+Delete "$INSTDIR\windows_app.py"
+RMDir "$INSTDIR\runtime\Lib\site-packages\oceanroute-0.12.0.dist-info"
