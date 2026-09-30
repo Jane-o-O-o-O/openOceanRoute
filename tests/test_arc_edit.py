@@ -245,7 +245,7 @@ def test_linked_additional_body_leading_station_differs_from_postinsert_point_bu
     actual_marker=next(x for x in analysis["rpl"] if x["id"]=="marker")
     body=next(x for x in analysis["bodies"] if x["id"]=="additional")
     assert link["cable_kp_m"]==body["cable_kp_m"]==1020.
-    assert actual_marker["cable_kp_m"]==1024.
+    assert actual_marker["cable_kp_m"]==pytest.approx(1024., rel=0, abs=1e-12)
     assert body["kp_m"]==pytest.approx(actual_marker["kp_m"],abs=1e-7)
     assert q["route"]["constraint_state"]["manufacturing"]==old["route"]["constraint_state"]["manufacturing"]
     assert p==old

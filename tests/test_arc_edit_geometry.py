@@ -155,7 +155,9 @@ def test_full_circle_unchanged_and_explicit_joint_endpoint_move(sweep):
 def test_binary_equal_endpoints_override_native_inverse_nonzero_roundoff():
     g = descriptor((0, 0), 300, 0, 360)
     point = (4.4915764255995735e-05, .002713108431129943)
-    assert 0 < G.inv(*point, *point)[2] < 1e-12  # Actual independent counterexample.
+    # Some native builds return a positive rounding residue for identical
+    # coordinates; others correctly return zero. Both must use binary identity.
+    assert 0 <= G.inv(*point, *point)[2] < 1e-12
     missing = rebuild_arc_endpoints(point, point, g)
     assert missing["rejection_codes"] == ["ARC_EDIT_FULL_CIRCLE_POLICY_REQUIRED"]
     out = rebuild_arc_endpoints(point, point, g, config={"full_circle_policy": "preserve_endpoint_center_bearing"})

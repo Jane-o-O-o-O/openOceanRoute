@@ -281,7 +281,7 @@ def test_actual_node_json_roundtrip_preserves_constraint_signature_analysis_and_
     configured=fixed(p)
     before=analyze_project(configured)
     script="let s='';process.stdin.setEncoding('utf8');process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>process.stdout.write(JSON.stringify(JSON.parse(s))));"
-    output=subprocess.run([node,"-e",script],input=json.dumps(configured),capture_output=True,text=True,check=True)
+    output=subprocess.run([node,"-e",script],input=json.dumps(configured),capture_output=True,text=True,encoding="utf-8",check=True)
     roundtrip=json.loads(output.stdout)
     assert isinstance(roundtrip["route"]["points"][0]["longitude"],int)
     assert roundtrip["route"]["points"][0]["latitude"]==(0 if signed_zero else 22)
@@ -289,5 +289,5 @@ def test_actual_node_json_roundtrip_preserves_constraint_signature_analysis_and_
     assert after["summary"]["cable_length_m"]==pytest.approx(before["summary"]["cable_length_m"])
     edited=edit_constrained_project(roundtrip,{"moves":[{"point_id":"p1","longitude":118.05,"latitude":.01 if signed_zero else 22.01}]})
     assert edited["report"]["physical_length_delta_m"]==pytest.approx(0,abs=1e-5)
-    second=subprocess.run([node,"-e",script],input=json.dumps(edited["project"]),capture_output=True,text=True,check=True)
+    second=subprocess.run([node,"-e",script],input=json.dumps(edited["project"]),capture_output=True,text=True,encoding="utf-8",check=True)
     analyze_project(json.loads(second.stdout))

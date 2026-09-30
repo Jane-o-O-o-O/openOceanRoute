@@ -72,7 +72,9 @@ def test_core_integrated_length_and_continuous_tangents_are_not_endpoint_chord()
     p = circle_project()
     result = analyze_project(p)
     lo, hi = B*math.sin(500/B)*math.pi, 500*math.pi
-    assert lo <= result["summary"]["surface_length_m"] <= hi
+    # Only the floating evaluation of the independent analytic bounds receives
+    # four ULPs; this is sub-picometre here, not an engineering geometry tolerance.
+    assert lo-4*math.ulp(lo) <= result["summary"]["surface_length_m"] <= hi+4*math.ulp(hi)
     assert result["summary"]["surface_length_m"] > 1.5*G.inv(
         p["route"]["points"][0]["longitude"],0,p["route"]["points"][1]["longitude"],0)[2]
     assert bearing_delta(result["legs"][0]["bearing_deg"],0) < 1e-7
