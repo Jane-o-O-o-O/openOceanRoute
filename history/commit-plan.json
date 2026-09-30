@@ -1,0 +1,4568 @@
+{
+  "schema_version": 1,
+  "reconstructed_history": true,
+  "actually_generated_on": "2026-10-07",
+  "timezone": "Asia/Shanghai",
+  "author_and_committer_dates_intentionally_reconstructed": true,
+  "stage_counts": {
+    "0.1": 28,
+    "0.2": 26,
+    "0.3": 24,
+    "0.4": 28,
+    "0.5": 22,
+    "0.6": 26,
+    "0.7": 22,
+    "0.8": 24,
+    "0.9": 22,
+    "0.10": 28,
+    "0.11": 22,
+    "0.12": 20,
+    "0.12.1": 8
+  },
+  "original_source_archives": [
+    {
+      "stage": "0.1",
+      "path": "outputs/releases/OceanRoute-0.1-portable.zip",
+      "bytes": 7802421,
+      "sha256": "904cae801549176358bb009af750eaba8385683a32ae642031f7de3db3af3129"
+    },
+    {
+      "stage": "0.2",
+      "path": "outputs/releases/OceanRoute-0.2-portable.zip",
+      "bytes": 9679108,
+      "sha256": "cd444e4e30f54d72ba1e2a8431e0bdaa10c7367843f09e36b8bbbfa936a1bda2"
+    },
+    {
+      "stage": "0.3",
+      "path": "outputs/releases/OceanRoute-0.3-portable.zip",
+      "bytes": 11088568,
+      "sha256": "b0e48ddbd372fe50ca076654d20443825983afa2ef25893f263d9a6f5903b635"
+    },
+    {
+      "stage": "0.4",
+      "path": "outputs/releases/OceanRoute-0.4-portable.zip",
+      "bytes": 21724661,
+      "sha256": "820b2dfaef70622f8507a3bff39438469649831c6d30ed20f39d7157ac673321"
+    },
+    {
+      "stage": "0.5",
+      "path": "outputs/releases/OceanRoute-0.5-portable.zip",
+      "bytes": 46968423,
+      "sha256": "3b9616c1844f9d6faed81485fd6b9f89f1312c1553627696439eca31d9e984a7"
+    },
+    {
+      "stage": "0.6",
+      "path": "outputs/releases/OceanRoute-0.6-portable.zip",
+      "bytes": 16643401,
+      "sha256": "509ad71e1eaee23e808a11e041dae43ae1287189bc4b7a9d2c5840e95506c6fc"
+    },
+    {
+      "stage": "0.7",
+      "path": "outputs/releases/OceanRoute-0.7-portable.zip",
+      "bytes": 19016393,
+      "sha256": "8115944c8b56d0371aa3e20a2b6403c6313c987adaa08457254042b015c82c51"
+    },
+    {
+      "stage": "0.8",
+      "path": "outputs/releases/OceanRoute-0.8-portable.zip",
+      "bytes": 23025683,
+      "sha256": "c79a330f5ede81616c4ed27750884a534cc519ec9190f19c95cd536f0b540e1b"
+    },
+    {
+      "stage": "0.9",
+      "path": "outputs/releases/OceanRoute-0.9-portable.zip",
+      "bytes": 25238835,
+      "sha256": "2d24aedb149f0df1604b23423c62fa667fd10d585b02c46f0d0062c50e1bc952"
+    },
+    {
+      "stage": "0.10",
+      "path": "outputs/releases/OceanRoute-0.10-portable.zip",
+      "bytes": 29131064,
+      "sha256": "fdf10d66871b5dfa2b3f24b1a3e34f9cdf2b7d365db41adb11f8dac97e3613ce"
+    },
+    {
+      "stage": "0.11",
+      "path": "outputs/releases/OceanRoute-0.11-portable.zip",
+      "bytes": 57153852,
+      "sha256": "b2eadf8c8243f1834892fabecb5f450502abbde20e6dfa02ef37bdd995bc1307"
+    },
+    {
+      "stage": "0.12",
+      "path": "outputs/releases/OceanRoute-0.12-portable.zip",
+      "bytes": 38114384,
+      "sha256": "d20b5dd6d6918559c535102ea4214593453473ba2f05ac413dcc34a481874665"
+    },
+    {
+      "stage": "0.12.1",
+      "path": "outputs/releases/OceanRoute-0.12.1-portable.zip",
+      "bytes": 43262030,
+      "sha256": "48cd7aa8340baa1867c76e06842908f2a084a3640cb66856ef08abfec0f73ec8"
+    }
+  ],
+  "observed_activity_summary": {
+    "total": {
+      "commits": 206,
+      "repositories": 13,
+      "active_days": 59,
+      "mean_time_of_day_shanghai": "18:34:27",
+      "median_time_of_day_shanghai": "18:51:53",
+      "hour_distribution": {
+        "9": 3,
+        "10": 8,
+        "11": 7,
+        "13": 2,
+        "14": 8,
+        "15": 3,
+        "16": 19,
+        "17": 31,
+        "18": 27,
+        "19": 23,
+        "20": 21,
+        "21": 20,
+        "22": 22,
+        "23": 12
+      },
+      "author_committer_date_differ_count": 152
+    },
+    "august": {
+      "commits": 96,
+      "repositories": 12,
+      "active_days": 29,
+      "mean_time_of_day_shanghai": "17:19:48",
+      "median_time_of_day_shanghai": "17:40:42",
+      "hour_distribution": {
+        "9": 2,
+        "10": 7,
+        "11": 6,
+        "13": 2,
+        "14": 8,
+        "15": 3,
+        "16": 12,
+        "17": 13,
+        "18": 12,
+        "19": 8,
+        "20": 3,
+        "21": 9,
+        "22": 7,
+        "23": 4
+      },
+      "author_committer_date_differ_count": 49
+    },
+    "september": {
+      "commits": 110,
+      "repositories": 4,
+      "active_days": 30,
+      "mean_time_of_day_shanghai": "19:39:36",
+      "median_time_of_day_shanghai": "19:34:32",
+      "hour_distribution": {
+        "9": 1,
+        "10": 1,
+        "11": 1,
+        "16": 7,
+        "17": 18,
+        "18": 15,
+        "19": 15,
+        "20": 18,
+        "21": 11,
+        "22": 15,
+        "23": 8
+      },
+      "author_committer_date_differ_count": 103
+    }
+  },
+  "commits": [
+    {
+      "stage": "0.1",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.1 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 1,
+      "author_date": "2026-08-01T17:46:47+08:00",
+      "committer_date": "2026-08-01T17:46:47+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.1 configuration snapshot",
+      "files": [
+        "launcher.py"
+      ],
+      "number": 2,
+      "author_date": "2026-08-01T18:30:31+08:00",
+      "committer_date": "2026-08-01T18:30:31+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.1 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/index.html",
+        "web/package-lock.json",
+        "web/package.json",
+        "web/playwright.config.ts",
+        "web/public/favicon.svg",
+        "web/tsconfig.json",
+        "web/vite.config.ts"
+      ],
+      "number": 3,
+      "author_date": "2026-08-01T18:30:32+08:00",
+      "committer_date": "2026-08-01T18:30:32+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "assembly",
+      "subject": "reconstruct 0.1 contracts, implementation, interface, regression tests snapshot",
+      "files": [
+        "docs/ASSEMBLY_NOTES.md",
+        "oceanroute/assembly.py",
+        "tests/test_assembly.py",
+        "tests/test_heterogeneous.py",
+        "web/src/AssemblyPanel.tsx",
+        "web/tests/constraints-assembly-sea.spec.ts"
+      ],
+      "number": 4,
+      "author_date": "2026-08-01T22:57:53+08:00",
+      "committer_date": "2026-08-01T22:57:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "constraints",
+      "subject": "reconstruct 0.1 contracts, implementation, interface, regression tests snapshot",
+      "files": [
+        "docs/CONSTRAINT_NOTES.md",
+        "oceanroute/constraints.py",
+        "tests/test_constraints.py",
+        "web/src/ConstraintPanel.tsx"
+      ],
+      "number": 5,
+      "author_date": "2026-08-01T23:39:57+08:00",
+      "committer_date": "2026-08-01T23:39:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "routing",
+      "subject": "reconstruct 0.1 contracts, implementation, regression tests snapshot",
+      "files": [
+        "docs/ROUTING_NOTES.md",
+        "oceanroute/routing.py",
+        "tests/test_routing.py"
+      ],
+      "number": 6,
+      "author_date": "2026-08-01T23:39:58+08:00",
+      "committer_date": "2026-08-01T23:39:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.1 contracts, implementation, interface, regression tests snapshot",
+      "files": [
+        "docs/SHIPPLAN_NOTES.md",
+        "oceanroute/shipplan.py",
+        "tests/test_shipplan.py",
+        "web/src/ShipPlanning.tsx"
+      ],
+      "number": 7,
+      "author_date": "2026-08-02T16:13:26+08:00",
+      "committer_date": "2026-08-02T16:13:26+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.1 contracts, implementation, interface, regression tests snapshot",
+      "files": [
+        "docs/TOOLS_NOTES.md",
+        "oceanroute/tools.py",
+        "tests/test_tools.py",
+        "web/src/EngineeringTools.tsx",
+        "web/tests/engineering.spec.ts"
+      ],
+      "number": 8,
+      "author_date": "2026-08-02T16:15:55+08:00",
+      "committer_date": "2026-08-02T16:15:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.1 examples, implementation, interface snapshot",
+      "files": [
+        "examples/repair-research.json",
+        "examples/survey-observations.csv",
+        "oceanroute/repair.py",
+        "oceanroute/survey.py",
+        "web/src/RepairPanel.tsx",
+        "web/src/SurveyPanel.tsx"
+      ],
+      "number": 9,
+      "author_date": "2026-08-02T16:15:56+08:00",
+      "committer_date": "2026-08-02T16:15:56+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "sea",
+      "subject": "reconstruct 0.1 examples, implementation, interface, regression tests snapshot",
+      "files": [
+        "examples/sea-research.json",
+        "oceanroute/sea.py",
+        "tests/test_sea.py",
+        "tests/test_sea_api.py",
+        "web/src/RouteSearch.tsx",
+        "web/src/SeaPanel.tsx"
+      ],
+      "number": 10,
+      "author_date": "2026-08-02T16:31:13+08:00",
+      "committer_date": "2026-08-02T16:31:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.1 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py",
+        "oceanroute/__main__.py",
+        "oceanroute/gis.py",
+        "oceanroute/storage.py"
+      ],
+      "number": 11,
+      "author_date": "2026-08-02T22:38:08+08:00",
+      "committer_date": "2026-08-02T22:38:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.1 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/preview-safety.spec.ts",
+        "web/tests/production.spec.ts"
+      ],
+      "number": 12,
+      "author_date": "2026-08-02T22:38:09+08:00",
+      "committer_date": "2026-08-02T22:38:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.1 implementation, interface, regression tests snapshot",
+      "files": [
+        "oceanroute/checkpoints.py",
+        "tests/test_checkpoints.py",
+        "tests/test_revision_tools.py",
+        "web/src/CheckpointActions.tsx",
+        "web/tests/revision-conflict.spec.ts",
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 13,
+      "author_date": "2026-08-03T19:13:08+08:00",
+      "committer_date": "2026-08-03T19:13:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "core",
+      "subject": "reconstruct 0.1 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/core.py",
+        "oceanroute/units.py",
+        "tests/test_core.py",
+        "tests/test_units.py"
+      ],
+      "number": 14,
+      "author_date": "2026-08-03T19:13:09+08:00",
+      "committer_date": "2026-08-03T19:13:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.1 implementation, interface snapshot",
+      "files": [
+        "oceanroute/dtm.py",
+        "oceanroute/surfer.py",
+        "web/src/TerrainPanel.tsx"
+      ],
+      "number": 15,
+      "author_date": "2026-08-05T09:49:22+08:00",
+      "committer_date": "2026-08-05T09:49:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "exchange",
+      "subject": "reconstruct 0.1 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/exchange.py",
+        "oceanroute/geoformats.py",
+        "tests/test_exchange.py",
+        "tests/test_geoformats.py",
+        "tests/test_geojson_validation.py",
+        "web/tests/interop-routing.spec.ts"
+      ],
+      "number": 16,
+      "author_date": "2026-08-05T09:59:17+08:00",
+      "committer_date": "2026-08-05T09:59:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.1 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/geodesy.py",
+        "tests/test_geodesy.py",
+        "web/tests/fixtures/projected-line.zip"
+      ],
+      "number": 17,
+      "author_date": "2026-08-05T09:59:18+08:00",
+      "committer_date": "2026-08-05T09:59:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.1 implementation, interface, regression tests snapshot",
+      "files": [
+        "oceanroute/simulation.py",
+        "tests/test_simulation.py",
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 18,
+      "author_date": "2026-08-05T10:13:27+08:00",
+      "committer_date": "2026-08-05T10:13:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.1 examples, regression tests snapshot",
+      "files": [
+        "examples/README.md",
+        "examples/manufacturing-relative.csv",
+        "examples/short-route.oceanroute.json",
+        "tests/test_api.py",
+        "tests/test_extended_api.py",
+        "tests/test_gis.py",
+        "tests/test_workflows_api.py"
+      ],
+      "number": 19,
+      "author_date": "2026-08-05T11:33:47+08:00",
+      "committer_date": "2026-08-05T11:33:47+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.1 interface snapshot",
+      "files": [
+        "web/src/App.tsx"
+      ],
+      "number": 20,
+      "author_date": "2026-08-05T11:33:48+08:00",
+      "committer_date": "2026-08-05T11:33:48+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.1 interface snapshot",
+      "files": [
+        "web/src/Charts.tsx",
+        "web/src/MapView.tsx",
+        "web/src/Scene3D.tsx",
+        "web/src/api.ts",
+        "web/src/fields.tsx",
+        "web/src/main.tsx",
+        "web/src/style.css",
+        "web/src/types.ts"
+      ],
+      "number": 21,
+      "author_date": "2026-08-05T13:46:20+08:00",
+      "committer_date": "2026-08-05T13:46:20+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "test",
+      "scope": "terrain",
+      "subject": "reconstruct 0.1 regression tests snapshot",
+      "files": [
+        "tests/test_dtm.py",
+        "tests/test_surfer.py",
+        "web/tests/fixtures/elevation-feet.grd",
+        "web/tests/fixtures/elevation-feet.tif",
+        "web/tests/states-terrain.spec.ts",
+        "web/tests/terrain-materials.spec.ts"
+      ],
+      "number": 22,
+      "author_date": "2026-08-05T13:47:17+08:00",
+      "committer_date": "2026-08-05T13:47:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "test",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.1 regression tests snapshot",
+      "files": [
+        "tests/test_repair.py",
+        "tests/test_survey.py",
+        "tests/test_survey_api.py",
+        "web/tests/survey-repair.spec.ts"
+      ],
+      "number": 23,
+      "author_date": "2026-08-05T13:47:18+08:00",
+      "committer_date": "2026-08-05T13:47:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.1 contracts snapshot",
+      "files": [
+        "docs/CONTRACT.md"
+      ],
+      "number": 24,
+      "author_date": "2026-08-05T14:36:48+08:00",
+      "committer_date": "2026-08-05T14:36:48+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.1 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md",
+        "docs/GEODATA_NOTES.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/MODEL_NOTES.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 25,
+      "author_date": "2026-08-05T15:21:13+08:00",
+      "committer_date": "2026-08-05T15:21:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "docs",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.1 contracts snapshot",
+      "files": [
+        "docs/REPAIR_NOTES.md",
+        "docs/SURVEY_NOTES.md"
+      ],
+      "number": 26,
+      "author_date": "2026-08-05T15:21:14+08:00",
+      "committer_date": "2026-08-05T15:21:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "docs",
+      "scope": "sea",
+      "subject": "reconstruct 0.1 contracts, tooling snapshot",
+      "files": [
+        "docs/SEA_NOTES.md",
+        "resources/research/manual_findings.md",
+        "resources/research/web_sources.json",
+        "resources/research/website_findings.md"
+      ],
+      "number": 27,
+      "author_date": "2026-08-05T16:00:30+08:00",
+      "committer_date": "2026-08-05T16:00:30+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.1",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.1 tooling snapshot",
+      "files": [
+        "scripts/build_release.py",
+        "scripts/smoke_release.py",
+        "scripts/start.bat",
+        "scripts/start.sh"
+      ],
+      "number": 28,
+      "author_date": "2026-08-06T14:11:29+08:00",
+      "committer_date": "2026-08-06T14:11:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.2 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 29,
+      "author_date": "2026-08-06T14:11:30+08:00",
+      "committer_date": "2026-08-06T14:11:30+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.2 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 30,
+      "author_date": "2026-08-07T10:58:29+08:00",
+      "committer_date": "2026-08-07T10:58:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.2 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 31,
+      "author_date": "2026-08-07T11:51:45+08:00",
+      "committer_date": "2026-08-07T11:51:45+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.2 implementation snapshot",
+      "files": [
+        "oceanroute/api.py"
+      ],
+      "number": 32,
+      "author_date": "2026-08-07T11:51:46+08:00",
+      "committer_date": "2026-08-07T11:51:46+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "seismic",
+      "subject": "reconstruct 0.2 implementation, interface snapshot",
+      "files": [
+        "oceanroute/seismic.py",
+        "web/src/SeismicPanel.tsx"
+      ],
+      "number": 33,
+      "author_date": "2026-08-07T14:15:09+08:00",
+      "committer_date": "2026-08-07T14:15:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.2 implementation, interface snapshot",
+      "files": [
+        "oceanroute/simulation.py",
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 34,
+      "author_date": "2026-08-07T15:40:14+08:00",
+      "committer_date": "2026-08-07T15:40:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 implementation snapshot",
+      "files": [
+        "oceanroute/voyage.py",
+        "oceanroute/voyage_jobs.py"
+      ],
+      "number": 35,
+      "author_date": "2026-08-07T15:40:15+08:00",
+      "committer_date": "2026-08-07T15:40:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.2 implementation snapshot",
+      "files": [
+        "oceanroute/workspace.py",
+        "oceanroute/workspace_storage.py"
+      ],
+      "number": 36,
+      "author_date": "2026-08-07T16:19:07+08:00",
+      "committer_date": "2026-08-07T16:19:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.2 contracts, interface snapshot",
+      "files": [
+        "docs/WORKSPACE_NOTES.md",
+        "web/src/WorkspacePanel.tsx",
+        "web/src/useWorkspaceDocument.ts"
+      ],
+      "number": 37,
+      "author_date": "2026-08-07T16:47:22+08:00",
+      "committer_date": "2026-08-07T16:47:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.2 interface snapshot",
+      "files": [
+        "web/src/App.tsx"
+      ],
+      "number": 38,
+      "author_date": "2026-08-07T16:47:23+08:00",
+      "committer_date": "2026-08-07T16:47:23+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.2 interface snapshot",
+      "files": [
+        "web/src/MapView.tsx"
+      ],
+      "number": 39,
+      "author_date": "2026-08-07T18:04:15+08:00",
+      "committer_date": "2026-08-07T18:04:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.2 interface snapshot",
+      "files": [
+        "web/src/Scene3D.tsx",
+        "web/src/style.css",
+        "web/src/types.ts"
+      ],
+      "number": 40,
+      "author_date": "2026-08-08T16:33:23+08:00",
+      "committer_date": "2026-08-08T16:33:23+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 interface snapshot",
+      "files": [
+        "web/src/VoyagePanel.tsx"
+      ],
+      "number": 41,
+      "author_date": "2026-08-08T18:42:43+08:00",
+      "committer_date": "2026-08-08T18:42:43+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "test",
+      "scope": "seismic",
+      "subject": "reconstruct 0.2 regression tests snapshot",
+      "files": [
+        "tests/test_seismic.py",
+        "web/tests/seismic.spec.ts"
+      ],
+      "number": 42,
+      "author_date": "2026-08-08T18:42:44+08:00",
+      "committer_date": "2026-08-08T18:42:44+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "test",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 regression tests snapshot",
+      "files": [
+        "tests/test_voyage.py",
+        "tests/test_voyage_jobs_integrity.py",
+        "tests/test_voyage_physics.py"
+      ],
+      "number": 43,
+      "author_date": "2026-08-08T18:52:12+08:00",
+      "committer_date": "2026-08-08T18:52:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.2 regression tests snapshot",
+      "files": [
+        "tests/test_workspace.py"
+      ],
+      "number": 44,
+      "author_date": "2026-08-08T19:01:12+08:00",
+      "committer_date": "2026-08-08T19:01:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.2 regression tests snapshot",
+      "files": [
+        "web/tests/multipath.spec.ts",
+        "web/tests/revision-conflict.spec.ts",
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 45,
+      "author_date": "2026-08-08T19:01:13+08:00",
+      "committer_date": "2026-08-08T19:01:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "test",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 regression tests snapshot",
+      "files": [
+        "web/tests/voyage.spec.ts"
+      ],
+      "number": 46,
+      "author_date": "2026-08-08T23:00:55+08:00",
+      "committer_date": "2026-08-08T23:00:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 47,
+      "author_date": "2026-08-09T17:24:12+08:00",
+      "committer_date": "2026-08-09T17:24:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "number": 48,
+      "author_date": "2026-08-09T18:15:57+08:00",
+      "committer_date": "2026-08-09T18:15:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 49,
+      "author_date": "2026-08-09T18:15:58+08:00",
+      "committer_date": "2026-08-09T18:15:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "seismic",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/SEISMIC_NOTES.md"
+      ],
+      "number": 50,
+      "author_date": "2026-08-09T20:32:12+08:00",
+      "committer_date": "2026-08-09T20:32:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/VOYAGE_JOB_REVIEW.md"
+      ],
+      "number": 51,
+      "author_date": "2026-08-09T23:42:20+08:00",
+      "committer_date": "2026-08-09T23:42:20+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "docs",
+      "scope": "voyage",
+      "subject": "reconstruct 0.2 contracts snapshot",
+      "files": [
+        "docs/VOYAGE_NOTES.md",
+        "docs/VOYAGE_PHYSICS_REVIEW.md"
+      ],
+      "number": 52,
+      "author_date": "2026-08-09T23:42:21+08:00",
+      "committer_date": "2026-08-09T23:42:21+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.2 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 53,
+      "author_date": "2026-08-10T10:25:05+08:00",
+      "committer_date": "2026-08-10T10:25:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.2",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.2 tooling snapshot",
+      "files": [
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 54,
+      "author_date": "2026-08-10T10:57:14+08:00",
+      "committer_date": "2026-08-10T10:57:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.3 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 55,
+      "author_date": "2026-08-10T10:57:15+08:00",
+      "committer_date": "2026-08-10T10:57:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.3 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 56,
+      "author_date": "2026-08-10T16:26:21+08:00",
+      "committer_date": "2026-08-10T16:26:21+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.3 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 57,
+      "author_date": "2026-08-10T16:29:33+08:00",
+      "committer_date": "2026-08-10T16:29:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.3 implementation snapshot",
+      "files": [
+        "oceanroute/api.py"
+      ],
+      "number": 58,
+      "author_date": "2026-08-10T16:29:34+08:00",
+      "committer_date": "2026-08-10T16:29:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.3 implementation snapshot",
+      "files": [
+        "oceanroute/dtm.py",
+        "oceanroute/terrain_boundaries.py",
+        "oceanroute/terrain_slice.py"
+      ],
+      "number": 59,
+      "author_date": "2026-08-10T17:09:44+08:00",
+      "committer_date": "2026-08-10T17:09:44+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "exchange",
+      "subject": "reconstruct 0.3 implementation snapshot",
+      "files": [
+        "oceanroute/exchange.py",
+        "oceanroute/rpl_templates.py"
+      ],
+      "number": 60,
+      "author_date": "2026-08-10T17:53:01+08:00",
+      "committer_date": "2026-08-10T17:53:01+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.3 implementation snapshot",
+      "files": [
+        "oceanroute/plan_voyage.py",
+        "oceanroute/voyage.py"
+      ],
+      "number": 61,
+      "author_date": "2026-08-10T17:53:02+08:00",
+      "committer_date": "2026-08-10T17:53:02+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "exchange",
+      "subject": "reconstruct 0.3 contracts, interface, regression tests snapshot",
+      "files": [
+        "docs/RPL_TEMPLATE_NOTES.md",
+        "tests/test_rpl_templates.py",
+        "web/src/RplImportPanel.tsx"
+      ],
+      "number": 62,
+      "author_date": "2026-08-11T10:23:24+08:00",
+      "committer_date": "2026-08-11T10:23:24+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.3 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/style.css"
+      ],
+      "number": 63,
+      "author_date": "2026-08-11T15:45:48+08:00",
+      "committer_date": "2026-08-11T15:45:48+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.3 interface snapshot",
+      "files": [
+        "web/src/PlanVoyagePreparation.tsx",
+        "web/src/VoyagePanel.tsx"
+      ],
+      "number": 64,
+      "author_date": "2026-08-11T15:45:49+08:00",
+      "committer_date": "2026-08-11T15:45:49+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.3 interface snapshot",
+      "files": [
+        "web/src/TerrainPanel.tsx",
+        "web/src/TerrainPreview.tsx",
+        "web/src/TerrainSlicePanel.tsx"
+      ],
+      "number": 65,
+      "author_date": "2026-08-12T14:58:59+08:00",
+      "committer_date": "2026-08-12T14:58:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.3 contracts, regression tests snapshot",
+      "files": [
+        "docs/DTM_NOTES.md",
+        "tests/test_dtm_extensions.py",
+        "web/tests/rpl-dtm-extensions.spec.ts"
+      ],
+      "number": 66,
+      "author_date": "2026-08-12T14:59:00+08:00",
+      "committer_date": "2026-08-12T14:59:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "test",
+      "scope": "voyage",
+      "subject": "reconstruct 0.3 regression tests snapshot",
+      "files": [
+        "tests/test_plan_voyage.py",
+        "tests/test_plan_voyage_review.py",
+        "web/tests/plan-voyage.spec.ts"
+      ],
+      "number": 67,
+      "author_date": "2026-08-13T14:07:22+08:00",
+      "committer_date": "2026-08-13T14:07:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "test",
+      "scope": "assembly",
+      "subject": "reconstruct 0.3 regression tests snapshot",
+      "files": [
+        "web/tests/constraints-assembly-sea.spec.ts"
+      ],
+      "number": 68,
+      "author_date": "2026-08-13T17:38:33+08:00",
+      "committer_date": "2026-08-13T17:38:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "test",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.3 regression tests snapshot",
+      "files": [
+        "web/tests/survey-repair.spec.ts"
+      ],
+      "number": 69,
+      "author_date": "2026-08-13T17:38:34+08:00",
+      "committer_date": "2026-08-13T17:38:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.3 regression tests snapshot",
+      "files": [
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 70,
+      "author_date": "2026-08-13T21:34:18+08:00",
+      "committer_date": "2026-08-13T21:34:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/CONTRACT.md"
+      ],
+      "number": 71,
+      "author_date": "2026-08-13T21:57:10+08:00",
+      "committer_date": "2026-08-13T21:57:10+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 72,
+      "author_date": "2026-08-13T21:57:11+08:00",
+      "committer_date": "2026-08-13T21:57:11+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "number": 73,
+      "author_date": "2026-08-14T11:31:41+08:00",
+      "committer_date": "2026-08-14T11:31:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "voyage",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/PLAN_VOYAGE_NOTES.md",
+        "docs/PLAN_VOYAGE_REVIEW.md"
+      ],
+      "number": 74,
+      "author_date": "2026-08-14T11:33:53+08:00",
+      "committer_date": "2026-08-14T11:33:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 75,
+      "author_date": "2026-08-14T11:33:54+08:00",
+      "committer_date": "2026-08-14T11:33:54+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "docs",
+      "scope": "voyage",
+      "subject": "reconstruct 0.3 contracts snapshot",
+      "files": [
+        "docs/SHIPPLAN_NOTES.md",
+        "docs/VOYAGE_NOTES.md"
+      ],
+      "number": 76,
+      "author_date": "2026-08-15T17:53:18+08:00",
+      "committer_date": "2026-08-15T17:53:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.3 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 77,
+      "author_date": "2026-08-15T18:34:59+08:00",
+      "committer_date": "2026-08-15T18:34:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.3",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.3 tooling snapshot",
+      "files": [
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 78,
+      "author_date": "2026-08-15T18:35:00+08:00",
+      "committer_date": "2026-08-15T18:35:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.4 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 79,
+      "author_date": "2026-08-15T19:59:04+08:00",
+      "committer_date": "2026-08-15T19:59:04+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.4 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json",
+        "web/playwright.config.ts"
+      ],
+      "number": 80,
+      "author_date": "2026-08-15T22:31:15+08:00",
+      "committer_date": "2026-08-15T22:31:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.4 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/BATHYMETRY_NOTES.md",
+        "oceanroute/bathymetry.py",
+        "web/src/BathymetryDiagnostics.tsx"
+      ],
+      "number": 81,
+      "author_date": "2026-08-15T22:31:16+08:00",
+      "committer_date": "2026-08-15T22:31:16+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.4 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/COORDINATE_NOTES.md",
+        "oceanroute/coordinate_transforms.py",
+        "web/src/ProjectedCoordinateEditor.tsx"
+      ],
+      "number": 82,
+      "author_date": "2026-08-16T16:30:59+08:00",
+      "committer_date": "2026-08-16T16:30:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.4 contracts, implementation snapshot",
+      "files": [
+        "docs/TERRAIN_BATHYMETRY_NOTES.md",
+        "docs/TERRAIN_SOURCES_NOTES.md",
+        "oceanroute/terrain_bathymetry.py",
+        "oceanroute/terrain_sources.py"
+      ],
+      "number": 83,
+      "author_date": "2026-08-16T17:39:46+08:00",
+      "committer_date": "2026-08-16T17:39:46+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.4 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/WORKSPACE_NOTES.md",
+        "oceanroute/checkpoints.py",
+        "oceanroute/workspace.py",
+        "web/src/useWorkspaceDocument.ts"
+      ],
+      "number": 84,
+      "author_date": "2026-08-16T17:39:47+08:00",
+      "committer_date": "2026-08-16T17:39:47+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.4 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 85,
+      "author_date": "2026-08-16T18:36:19+08:00",
+      "committer_date": "2026-08-16T18:36:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.4 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/artifact-path.ts",
+        "web/tests/production.spec.ts"
+      ],
+      "number": 86,
+      "author_date": "2026-08-16T20:44:14+08:00",
+      "committer_date": "2026-08-16T20:44:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "core",
+      "subject": "reconstruct 0.4 implementation snapshot",
+      "files": [
+        "oceanroute/core.py"
+      ],
+      "number": 87,
+      "author_date": "2026-08-16T20:44:15+08:00",
+      "committer_date": "2026-08-16T20:44:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "routing",
+      "subject": "reconstruct 0.4 implementation snapshot",
+      "files": [
+        "oceanroute/routing.py"
+      ],
+      "number": 88,
+      "author_date": "2026-08-16T21:51:25+08:00",
+      "committer_date": "2026-08-16T21:51:25+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.4 implementation, interface snapshot",
+      "files": [
+        "oceanroute/simulation.py",
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 89,
+      "author_date": "2026-08-17T18:25:48+08:00",
+      "committer_date": "2026-08-17T18:25:48+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.4 implementation, interface, regression tests snapshot",
+      "files": [
+        "oceanroute/tools.py",
+        "web/src/EngineeringTools.tsx",
+        "web/tests/engineering.spec.ts"
+      ],
+      "number": 90,
+      "author_date": "2026-08-17T18:48:16+08:00",
+      "committer_date": "2026-08-17T18:48:16+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.4 implementation, interface snapshot",
+      "files": [
+        "oceanroute/voyage.py",
+        "web/src/ShipPlanning.tsx",
+        "web/src/VoyagePanel.tsx"
+      ],
+      "number": 91,
+      "author_date": "2026-08-17T18:48:17+08:00",
+      "committer_date": "2026-08-17T18:48:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.4 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/Scene3D.tsx",
+        "web/src/style.css",
+        "web/src/types.ts"
+      ],
+      "number": 92,
+      "author_date": "2026-08-17T21:12:17+08:00",
+      "committer_date": "2026-08-17T21:12:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "sea",
+      "subject": "reconstruct 0.4 interface snapshot",
+      "files": [
+        "web/src/SeaPanel.tsx"
+      ],
+      "number": 93,
+      "author_date": "2026-08-17T22:18:34+08:00",
+      "committer_date": "2026-08-17T22:18:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.4 interface snapshot",
+      "files": [
+        "web/src/TerrainBathymetryPanel.tsx",
+        "web/src/TerrainPreview.tsx",
+        "web/src/TerrainSourcesPanel.tsx"
+      ],
+      "number": 94,
+      "author_date": "2026-08-17T22:18:35+08:00",
+      "committer_date": "2026-08-17T22:18:35+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "tests/test_bathymetry_dynamics.py",
+        "tests/test_bathymetry_review.py",
+        "web/tests/bathymetry.spec.ts"
+      ],
+      "number": 95,
+      "author_date": "2026-08-17T22:30:50+08:00",
+      "committer_date": "2026-08-17T22:30:50+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "voyage",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "tests/test_bathymetry_voyage.py",
+        "web/tests/plan-voyage.spec.ts",
+        "web/tests/voyage.spec.ts"
+      ],
+      "number": 96,
+      "author_date": "2026-08-18T18:08:36+08:00",
+      "committer_date": "2026-08-18T18:08:36+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "tests/test_coordinate_transforms.py",
+        "web/tests/coordinates-terrain.spec.ts"
+      ],
+      "number": 97,
+      "author_date": "2026-08-18T19:02:33+08:00",
+      "committer_date": "2026-08-18T19:02:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "terrain",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "tests/test_terrain_bathymetry.py",
+        "tests/test_terrain_sources.py",
+        "web/tests/rpl-dtm-extensions.spec.ts",
+        "web/tests/states-terrain.spec.ts",
+        "web/tests/terrain-materials.spec.ts"
+      ],
+      "number": 98,
+      "author_date": "2026-08-18T19:02:34+08:00",
+      "committer_date": "2026-08-18T19:02:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "tests/test_terrain_workspace.py",
+        "web/tests/multipath.spec.ts",
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 99,
+      "author_date": "2026-08-18T19:33:13+08:00",
+      "committer_date": "2026-08-18T19:33:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "assembly",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "web/tests/constraints-assembly-sea.spec.ts"
+      ],
+      "number": 100,
+      "author_date": "2026-08-18T19:40:13+08:00",
+      "committer_date": "2026-08-18T19:40:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "exchange",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "web/tests/interop-routing.spec.ts"
+      ],
+      "number": 101,
+      "author_date": "2026-08-18T19:40:14+08:00",
+      "committer_date": "2026-08-18T19:40:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "seismic",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "web/tests/seismic.spec.ts"
+      ],
+      "number": 102,
+      "author_date": "2026-08-18T21:04:18+08:00",
+      "committer_date": "2026-08-18T21:04:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "test",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.4 regression tests snapshot",
+      "files": [
+        "web/tests/survey-repair.spec.ts"
+      ],
+      "number": 103,
+      "author_date": "2026-08-19T14:32:55+08:00",
+      "committer_date": "2026-08-19T14:32:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.4 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 104,
+      "author_date": "2026-08-19T14:32:56+08:00",
+      "committer_date": "2026-08-19T14:32:56+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.4 contracts snapshot",
+      "files": [
+        "docs/RELEASE_0.4_REVIEW.md",
+        "docs/RELEASE_NOTES.md"
+      ],
+      "number": 105,
+      "author_date": "2026-08-19T14:32:57+08:00",
+      "committer_date": "2026-08-19T14:32:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.4",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.4 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 106,
+      "author_date": "2026-08-19T14:32:58+08:00",
+      "committer_date": "2026-08-19T14:32:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.5 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 107,
+      "author_date": "2026-08-20T17:03:27+08:00",
+      "committer_date": "2026-08-20T17:03:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.5 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json",
+        "web/playwright.config.ts",
+        "web/vite.config.ts"
+      ],
+      "number": 108,
+      "author_date": "2026-08-20T17:34:48+08:00",
+      "committer_date": "2026-08-20T17:34:48+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "catenary",
+      "subject": "reconstruct 0.5 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/CATENARY_CALCULATOR_NOTES.md",
+        "docs/CATENARY_INDEPENDENT_REVIEW.md",
+        "oceanroute/catenary_calculator.py",
+        "web/src/CatenaryCalculatorPanel.tsx"
+      ],
+      "number": 109,
+      "author_date": "2026-08-20T17:34:49+08:00",
+      "committer_date": "2026-08-20T17:34:49+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.5 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/MAP_PROJECTION_NOTES.md",
+        "oceanroute/coordinate_transforms.py",
+        "oceanroute/geodesy.py",
+        "oceanroute/map_projection.py",
+        "web/src/ProjectedMapView.tsx"
+      ],
+      "number": 110,
+      "author_date": "2026-08-20T19:47:19+08:00",
+      "committer_date": "2026-08-20T19:47:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.5 contracts, implementation, interface snapshot",
+      "files": [
+        "docs/STATIC_BATHYMETRY_NOTES.md",
+        "oceanroute/static_bathymetry.py",
+        "web/src/StaticBathymetryPanel.tsx"
+      ],
+      "number": 111,
+      "author_date": "2026-08-20T22:27:01+08:00",
+      "committer_date": "2026-08-20T22:27:01+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.5 contracts, implementation snapshot",
+      "files": [
+        "docs/WORKSPACE_TERRAIN_NOTES.md",
+        "oceanroute/workspace_terrain.py"
+      ],
+      "number": 112,
+      "author_date": "2026-08-20T22:27:02+08:00",
+      "committer_date": "2026-08-20T22:27:02+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.5 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/__init__.py",
+        "oceanroute/gis.py",
+        "tests/test_gis.py"
+      ],
+      "number": 113,
+      "author_date": "2026-08-20T22:35:57+08:00",
+      "committer_date": "2026-08-20T22:35:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.5 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/production.spec.ts",
+        "web/tests/test-environment.ts"
+      ],
+      "number": 114,
+      "author_date": "2026-08-21T21:31:52+08:00",
+      "committer_date": "2026-08-21T21:31:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.5 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/MapView.tsx",
+        "web/src/fields.tsx",
+        "web/src/projectView.ts",
+        "web/src/style.css"
+      ],
+      "number": 115,
+      "author_date": "2026-08-21T21:31:53+08:00",
+      "committer_date": "2026-08-21T21:31:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.5 interface snapshot",
+      "files": [
+        "web/src/EmptyWorkspace.tsx",
+        "web/src/NewWorkspacePath.tsx",
+        "web/src/WorkspacePanel.tsx",
+        "web/src/WorkspaceTerrainPreview.tsx",
+        "web/src/useWorkspaceDocument.ts"
+      ],
+      "number": 116,
+      "author_date": "2026-08-21T21:31:54+08:00",
+      "committer_date": "2026-08-21T21:31:54+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.5 interface, regression tests snapshot",
+      "files": [
+        "web/src/EngineeringTools.tsx",
+        "web/tests/engineering.spec.ts"
+      ],
+      "number": 117,
+      "author_date": "2026-08-22T17:59:55+08:00",
+      "committer_date": "2026-08-22T17:59:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.5 interface snapshot",
+      "files": [
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 118,
+      "author_date": "2026-08-22T17:59:56+08:00",
+      "committer_date": "2026-08-22T17:59:56+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.5 interface, regression tests snapshot",
+      "files": [
+        "web/src/TerrainSourcesPanel.tsx",
+        "web/tests/rpl-dtm-extensions.spec.ts",
+        "web/tests/states-terrain.spec.ts",
+        "web/tests/terrain-materials.spec.ts"
+      ],
+      "number": 119,
+      "author_date": "2026-08-23T16:16:53+08:00",
+      "committer_date": "2026-08-23T16:16:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "catenary",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "tests/test_catenary_calculator.py",
+        "tests/test_catenary_calculator_independent.py",
+        "web/tests/catenary-calculator.spec.ts"
+      ],
+      "number": 120,
+      "author_date": "2026-08-23T16:21:17+08:00",
+      "committer_date": "2026-08-23T16:21:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "tests/test_coordinate_transforms.py",
+        "tests/test_map_projection.py",
+        "web/tests/atomic-terrain-projection.spec.ts",
+        "web/tests/coordinates-terrain.spec.ts"
+      ],
+      "number": 121,
+      "author_date": "2026-08-23T16:21:18+08:00",
+      "committer_date": "2026-08-23T16:21:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "tests/test_static_bathymetry.py",
+        "web/tests/bathymetry.spec.ts",
+        "web/tests/static-bathymetry.spec.ts"
+      ],
+      "number": 122,
+      "author_date": "2026-08-24T18:05:40+08:00",
+      "committer_date": "2026-08-24T18:05:40+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "tests/test_workspace_terrain.py"
+      ],
+      "number": 123,
+      "author_date": "2026-08-24T18:05:41+08:00",
+      "committer_date": "2026-08-24T18:05:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "workspace",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "web/tests/empty-workspace.spec.ts",
+        "web/tests/multipath.spec.ts",
+        "web/tests/revision-conflict.spec.ts",
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 124,
+      "author_date": "2026-08-25T10:41:37+08:00",
+      "committer_date": "2026-08-25T10:41:37+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "test",
+      "scope": "voyage",
+      "subject": "reconstruct 0.5 regression tests snapshot",
+      "files": [
+        "web/tests/plan-voyage.spec.ts",
+        "web/tests/voyage.spec.ts"
+      ],
+      "number": 125,
+      "author_date": "2026-08-25T10:52:18+08:00",
+      "committer_date": "2026-08-25T10:52:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.5 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 126,
+      "author_date": "2026-08-25T10:52:19+08:00",
+      "committer_date": "2026-08-25T10:52:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.5 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_NEXT.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 127,
+      "author_date": "2026-08-25T11:17:33+08:00",
+      "committer_date": "2026-08-25T11:17:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.5",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.5 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py",
+        "scripts/run_development_server.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 128,
+      "author_date": "2026-08-26T21:04:41+08:00",
+      "committer_date": "2026-08-26T21:04:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.6 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 129,
+      "author_date": "2026-08-27T11:38:15+08:00",
+      "committer_date": "2026-08-27T11:38:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.6 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 130,
+      "author_date": "2026-08-28T17:33:05+08:00",
+      "committer_date": "2026-08-28T17:33:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 131,
+      "author_date": "2026-08-28T21:28:26+08:00",
+      "committer_date": "2026-08-28T21:28:26+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.6 implementation snapshot",
+      "files": [
+        "oceanroute/api.py"
+      ],
+      "number": 132,
+      "author_date": "2026-08-28T21:28:27+08:00",
+      "committer_date": "2026-08-28T21:28:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.6 implementation, interface snapshot",
+      "files": [
+        "oceanroute/checkpoints.py",
+        "web/src/useWorkspaceDocument.ts"
+      ],
+      "number": 133,
+      "author_date": "2026-08-30T17:41:38+08:00",
+      "committer_date": "2026-08-30T17:41:38+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.6 implementation, interface snapshot",
+      "files": [
+        "oceanroute/initial_equilibrium.py",
+        "oceanroute/plan_equilibrium_frame.py",
+        "web/src/EquilibriumInitialPanel.tsx",
+        "web/src/equilibrium.css"
+      ],
+      "number": 134,
+      "author_date": "2026-08-30T18:59:28+08:00",
+      "committer_date": "2026-08-30T18:59:28+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.6 implementation snapshot",
+      "files": [
+        "oceanroute/plan_voyage.py",
+        "oceanroute/voyage.py"
+      ],
+      "number": 135,
+      "author_date": "2026-08-30T18:59:29+08:00",
+      "committer_date": "2026-08-30T18:59:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.6 implementation, interface snapshot",
+      "files": [
+        "oceanroute/simulation.py",
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 136,
+      "author_date": "2026-08-30T19:52:59+08:00",
+      "committer_date": "2026-08-30T19:52:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.6 examples snapshot",
+      "files": [
+        "examples/geographic-equilibrium-voyage.json",
+        "examples/initial-equilibrium-dynamic.json"
+      ],
+      "number": 137,
+      "author_date": "2026-08-31T17:02:33+08:00",
+      "committer_date": "2026-08-31T17:02:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.6 contracts, interface snapshot",
+      "files": [
+        "docs/BATHYMETRY_NOTES.md",
+        "docs/STATIC_BATHYMETRY_NOTES.md",
+        "web/src/StaticBathymetryPanel.tsx"
+      ],
+      "number": 138,
+      "author_date": "2026-08-31T20:07:45+08:00",
+      "committer_date": "2026-08-31T20:07:45+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.6 contracts, interface, regression tests snapshot",
+      "files": [
+        "docs/PLAN_VOYAGE_NOTES.md",
+        "web/src/PlanVoyagePreparation.tsx",
+        "web/src/VoyagePanel.tsx",
+        "web/tests/voyage-job-response-review.spec.ts"
+      ],
+      "number": 139,
+      "author_date": "2026-08-31T20:07:46+08:00",
+      "committer_date": "2026-08-31T20:07:46+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.6 interface snapshot",
+      "files": [
+        "web/src/App.tsx"
+      ],
+      "number": 140,
+      "author_date": "2026-08-31T23:20:33+08:00",
+      "committer_date": "2026-08-31T23:20:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.6 interface snapshot",
+      "files": [
+        "web/src/EngineeringTools.tsx"
+      ],
+      "number": 141,
+      "author_date": "2026-09-01T17:35:58+08:00",
+      "committer_date": "2026-09-01T17:35:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.6 interface snapshot",
+      "files": [
+        "web/src/MapView.tsx",
+        "web/src/Scene3D.tsx",
+        "web/src/style.css",
+        "web/src/types.ts"
+      ],
+      "number": 142,
+      "author_date": "2026-09-01T20:47:04+08:00",
+      "committer_date": "2026-09-01T20:47:04+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.6 interface snapshot",
+      "files": [
+        "web/src/ProjectedCoordinateEditor.tsx",
+        "web/src/ProjectedMapView.tsx",
+        "web/src/projectedPointEdits.ts"
+      ],
+      "number": 143,
+      "author_date": "2026-09-01T20:47:05+08:00",
+      "committer_date": "2026-09-01T20:47:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.6 contracts, regression tests snapshot",
+      "files": [
+        "docs/MAP_PROJECTION_NOTES.md",
+        "web/tests/projected-map-editing.spec.ts"
+      ],
+      "number": 144,
+      "author_date": "2026-09-01T21:00:46+08:00",
+      "committer_date": "2026-09-01T21:00:46+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "test",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.6 regression tests snapshot",
+      "files": [
+        "tests/test_equilibrium_initial_review.py",
+        "tests/test_equilibrium_initialization.py"
+      ],
+      "number": 145,
+      "author_date": "2026-09-01T22:24:26+08:00",
+      "committer_date": "2026-09-01T22:24:26+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "test",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.6 regression tests snapshot",
+      "files": [
+        "tests/test_plan_equilibrium_frame.py",
+        "tests/test_plan_equilibrium_review.py",
+        "web/tests/equilibrium-initial.spec.ts"
+      ],
+      "number": 146,
+      "author_date": "2026-09-01T22:24:27+08:00",
+      "committer_date": "2026-09-01T22:24:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 147,
+      "author_date": "2026-09-01T22:28:00+08:00",
+      "committer_date": "2026-09-01T22:28:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.6.md"
+      ],
+      "number": 148,
+      "author_date": "2026-09-02T09:35:01+08:00",
+      "committer_date": "2026-09-02T09:35:01+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/EQUILIBRIUM_INITIAL_REVIEW.md",
+        "docs/HETEROGENEOUS_INITIAL_SCOPE.md",
+        "docs/INITIAL_EQUILIBRIUM_NOTES.md",
+        "docs/PLAN_EQUILIBRIUM_REVIEW.md"
+      ],
+      "number": 149,
+      "author_date": "2026-09-02T09:35:02+08:00",
+      "committer_date": "2026-09-02T09:35:02+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "number": 150,
+      "author_date": "2026-09-03T20:39:27+08:00",
+      "committer_date": "2026-09-03T20:39:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/MODEL_NOTES.md"
+      ],
+      "number": 151,
+      "author_date": "2026-09-03T20:44:28+08:00",
+      "committer_date": "2026-09-03T20:44:28+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.6 contracts snapshot",
+      "files": [
+        "docs/PHYSICS_UI_INDEPENDENT_REVIEW.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 152,
+      "author_date": "2026-09-03T20:44:29+08:00",
+      "committer_date": "2026-09-03T20:44:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.6 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 153,
+      "author_date": "2026-09-04T18:51:34+08:00",
+      "committer_date": "2026-09-04T18:51:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.6",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.6 tooling snapshot",
+      "files": [
+        "scripts/audit_release.py",
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 154,
+      "author_date": "2026-09-04T21:06:38+08:00",
+      "committer_date": "2026-09-04T21:06:38+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.7 configuration snapshot",
+      "files": [
+        "README.md",
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 155,
+      "author_date": "2026-09-04T21:06:39+08:00",
+      "committer_date": "2026-09-04T21:06:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 156,
+      "author_date": "2026-09-05T16:42:43+08:00",
+      "committer_date": "2026-09-05T16:42:43+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.7 implementation, interface snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/src/App.tsx",
+        "web/src/Scene3D.tsx",
+        "web/src/types.ts"
+      ],
+      "number": 157,
+      "author_date": "2026-09-05T17:14:57+08:00",
+      "committer_date": "2026-09-05T17:14:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/checkpoints.py",
+        "oceanroute/workspace.py"
+      ],
+      "number": 158,
+      "author_date": "2026-09-05T17:14:58+08:00",
+      "committer_date": "2026-09-05T17:14:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/current_dynamics.py",
+        "oceanroute/hydrodynamics.py",
+        "oceanroute/simulation.py"
+      ],
+      "number": 159,
+      "author_date": "2026-09-05T17:15:38+08:00",
+      "committer_date": "2026-09-05T17:15:38+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/current_equilibrium.py",
+        "oceanroute/initial_equilibrium.py",
+        "oceanroute/plan_equilibrium_frame.py"
+      ],
+      "number": 160,
+      "author_date": "2026-09-05T18:55:07+08:00",
+      "committer_date": "2026-09-05T18:55:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/plan_voyage.py",
+        "oceanroute/voyage.py"
+      ],
+      "number": 161,
+      "author_date": "2026-09-05T18:55:08+08:00",
+      "committer_date": "2026-09-05T18:55:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "bathymetry",
+      "subject": "reconstruct 0.7 implementation snapshot",
+      "files": [
+        "oceanroute/static_bathymetry.py"
+      ],
+      "number": 162,
+      "author_date": "2026-09-05T23:39:06+08:00",
+      "committer_date": "2026-09-05T23:39:06+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 examples snapshot",
+      "files": [
+        "examples/current-initial-dynamic.json",
+        "examples/current-initial-plan-voyage.json",
+        "examples/heterogeneous-initial-dynamic.json",
+        "examples/heterogeneous-initial-plan-voyage.json"
+      ],
+      "number": 163,
+      "author_date": "2026-09-06T17:10:34+08:00",
+      "committer_date": "2026-09-06T17:10:34+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "simulation",
+      "subject": "reconstruct 0.7 interface, regression tests snapshot",
+      "files": [
+        "tests/test_current_dynamics.py",
+        "web/src/SimulationPanel.tsx"
+      ],
+      "number": 164,
+      "author_date": "2026-09-06T19:06:44+08:00",
+      "committer_date": "2026-09-06T19:06:44+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.7 interface, regression tests snapshot",
+      "files": [
+        "tests/test_current_plan_voyage.py",
+        "tests/test_heterogeneous_plan_voyage.py",
+        "web/src/PlanVoyagePreparation.tsx",
+        "web/src/VoyagePanel.tsx"
+      ],
+      "number": 165,
+      "author_date": "2026-09-06T19:06:45+08:00",
+      "committer_date": "2026-09-06T19:06:45+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 interface snapshot",
+      "files": [
+        "web/src/EquilibriumInitialPanel.tsx",
+        "web/src/equilibrium.css",
+        "web/src/heterogeneousInitialExample.ts"
+      ],
+      "number": 166,
+      "author_date": "2026-09-06T19:13:29+08:00",
+      "committer_date": "2026-09-06T19:13:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "feat",
+      "scope": "assembly",
+      "subject": "reconstruct 0.7 contracts, regression tests snapshot",
+      "files": [
+        "docs/HETEROGENEOUS_MATERIAL_CORE_NOTES.md",
+        "tests/test_heterogeneous_material_core.py"
+      ],
+      "number": 167,
+      "author_date": "2026-09-06T19:31:01+08:00",
+      "committer_date": "2026-09-06T19:31:01+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "test",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 regression tests snapshot",
+      "files": [
+        "tests/test_current_equilibrium_core.py",
+        "tests/test_current_initial_review.py",
+        "tests/test_current_initialization.py",
+        "tests/test_current_refinement.py",
+        "tests/test_current_time_refinement.py"
+      ],
+      "number": 168,
+      "author_date": "2026-09-06T19:31:02+08:00",
+      "committer_date": "2026-09-06T19:31:02+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "test",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 regression tests snapshot",
+      "files": [
+        "tests/test_equilibrium_initial_review.py",
+        "tests/test_equilibrium_initialization.py"
+      ],
+      "number": 169,
+      "author_date": "2026-09-06T20:10:52+08:00",
+      "committer_date": "2026-09-06T20:10:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "test",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 regression tests snapshot",
+      "files": [
+        "tests/test_heterogeneous_initial_review.py",
+        "tests/test_legacy_initial_proof_compatibility.py",
+        "tests/test_local_initial_api.py",
+        "web/tests/current-initialization.spec.ts",
+        "web/tests/heterogeneous-initial.spec.ts"
+      ],
+      "number": 170,
+      "author_date": "2026-09-07T16:15:54+08:00",
+      "committer_date": "2026-09-07T16:15:54+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "docs",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 contracts snapshot",
+      "files": [
+        "docs/CURRENT_EQUILIBRIUM_CORE_NOTES.md",
+        "docs/CURRENT_INITIALIZATION_NOTES.md",
+        "docs/CURRENT_INITIAL_INDEPENDENT_REVIEW.md",
+        "docs/CURRENT_INITIAL_UI_NOTES.md",
+        "docs/CURRENT_REFINEMENT_NOTES.md"
+      ],
+      "number": 171,
+      "author_date": "2026-09-07T16:46:17+08:00",
+      "committer_date": "2026-09-07T16:46:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.7 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 172,
+      "author_date": "2026-09-07T16:46:18+08:00",
+      "committer_date": "2026-09-07T16:46:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.7 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.7.md"
+      ],
+      "number": 173,
+      "author_date": "2026-09-07T17:07:49+08:00",
+      "committer_date": "2026-09-07T17:07:49+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "docs",
+      "scope": "initial-equilibrium",
+      "subject": "reconstruct 0.7 contracts snapshot",
+      "files": [
+        "docs/HETEROGENEOUS_INITIAL_SCOPE.md",
+        "docs/HETEROGENEOUS_INITIAL_UI_NOTES.md",
+        "docs/INITIAL_EQUILIBRIUM_NOTES.md",
+        "docs/STEADY_CURRENT_INITIAL_SCOPE.md"
+      ],
+      "number": 174,
+      "author_date": "2026-09-07T17:08:18+08:00",
+      "committer_date": "2026-09-07T17:08:18+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.7 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/MODEL_NOTES.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 175,
+      "author_date": "2026-09-07T17:08:19+08:00",
+      "committer_date": "2026-09-07T17:08:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.7",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.7 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/benchmark_current_refinement.py",
+        "scripts/benchmark_heterogeneous_equilibrium.py",
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 176,
+      "author_date": "2026-09-07T23:47:45+08:00",
+      "committer_date": "2026-09-07T23:47:45+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.8 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 177,
+      "author_date": "2026-09-08T18:37:19+08:00",
+      "committer_date": "2026-09-08T18:37:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.8 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 178,
+      "author_date": "2026-09-08T18:37:20+08:00",
+      "committer_date": "2026-09-08T18:37:20+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py",
+        "oceanroute/sqlite_lifecycle.py",
+        "oceanroute/storage.py"
+      ],
+      "number": 179,
+      "author_date": "2026-09-08T19:16:13+08:00",
+      "committer_date": "2026-09-08T19:16:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.8 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/layer-display.spec.ts",
+        "web/tests/layer-opacity-independent.spec.ts"
+      ],
+      "number": 180,
+      "author_date": "2026-09-08T22:55:52+08:00",
+      "committer_date": "2026-09-08T22:55:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 implementation, interface snapshot",
+      "files": [
+        "oceanroute/s57.py",
+        "web/src/S57ImportPanel.tsx",
+        "web/src/s57.css"
+      ],
+      "number": 181,
+      "author_date": "2026-09-08T22:55:53+08:00",
+      "committer_date": "2026-09-08T22:55:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.8 implementation, interface, regression tests snapshot",
+      "files": [
+        "oceanroute/workspace_storage.py",
+        "web/src/EmptyWorkspace.tsx",
+        "web/tests/workspace.spec.ts"
+      ],
+      "number": 182,
+      "author_date": "2026-09-09T17:09:35+08:00",
+      "committer_date": "2026-09-09T17:09:35+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.8 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/MapView.tsx",
+        "web/src/layerDisplay.ts",
+        "web/src/types.ts"
+      ],
+      "number": 183,
+      "author_date": "2026-09-09T18:58:24+08:00",
+      "committer_date": "2026-09-09T18:58:24+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.8 interface snapshot",
+      "files": [
+        "web/src/LayerManager.css",
+        "web/src/LayerManager.tsx"
+      ],
+      "number": 184,
+      "author_date": "2026-09-09T18:58:25+08:00",
+      "committer_date": "2026-09-09T18:58:25+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.8 interface snapshot",
+      "files": [
+        "web/src/ProjectedMapView.tsx"
+      ],
+      "number": 185,
+      "author_date": "2026-09-09T21:22:24+08:00",
+      "committer_date": "2026-09-09T21:22:24+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/fixtures/s57/README.md",
+        "web/tests/s57-chart.spec.ts"
+      ],
+      "number": 186,
+      "author_date": "2026-09-09T22:12:59+08:00",
+      "committer_date": "2026-09-09T22:12:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/fixtures/s57/noaa/US5A1KMJ.zip",
+        "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.000"
+      ],
+      "number": 187,
+      "author_date": "2026-09-09T22:13:00+08:00",
+      "committer_date": "2026-09-09T22:13:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.001",
+        "tests/fixtures/s57/noaa/US5A1KMJ/US5A1KMJ.002"
+      ],
+      "number": 188,
+      "author_date": "2026-09-10T16:50:55+08:00",
+      "committer_date": "2026-09-10T16:50:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/fixtures/s57/noaa/US5A1KMK.zip",
+        "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.000"
+      ],
+      "number": 189,
+      "author_date": "2026-09-10T18:00:13+08:00",
+      "committer_date": "2026-09-10T18:00:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.001",
+        "tests/fixtures/s57/noaa/US5A1KMK/US5A1KMK.002"
+      ],
+      "number": 190,
+      "author_date": "2026-09-10T18:00:14+08:00",
+      "committer_date": "2026-09-10T18:00:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/test_s57.py",
+        "tests/test_s57_api.py",
+        "tests/test_s57_independent.py"
+      ],
+      "number": 191,
+      "author_date": "2026-09-10T20:31:53+08:00",
+      "committer_date": "2026-09-10T20:31:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "test",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 regression tests snapshot",
+      "files": [
+        "tests/test_sqlite_lifecycle.py"
+      ],
+      "number": 192,
+      "author_date": "2026-09-10T20:32:00+08:00",
+      "committer_date": "2026-09-10T20:32:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 193,
+      "author_date": "2026-09-10T20:32:01+08:00",
+      "committer_date": "2026-09-10T20:32:01+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.8.md"
+      ],
+      "number": 194,
+      "author_date": "2026-09-10T21:13:32+08:00",
+      "committer_date": "2026-09-10T21:13:32+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 contracts snapshot",
+      "files": [
+        "docs/GIS_DISPLAY_INDEPENDENT_REVIEW.md",
+        "docs/GIS_DISPLAY_NOTES.md"
+      ],
+      "number": 195,
+      "author_date": "2026-09-11T20:13:37+08:00",
+      "committer_date": "2026-09-11T20:13:37+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.8 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 196,
+      "author_date": "2026-09-11T22:19:09+08:00",
+      "committer_date": "2026-09-11T22:19:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 contracts snapshot",
+      "files": [
+        "docs/S57_INDEPENDENT_REVIEW.md",
+        "docs/S57_NOTES.md"
+      ],
+      "number": 197,
+      "author_date": "2026-09-11T22:19:10+08:00",
+      "committer_date": "2026-09-11T22:19:10+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "docs",
+      "scope": "s57",
+      "subject": "reconstruct 0.8 contracts, tooling snapshot",
+      "files": [
+        "docs/S57_UI_NOTES.md",
+        "resources/research/s57_sources.json"
+      ],
+      "number": 198,
+      "author_date": "2026-09-11T22:21:22+08:00",
+      "committer_date": "2026-09-11T22:21:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.8 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 199,
+      "author_date": "2026-09-11T22:56:38+08:00",
+      "committer_date": "2026-09-11T22:56:38+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.8",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.8 tooling snapshot",
+      "files": [
+        "scripts/audit_release.py",
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py",
+        "scripts/verify_0_8_runtime.py"
+      ],
+      "number": 200,
+      "author_date": "2026-09-11T22:56:39+08:00",
+      "committer_date": "2026-09-11T22:56:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.9 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 201,
+      "author_date": "2026-09-12T21:20:06+08:00",
+      "committer_date": "2026-09-12T21:20:06+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.9 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 202,
+      "author_date": "2026-09-12T21:20:07+08:00",
+      "committer_date": "2026-09-12T21:20:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 203,
+      "author_date": "2026-09-13T18:00:20+08:00",
+      "committer_date": "2026-09-13T18:00:20+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.9 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/side-slopes.spec.ts"
+      ],
+      "number": 204,
+      "author_date": "2026-09-13T18:28:41+08:00",
+      "committer_date": "2026-09-13T18:28:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "core",
+      "subject": "reconstruct 0.9 implementation snapshot",
+      "files": [
+        "oceanroute/core.py"
+      ],
+      "number": 205,
+      "author_date": "2026-09-13T18:28:42+08:00",
+      "committer_date": "2026-09-13T18:28:42+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "side-slopes",
+      "subject": "reconstruct 0.9 implementation snapshot",
+      "files": [
+        "oceanroute/side_slopes.py",
+        "oceanroute/slope_rules.py"
+      ],
+      "number": 206,
+      "author_date": "2026-09-13T18:33:33+08:00",
+      "committer_date": "2026-09-13T18:33:33+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.9 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/types.ts"
+      ],
+      "number": 207,
+      "author_date": "2026-09-13T21:46:38+08:00",
+      "committer_date": "2026-09-13T21:46:38+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.9 interface snapshot",
+      "files": [
+        "web/src/EmptyWorkspace.tsx"
+      ],
+      "number": 208,
+      "author_date": "2026-09-13T21:46:39+08:00",
+      "committer_date": "2026-09-13T21:46:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.9 interface snapshot",
+      "files": [
+        "web/src/EngineeringTools.tsx"
+      ],
+      "number": 209,
+      "author_date": "2026-09-13T23:43:05+08:00",
+      "committer_date": "2026-09-13T23:43:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "feat",
+      "scope": "side-slopes",
+      "subject": "reconstruct 0.9 interface snapshot",
+      "files": [
+        "web/src/SideSlopesPanel.tsx",
+        "web/src/sideSlopes.css"
+      ],
+      "number": 210,
+      "author_date": "2026-09-14T17:30:53+08:00",
+      "committer_date": "2026-09-14T17:30:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "test",
+      "scope": "side-slopes",
+      "subject": "reconstruct 0.9 regression tests snapshot",
+      "files": [
+        "tests/test_side_slopes.py",
+        "tests/test_side_slopes_api.py",
+        "tests/test_slope_rules.py"
+      ],
+      "number": 211,
+      "author_date": "2026-09-14T20:26:28+08:00",
+      "committer_date": "2026-09-14T20:26:28+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/CONTRACT.md"
+      ],
+      "number": 212,
+      "author_date": "2026-09-14T20:26:29+08:00",
+      "committer_date": "2026-09-14T20:26:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 213,
+      "author_date": "2026-09-14T20:56:41+08:00",
+      "committer_date": "2026-09-14T20:56:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.9.md"
+      ],
+      "number": 214,
+      "author_date": "2026-09-14T22:34:28+08:00",
+      "committer_date": "2026-09-14T22:34:28+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "number": 215,
+      "author_date": "2026-09-14T22:34:29+08:00",
+      "committer_date": "2026-09-14T22:34:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 216,
+      "author_date": "2026-09-14T23:36:58+08:00",
+      "committer_date": "2026-09-14T23:36:58+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "docs",
+      "scope": "side-slopes",
+      "subject": "reconstruct 0.9 contracts snapshot",
+      "files": [
+        "docs/SIDE_SLOPES_NOTES.md",
+        "docs/SLOPE_RULES_NOTES.md"
+      ],
+      "number": 217,
+      "author_date": "2026-09-15T17:18:46+08:00",
+      "committer_date": "2026-09-15T17:18:46+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.9 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 218,
+      "author_date": "2026-09-15T17:45:39+08:00",
+      "committer_date": "2026-09-15T17:45:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.9 tooling snapshot",
+      "files": [
+        "resources/run_0_9_backend_gate.py",
+        "resources/run_0_9_browser_gate.py",
+        "resources/run_0_9_ui_build.py"
+      ],
+      "number": 219,
+      "author_date": "2026-09-15T17:45:40+08:00",
+      "committer_date": "2026-09-15T17:45:40+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.9 tooling snapshot",
+      "files": [
+        "resources/validate_0_9_pdf_structure.py"
+      ],
+      "number": 220,
+      "author_date": "2026-09-15T19:48:49+08:00",
+      "committer_date": "2026-09-15T19:48:49+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.9 tooling snapshot",
+      "files": [
+        "scripts/audit_release.py",
+        "scripts/side_slopes_smoke.py",
+        "scripts/verify_0_9_runtime.py"
+      ],
+      "number": 221,
+      "author_date": "2026-09-15T21:13:31+08:00",
+      "committer_date": "2026-09-15T21:13:31+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.9",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.9 tooling snapshot",
+      "files": [
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 222,
+      "author_date": "2026-09-15T21:13:32+08:00",
+      "committer_date": "2026-09-15T21:13:32+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.10 configuration snapshot",
+      "files": [
+        "README.md"
+      ],
+      "number": 223,
+      "author_date": "2026-09-15T22:12:00+08:00",
+      "committer_date": "2026-09-15T22:12:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.10 configuration snapshot",
+      "files": [
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 224,
+      "author_date": "2026-09-16T10:53:53+08:00",
+      "committer_date": "2026-09-16T10:53:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.10 examples, implementation snapshot",
+      "files": [
+        "examples/README.md",
+        "examples/automatic-rules.oceanroute.json",
+        "oceanroute/__init__.py"
+      ],
+      "number": 225,
+      "author_date": "2026-09-16T11:01:21+08:00",
+      "committer_date": "2026-09-16T11:01:21+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.10 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/automatic-rules.spec.ts"
+      ],
+      "number": 226,
+      "author_date": "2026-09-16T11:01:22+08:00",
+      "committer_date": "2026-09-16T11:01:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 implementation snapshot",
+      "files": [
+        "oceanroute/automatic_rule_geometry.py",
+        "oceanroute/automatic_rules.py"
+      ],
+      "number": 227,
+      "author_date": "2026-09-17T17:58:53+08:00",
+      "committer_date": "2026-09-17T17:58:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "core",
+      "subject": "reconstruct 0.10 implementation snapshot",
+      "files": [
+        "oceanroute/core.py"
+      ],
+      "number": 228,
+      "author_date": "2026-09-17T18:54:07+08:00",
+      "committer_date": "2026-09-17T18:54:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.10 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/terrain_slope_neighborhoods.py",
+        "tests/test_terrain_slope_neighborhoods.py"
+      ],
+      "number": 229,
+      "author_date": "2026-09-17T18:54:08+08:00",
+      "committer_date": "2026-09-17T18:54:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.10 implementation, interface snapshot",
+      "files": [
+        "oceanroute/workspace.py",
+        "web/src/EmptyWorkspace.tsx",
+        "web/src/WorkspacePanel.tsx"
+      ],
+      "number": 230,
+      "author_date": "2026-09-17T19:06:53+08:00",
+      "committer_date": "2026-09-17T19:06:53+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.10 interface snapshot",
+      "files": [
+        "web/src/App.tsx"
+      ],
+      "number": 231,
+      "author_date": "2026-09-17T20:28:06+08:00",
+      "committer_date": "2026-09-17T20:28:06+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 interface snapshot",
+      "files": [
+        "web/src/AutomaticRulesPanel.tsx",
+        "web/src/automaticRuleLocation.ts",
+        "web/src/automaticRules.css"
+      ],
+      "number": 232,
+      "author_date": "2026-09-17T20:28:07+08:00",
+      "committer_date": "2026-09-17T20:28:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.10 interface snapshot",
+      "files": [
+        "web/src/Charts.tsx",
+        "web/src/MapView.tsx",
+        "web/src/types.ts"
+      ],
+      "number": 233,
+      "author_date": "2026-09-17T21:07:09+08:00",
+      "committer_date": "2026-09-17T21:07:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.10 interface snapshot",
+      "files": [
+        "web/src/EngineeringTools.tsx"
+      ],
+      "number": 234,
+      "author_date": "2026-09-18T18:09:29+08:00",
+      "committer_date": "2026-09-18T18:09:29+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.10 interface snapshot",
+      "files": [
+        "web/src/ProjectedMapView.tsx"
+      ],
+      "number": 235,
+      "author_date": "2026-09-18T18:51:05+08:00",
+      "committer_date": "2026-09-18T18:51:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "feat",
+      "scope": "altercourse",
+      "subject": "reconstruct 0.10 contracts, regression tests snapshot",
+      "files": [
+        "docs/GEODESIC_TURN_NOTES.md",
+        "tests/test_geodesic_turns.py"
+      ],
+      "number": 236,
+      "author_date": "2026-09-18T18:51:06+08:00",
+      "committer_date": "2026-09-18T18:51:06+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "test",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 regression tests snapshot",
+      "files": [
+        "tests/test_automatic_rules.py",
+        "tests/test_automatic_rules_admission_review.py"
+      ],
+      "number": 237,
+      "author_date": "2026-09-18T19:49:32+08:00",
+      "committer_date": "2026-09-18T19:49:32+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "test",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 regression tests snapshot",
+      "files": [
+        "tests/test_automatic_rules_api.py",
+        "tests/test_automatic_rules_independent.py"
+      ],
+      "number": 238,
+      "author_date": "2026-09-18T21:59:59+08:00",
+      "committer_date": "2026-09-18T21:59:59+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/AUTOMATIC_RULES_ADMISSION_REVIEW.md",
+        "docs/AUTOMATIC_RULES_INDEPENDENT_REVIEW.md"
+      ],
+      "number": 239,
+      "author_date": "2026-09-18T22:00:00+08:00",
+      "committer_date": "2026-09-18T22:00:00+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/AUTOMATIC_RULES_NOTES.md",
+        "docs/AUTOMATIC_RULES_UI_NOTES.md"
+      ],
+      "number": 240,
+      "author_date": "2026-09-19T19:11:43+08:00",
+      "committer_date": "2026-09-19T19:11:43+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 241,
+      "author_date": "2026-09-19T19:32:51+08:00",
+      "committer_date": "2026-09-19T19:32:51+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.10.md"
+      ],
+      "number": 242,
+      "author_date": "2026-09-19T19:32:52+08:00",
+      "committer_date": "2026-09-19T19:32:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "number": 243,
+      "author_date": "2026-09-19T20:39:42+08:00",
+      "committer_date": "2026-09-19T20:39:42+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/RELEASE_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 244,
+      "author_date": "2026-09-19T20:59:24+08:00",
+      "committer_date": "2026-09-19T20:59:24+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "docs",
+      "scope": "terrain",
+      "subject": "reconstruct 0.10 contracts snapshot",
+      "files": [
+        "docs/TERRAIN_SLOPE_NEIGHBORHOOD_NOTES.md"
+      ],
+      "number": 245,
+      "author_date": "2026-09-19T20:59:25+08:00",
+      "committer_date": "2026-09-19T20:59:25+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.10 tooling snapshot",
+      "files": [
+        "resources/build_product_documents.py",
+        "scripts/build_release.py"
+      ],
+      "number": 246,
+      "author_date": "2026-09-20T16:43:05+08:00",
+      "committer_date": "2026-09-20T16:43:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.10 tooling snapshot",
+      "files": [
+        "resources/run_0_10_backend_gate.py",
+        "resources/run_0_10_browser_gate.py"
+      ],
+      "number": 247,
+      "author_date": "2026-09-20T17:42:02+08:00",
+      "committer_date": "2026-09-20T17:42:02+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.10 tooling snapshot",
+      "files": [
+        "resources/validate_0_10_pdf_structure.py"
+      ],
+      "number": 248,
+      "author_date": "2026-09-20T17:42:03+08:00",
+      "committer_date": "2026-09-20T17:42:03+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.10 tooling snapshot",
+      "files": [
+        "scripts/audit_release.py",
+        "scripts/automatic_rules_smoke.py",
+        "scripts/verify_0_10_runtime.py"
+      ],
+      "number": 249,
+      "author_date": "2026-09-20T17:48:31+08:00",
+      "committer_date": "2026-09-20T17:48:31+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.10",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.10 tooling snapshot",
+      "files": [
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 250,
+      "author_date": "2026-09-20T19:31:06+08:00",
+      "committer_date": "2026-09-20T19:31:06+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.11 configuration snapshot",
+      "files": [
+        "README.md",
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 251,
+      "author_date": "2026-09-20T19:31:07+08:00",
+      "committer_date": "2026-09-20T19:31:07+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "altercourse",
+      "subject": "reconstruct 0.11 contracts, examples, implementation, interface snapshot",
+      "files": [
+        "docs/ALTERCOURSE_NOTES.md",
+        "docs/ALTERCOURSE_UI_NOTES.md",
+        "docs/RHUMB_PRECISION_NOTES.md",
+        "examples/altercourse-workspace.json",
+        "oceanroute/altercourse.py",
+        "oceanroute/altercourse_workspace.py",
+        "web/src/AltercourseTools.css",
+        "web/src/AltercourseTools.tsx"
+      ],
+      "number": 252,
+      "author_date": "2026-09-21T17:25:35+08:00",
+      "committer_date": "2026-09-21T17:25:35+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.11 examples, implementation snapshot",
+      "files": [
+        "examples/README.md",
+        "oceanroute/__init__.py",
+        "oceanroute/gis.py",
+        "oceanroute/route_geometry.py"
+      ],
+      "number": 253,
+      "author_date": "2026-09-21T18:05:16+08:00",
+      "committer_date": "2026-09-21T18:05:16+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.11 implementation, interface snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/src/App.tsx",
+        "web/src/MapView.tsx",
+        "web/src/types.ts"
+      ],
+      "number": 254,
+      "author_date": "2026-09-21T18:05:17+08:00",
+      "committer_date": "2026-09-21T18:05:17+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/automatic_rule_geometry.py",
+        "oceanroute/automatic_rules.py"
+      ],
+      "number": 255,
+      "author_date": "2026-09-21T19:01:42+08:00",
+      "committer_date": "2026-09-21T19:01:42+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "constraints",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/constraints.py"
+      ],
+      "number": 256,
+      "author_date": "2026-09-21T20:38:08+08:00",
+      "committer_date": "2026-09-21T20:38:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "core",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/core.py"
+      ],
+      "number": 257,
+      "author_date": "2026-09-21T20:38:09+08:00",
+      "committer_date": "2026-09-21T20:38:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "exchange",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/exchange.py",
+        "oceanroute/rpl_templates.py"
+      ],
+      "number": 258,
+      "author_date": "2026-09-21T23:20:40+08:00",
+      "committer_date": "2026-09-21T23:20:40+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.11 implementation, interface, regression tests snapshot",
+      "files": [
+        "oceanroute/geodesy.py",
+        "tests/fixtures/rhumb_polar_oracles.json",
+        "tests/test_rhumb_polar.py",
+        "web/src/ProjectedMapView.tsx"
+      ],
+      "number": 259,
+      "author_date": "2026-09-22T16:50:19+08:00",
+      "committer_date": "2026-09-22T16:50:19+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "voyage",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/plan_voyage.py",
+        "oceanroute/shipplan.py"
+      ],
+      "number": 260,
+      "author_date": "2026-09-22T16:50:36+08:00",
+      "committer_date": "2026-09-22T16:50:36+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "routing",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/routing.py"
+      ],
+      "number": 261,
+      "author_date": "2026-09-22T16:50:37+08:00",
+      "committer_date": "2026-09-22T16:50:37+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "side-slopes",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/side_slopes.py",
+        "oceanroute/slope_rules.py"
+      ],
+      "number": 262,
+      "author_date": "2026-09-23T17:43:39+08:00",
+      "committer_date": "2026-09-23T17:43:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "repair-survey",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/survey.py"
+      ],
+      "number": 263,
+      "author_date": "2026-09-23T22:10:08+08:00",
+      "committer_date": "2026-09-23T22:10:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "terrain",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/terrain_slope_neighborhoods.py",
+        "oceanroute/terrain_sources.py"
+      ],
+      "number": 264,
+      "author_date": "2026-09-23T22:10:09+08:00",
+      "committer_date": "2026-09-23T22:10:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.11 implementation, interface snapshot",
+      "files": [
+        "oceanroute/tools.py",
+        "web/src/EngineeringTools.tsx"
+      ],
+      "number": 265,
+      "author_date": "2026-09-24T18:14:40+08:00",
+      "committer_date": "2026-09-24T18:14:40+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.11 implementation snapshot",
+      "files": [
+        "oceanroute/workspace.py",
+        "oceanroute/workspace_terrain.py"
+      ],
+      "number": 266,
+      "author_date": "2026-09-24T20:00:11+08:00",
+      "committer_date": "2026-09-24T20:00:11+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "test",
+      "scope": "altercourse",
+      "subject": "reconstruct 0.11 regression tests snapshot",
+      "files": [
+        "tests/test_altercourse.py",
+        "tests/test_altercourse_smoke.py",
+        "tests/test_altercourse_workspace.py"
+      ],
+      "number": 267,
+      "author_date": "2026-09-24T20:00:12+08:00",
+      "committer_date": "2026-09-24T20:00:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "test",
+      "scope": "altercourse",
+      "subject": "reconstruct 0.11 regression tests snapshot",
+      "files": [
+        "tests/test_arc_contracts.py",
+        "tests/test_arc_pipeline.py",
+        "tests/test_arc_rpl_exchange.py",
+        "tests/test_rhumb_precision.py",
+        "tests/test_route_geometry_arcs.py",
+        "web/tests/altercourse.spec.ts"
+      ],
+      "number": 268,
+      "author_date": "2026-09-25T22:37:16+08:00",
+      "committer_date": "2026-09-25T22:37:16+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.11 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md",
+        "docs/DEVELOPMENT_0.11.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/ROUTE_GEOMETRY_NOTES.md",
+        "docs/USER_MANUAL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 269,
+      "author_date": "2026-09-25T23:02:22+08:00",
+      "committer_date": "2026-09-25T23:02:22+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "docs",
+      "scope": "sea",
+      "subject": "reconstruct 0.11 tooling snapshot",
+      "files": [
+        "resources/research/arc_sources.json"
+      ],
+      "number": 270,
+      "author_date": "2026-09-25T23:02:23+08:00",
+      "committer_date": "2026-09-25T23:02:23+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.11 tooling snapshot",
+      "files": [
+        "resources/run_0_11_backend_gate.py",
+        "resources/run_0_11_browser_gate.py"
+      ],
+      "number": 271,
+      "author_date": "2026-09-26T19:14:52+08:00",
+      "committer_date": "2026-09-26T19:14:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.11",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.11 tooling snapshot",
+      "files": [
+        "resources/validate_0_11_pdf_structure.py",
+        "scripts/altercourse_smoke.py",
+        "scripts/audit_release.py",
+        "scripts/build_release.py",
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py",
+        "scripts/verify_0_11_runtime.py"
+      ],
+      "number": 272,
+      "author_date": "2026-09-26T20:06:12+08:00",
+      "committer_date": "2026-09-26T20:06:12+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.12 configuration snapshot",
+      "files": [
+        "README.md",
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 273,
+      "author_date": "2026-09-26T20:06:13+08:00",
+      "committer_date": "2026-09-26T20:06:13+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.12 implementation snapshot",
+      "files": [
+        "oceanroute/__init__.py"
+      ],
+      "number": 274,
+      "author_date": "2026-09-26T20:57:05+08:00",
+      "committer_date": "2026-09-26T20:57:05+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.12 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/api.py",
+        "web/tests/arc-edit.spec.ts"
+      ],
+      "number": 275,
+      "author_date": "2026-09-26T20:57:08+08:00",
+      "committer_date": "2026-09-26T20:57:08+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "arc-edit",
+      "subject": "reconstruct 0.12 implementation snapshot",
+      "files": [
+        "oceanroute/arc_edit.py",
+        "oceanroute/arc_edit_geometry.py",
+        "oceanroute/arc_edit_workspace.py"
+      ],
+      "number": 276,
+      "author_date": "2026-09-26T20:57:09+08:00",
+      "committer_date": "2026-09-26T20:57:09+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "constraints",
+      "subject": "reconstruct 0.12 implementation snapshot",
+      "files": [
+        "oceanroute/constraints.py"
+      ],
+      "number": 277,
+      "author_date": "2026-09-26T22:34:44+08:00",
+      "committer_date": "2026-09-26T22:34:44+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "exchange",
+      "subject": "reconstruct 0.12 implementation, regression tests snapshot",
+      "files": [
+        "oceanroute/exchange.py",
+        "tests/test_export_naming.py"
+      ],
+      "number": 278,
+      "author_date": "2026-09-27T17:02:23+08:00",
+      "committer_date": "2026-09-27T17:02:23+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "application-shell",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/App.tsx",
+        "web/src/MapView.tsx",
+        "web/src/api.ts",
+        "web/src/version.ts"
+      ],
+      "number": 279,
+      "author_date": "2026-09-27T18:15:03+08:00",
+      "committer_date": "2026-09-27T18:15:03+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "arc-edit",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/ArcEditPanel.css",
+        "web/src/ArcEditPanel.tsx",
+        "web/src/arcEdits.ts"
+      ],
+      "number": 280,
+      "author_date": "2026-09-27T18:15:04+08:00",
+      "committer_date": "2026-09-27T18:15:04+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "automatic-rules",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/AutomaticRulesPanel.tsx"
+      ],
+      "number": 281,
+      "author_date": "2026-09-27T19:36:14+08:00",
+      "committer_date": "2026-09-27T19:36:14+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "workspace",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/EmptyWorkspace.tsx"
+      ],
+      "number": 282,
+      "author_date": "2026-09-27T21:37:40+08:00",
+      "committer_date": "2026-09-27T21:37:40+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "engineering-tools",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/EngineeringTools.tsx"
+      ],
+      "number": 283,
+      "author_date": "2026-09-27T21:37:41+08:00",
+      "committer_date": "2026-09-27T21:37:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "feat",
+      "scope": "coordinates",
+      "subject": "reconstruct 0.12 interface snapshot",
+      "files": [
+        "web/src/ProjectedCoordinateEditor.tsx",
+        "web/src/ProjectedMapView.tsx",
+        "web/src/projectedPointEdits.ts"
+      ],
+      "number": 284,
+      "author_date": "2026-09-27T23:45:39+08:00",
+      "committer_date": "2026-09-27T23:45:39+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "test",
+      "scope": "arc-edit",
+      "subject": "reconstruct 0.12 regression tests snapshot",
+      "files": [
+        "tests/test_arc_edit.py",
+        "tests/test_arc_edit_geometry.py",
+        "tests/test_arc_edit_workspace.py"
+      ],
+      "number": 285,
+      "author_date": "2026-09-28T22:28:57+08:00",
+      "committer_date": "2026-09-28T22:28:57+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "test",
+      "scope": "altercourse",
+      "subject": "reconstruct 0.12 regression tests snapshot",
+      "files": [
+        "web/tests/altercourse.spec.ts"
+      ],
+      "number": 286,
+      "author_date": "2026-09-28T22:55:41+08:00",
+      "committer_date": "2026-09-28T22:55:41+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "docs",
+      "scope": "arc-edit",
+      "subject": "reconstruct 0.12 contracts snapshot",
+      "files": [
+        "docs/ARC_EDIT_GEOMETRY_NOTES.md",
+        "docs/ARC_EDIT_NOTES.md",
+        "docs/ARC_EDIT_UI_NOTES.md"
+      ],
+      "number": 287,
+      "author_date": "2026-09-28T22:55:42+08:00",
+      "committer_date": "2026-09-28T22:55:42+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.12 contracts snapshot",
+      "files": [
+        "docs/DESIGN.md"
+      ],
+      "number": 288,
+      "author_date": "2026-09-29T17:07:44+08:00",
+      "committer_date": "2026-09-29T17:07:44+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "docs",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.12 contracts snapshot",
+      "files": [
+        "docs/DEVELOPMENT_0.12.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/USER_MANUAL.md",
+        "docs/WINDOWS_INSTALL.md",
+        "oceanroute/manual.md"
+      ],
+      "number": 289,
+      "author_date": "2026-09-29T18:10:55+08:00",
+      "committer_date": "2026-09-29T18:10:55+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.12 tooling snapshot",
+      "files": [
+        "resources/run_0_12_arc_edit_consumer_probe.py",
+        "resources/run_0_12_arc_geometry_probe.py",
+        "resources/run_0_12_backend_gate.py",
+        "resources/run_0_12_browser_gate.py",
+        "resources/run_0_12_ui_build.py"
+      ],
+      "number": 290,
+      "author_date": "2026-09-29T18:10:56+08:00",
+      "committer_date": "2026-09-29T18:10:56+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.12 tooling snapshot",
+      "files": [
+        "resources/validate_0_12_pdf_structure.py",
+        "scripts/arc_edit_smoke.py",
+        "scripts/build_release.py",
+        "scripts/verify_0_12_runtime.py"
+      ],
+      "number": 291,
+      "author_date": "2026-09-29T19:26:54+08:00",
+      "committer_date": "2026-09-29T19:26:54+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "reconstruct 0.12 tooling snapshot",
+      "files": [
+        "scripts/smoke_portable.py",
+        "scripts/smoke_release.py"
+      ],
+      "number": 292,
+      "author_date": "2026-09-29T21:48:27+08:00",
+      "committer_date": "2026-09-29T21:48:27+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "chore",
+      "scope": "project-configuration",
+      "subject": "reconstruct 0.12.1 configuration snapshot",
+      "files": [
+        "README.md",
+        "pyproject.toml",
+        "web/package-lock.json",
+        "web/package.json"
+      ],
+      "number": 293,
+      "author_date": "2026-09-29T21:48:28+08:00",
+      "committer_date": "2026-09-29T21:48:28+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "feat",
+      "scope": "release-documentation",
+      "subject": "reconstruct 0.12.1 contracts, implementation snapshot",
+      "files": [
+        "docs/DESIGN.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/RELEASE_NOTES.md",
+        "docs/STABLE_0.12.1.md",
+        "docs/USER_MANUAL.md",
+        "docs/WINDOWS_BUILD.md",
+        "docs/WINDOWS_INSTALL.md",
+        "oceanroute/__init__.py",
+        "oceanroute/manual.md"
+      ],
+      "number": 294,
+      "author_date": "2026-09-29T22:45:36+08:00",
+      "committer_date": "2026-09-29T22:45:36+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "fix",
+      "scope": "routing",
+      "subject": "reconstruct 0.12.1 implementation snapshot",
+      "files": [
+        "oceanroute/routing.py"
+      ],
+      "number": 295,
+      "author_date": "2026-09-30T17:56:45+08:00",
+      "committer_date": "2026-09-30T17:56:45+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "fix",
+      "scope": "snapshot-integration",
+      "subject": "preserve raw ZIP names for native Windows S-57 validation",
+      "files": [
+        "oceanroute/s57.py",
+        "oceanroute/terrain_sources.py",
+        "tests/test_s57.py",
+        "tests/test_s57_api.py",
+        "tests/test_s57_independent.py",
+        "tests/test_terrain_sources.py"
+      ],
+      "number": 296,
+      "author_date": "2026-09-30T19:01:51+08:00",
+      "committer_date": "2026-09-30T19:01:51+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "test",
+      "scope": "snapshot-integration",
+      "subject": "reconstruct 0.12.1 regression tests snapshot",
+      "files": [
+        "tests/test_arc_edit.py",
+        "tests/test_arc_edit_geometry.py",
+        "tests/test_arc_pipeline.py",
+        "tests/test_constraints.py"
+      ],
+      "number": 297,
+      "author_date": "2026-09-30T19:01:52+08:00",
+      "committer_date": "2026-09-30T19:01:52+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "test",
+      "scope": "snapshot-integration",
+      "subject": "reconstruct 0.12.1 regression tests snapshot",
+      "files": [
+        "tests/test_terrain_workspace.py",
+        "web/tests/arc-edit.spec.ts"
+      ],
+      "number": 298,
+      "author_date": "2026-09-30T20:24:11+08:00",
+      "committer_date": "2026-09-30T20:24:11+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "build",
+      "scope": "windows-delivery",
+      "subject": "restore frozen 0.12.1 Windows launcher, installer and QA sources",
+      "files": [
+        "packaging/windows/build_windows_0_12_1.py",
+        "packaging/windows/installer_0_12_1.nsi",
+        "packaging/windows/launcher_0_12_1.nsi",
+        "packaging/windows/requirements-frozen.txt",
+        "packaging/windows/uninstall-files-0.12.1.nsh",
+        "packaging/windows/upgrade-owned-0.12.nsh",
+        "packaging/windows/validate_installer_0_12_1.py",
+        "packaging/windows/windows_app_0_12_1.py",
+        "packaging/windows/windows_backend_probe_0_12_1.py",
+        "packaging/windows/windows_backend_probe_0_12_1_final.py",
+        "packaging/windows/windows_backend_probe_0_12_1_final_2.py",
+        "packaging/windows/windows_uninstall_wait_0_12_1.py"
+      ],
+      "number": 299,
+      "author_date": "2026-09-30T23:44:15+08:00",
+      "committer_date": "2026-09-30T23:44:15+08:00",
+      "reconstruction": true
+    },
+    {
+      "stage": "0.12.1",
+      "type": "build",
+      "scope": "release-validation",
+      "subject": "seal 0.12.1 build and final verification tooling and record the reconstructed chronology",
+      "files": [
+        "resources/audit_0_12_1_release.py",
+        "resources/run_0_12_1_arc_edit_consumer_probe.py",
+        "resources/run_0_12_1_arc_geometry_probe.py",
+        "resources/run_0_12_1_backend_gate.py",
+        "resources/run_0_12_1_browser_gate.py",
+        "resources/run_0_12_1_ui_build.py",
+        "resources/validate_0_12_1_pdf_structure.py",
+        "scripts/build_release.py",
+        "scripts/verify_0_12_1_runtime.py",
+        ".gitignore",
+        "HISTORY_RECONSTRUCTION.md",
+        "history/commit-plan.json",
+        "history/reconstruct_history.py"
+      ],
+      "number": 300,
+      "author_date": "2026-09-30T23:44:16+08:00",
+      "committer_date": "2026-09-30T23:44:16+08:00",
+      "reconstruction": true
+    }
+  ]
+}

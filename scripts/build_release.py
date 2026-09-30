@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +55,15 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
     if not archive_only:
         if cached_package.exists():
             shutil.rmtree(cached_package)
-        subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--wheel-dir", str(output)], cwd=ROOT, check=True)
+        # Package from an exact isolated copy so setuptools does not walk
+        # private Windows runtimes or unrelated local toolchain caches.
+        with tempfile.TemporaryDirectory(prefix=f"oceanroute-{version}-wheel-build-") as temporary:
+            stage = Path(temporary)
+            shutil.copy2(ROOT / "pyproject.toml", stage / "pyproject.toml")
+            shutil.copytree(ROOT / "oceanroute", stage / "oceanroute",
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+            subprocess.run([sys.executable, "-m", "pip", "wheel", str(stage),
+                            "--no-deps", "--wheel-dir", str(output)], check=True)
     wheel = output / f"oceanroute-{version}-py3-none-any.whl"
     expected = {str(p.relative_to(ROOT)): p for p in (ROOT / "oceanroute").rglob("*")
                 if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
@@ -92,6 +101,21 @@ def build(skip_frontend: bool = False, archive_only: bool = False, *, frontend_d
                   "resources/validate_0_12_pdf_structure.py",
                   "resources/run_0_12_arc_geometry_probe.py",
                   "resources/run_0_12_arc_edit_consumer_probe.py"]
+    if tuple(map(int, version.split("."))) >= (0, 12, 1):
+        files += ["resources/run_0_12_1_backend_gate.py", "resources/run_0_12_1_browser_gate.py",
+                  "resources/run_0_12_1_ui_build.py", "resources/validate_0_12_1_pdf_structure.py",
+                  "resources/run_0_12_1_arc_geometry_probe.py", "resources/run_0_12_1_arc_edit_consumer_probe.py"]
+        files += ["resources/audit_0_12_1_release.py",
+                  "packaging/windows/windows_app_0_12_1.py",
+                  "packaging/windows/launcher_0_12_1.nsi", "packaging/windows/installer_0_12_1.nsi",
+                  "packaging/windows/build_windows_0_12_1.py",
+                  "packaging/windows/uninstall-files-0.12.1.nsh", "packaging/windows/upgrade-owned-0.12.nsh",
+                  "packaging/windows/validate_installer_0_12_1.py",
+                  "packaging/windows/windows_uninstall_wait_0_12_1.py",
+                  "packaging/windows/windows_backend_probe_0_12_1.py",
+                  "packaging/windows/windows_backend_probe_0_12_1_final.py",
+                  "packaging/windows/windows_backend_probe_0_12_1_final_2.py",
+                  "packaging/windows/requirements-frozen.txt"]
     files += ["resources/build_product_documents.py", "resources/validation/voyage_1800s.json"]
     paths = [ROOT / f for f in files]
     for name in roots:
