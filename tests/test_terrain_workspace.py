@@ -203,7 +203,45 @@ def test_route_search_retained_profile_keeps_library_binding_for_later_edits():
     to_geo = Transformer.from_crs(crs,4326,always_xy=True)
     ring = [list(to_geo.transform(x,y)) for x,y in [(-100,-100),(100,-100),(100,100),(-100,100),(-100,-100)]]
     p['layers'] = [{'id':'blocked','kind':'restricted','geojson':{'type':'FeatureCollection','features':[{'type':'Feature','properties':{},'geometry':{'type':'Polygon','coordinates':[ring]}}]}}]
-    found = search_route(p,{'grid_spacing_m':100,'padding_m':500,'clearance_m':100})['project']
+    config = {'grid_spacing_m':100,'padding_m':500,'clearance_m':100}
+    found = search_route(p,config)['project']
     assert found['profile']['metadata']['model'] == 'terrain-library-derived-profile-v1'
     assert found['profile']['metadata']['terrain_library_signature'] == p['profile']['metadata']['terrain_library_signature']
     assert 'TERRAIN_LIBRARY_STALE' in warning_codes(analyze_project(changed(found,'priority')))
+
+
+@pytest.mark.parametrize('simplify', [True, False])
+def test_search_screens_real_rhumb_against_original_clearance_before_acceptance(simplify):
+    from pyproj import CRS, Transformer
+    from shapely.geometry import LineString, shape
+    from shapely.ops import transform
+    from oceanroute.geodesy import densify
+    from oceanroute.routing import search_route
+
+    p = profiled()
+    crs = CRS.from_proj4('+proj=aeqd +lat_0=22 +lon_0=118 +datum=WGS84 +units=m')
+    to_geo = Transformer.from_crs(crs,4326,always_xy=True)
+    to_local = Transformer.from_crs(4326,crs,always_xy=True)
+    ring = [list(to_geo.transform(x,y)) for x,y in [(-100,-100),(100,-100),(100,100),(-100,100),(-100,-100)]]
+    obstacle = {'type':'Polygon','coordinates':[ring]}
+    p['layers'] = [{'id':'blocked','kind':'restricted','geojson':{'type':'FeatureCollection',
+                   'features':[{'type':'Feature','properties':{},'geometry':obstacle}]}}]
+    saved = deepcopy(p)
+    result = search_route(p, {'grid_spacing_m':100,'padding_m':500,'clearance_m':100,
+                              'simplify':simplify})
+    assert p == saved
+    assert result['report']['clearance_m'] == 100  # Never secretly enlarge to 101.
+    assert result['report']['geographic_search_screened_edges'] > 0
+    points = result['project']['route']['points']
+    coordinates = []
+    for left, right in zip(points,points[1:]):
+        # Independent denser screening of the returned actual geographic path,
+        # not a line through the proposal's projected grid vertices.
+        piece = densify(left['longitude'],left['latitude'],right['longitude'],right['latitude'],
+                        'rhumb',1,20000)
+        coordinates.extend(piece if not coordinates else piece[1:])
+    actual = LineString([to_local.transform(*point) for point in coordinates])
+    blocked = transform(to_local.transform,shape(obstacle)).buffer(100)
+    assert not actual.intersects(blocked)
+    assert result['project']['profile']['metadata']['terrain_library_signature'] == p['profile']['metadata']['terrain_library_signature']
+    json.dumps(result,allow_nan=False)

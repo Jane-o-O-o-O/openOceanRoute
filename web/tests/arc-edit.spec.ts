@@ -2,6 +2,12 @@ import {test,expect} from '@playwright/test';
 import {mkdir,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {apiURL} from './test-environment';
+import {readFileSync} from 'node:fs';
+
+const product=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')) as {version:string};
+
+const productRelease=product.version.split('.').slice(0,2).join('.');
+const exportVersion=product.version.replace(/\.0$/,'');
 
 const local='+proj=aeqd +lat_0=0 +lon_0=0 +datum=WGS84 +units=m +type=crs';
 async function json(request:any,path:string,data?:any){const r=data===undefined?await request.get(apiURL+path):await request.post(apiURL+path,{data});expect(r.ok(),await r.text()).toBe(true);return r.json()}
@@ -65,5 +71,5 @@ test('fixed shared stock remains exact while flexible shared changes reject an a
 });
 
 test('current product version is shared by empty UI and scoped Unicode exports with server filename precedence',async({page,request})=>{
- const before=await fixture(request);before.name='同名 / 海缆 α '+before.id;const stored=(await json(request,'/workspaces',before)).workspace;await open(page,stored);await expect(page.locator('.project-title .version')).toHaveText('v0.12');await page.getByRole('button',{name:'导出成果',exact:true}).click();const response=page.waitForResponse(r=>r.url().endsWith('/api/workspace/export')),download=page.waitForEvent('download');await page.locator('.export-options button').filter({has:page.getByText('完整工程 · JSON',{exact:true})}).click();const r=await response,d=await download;expect(r.headers()['content-disposition']).toContain('filename*=UTF-8');expect(d.suggestedFilename()).toContain('0.12');expect(d.suggestedFilename()).toContain('workspace');expect(d.suggestedFilename()).toContain('海缆');expect(d.suggestedFilename()).not.toContain('/');expect(JSON.parse(await readFile((await d.path())!,'utf8')).name).toBe(stored.name);await page.getByRole('button',{name:'关闭对话框',exact:true}).click();const empty=structuredClone(stored);empty.id+='-empty';empty.name+=' 空工作区';empty.paths=[];empty.active_path_id=null;empty.associations=[];delete empty.saved_revision;const saved=(await json(request,'/workspaces',empty)).workspace;await open(page,saved);await expect(page.locator('.project-title .version')).toHaveText('v0.12');await expect(page.locator('.statusbar')).toContainText('OceanRoute 0.12');await shot(page,'empty-current-product-version','.empty-workspace');
+ const before=await fixture(request);before.name='同名 / 海缆 α '+before.id;const stored=(await json(request,'/workspaces',before)).workspace;await open(page,stored);await expect(page.locator('.project-title .version')).toHaveText(`v${productRelease}`);await page.getByRole('button',{name:'导出成果',exact:true}).click();const response=page.waitForResponse(r=>r.url().endsWith('/api/workspace/export')),download=page.waitForEvent('download');await page.locator('.export-options button').filter({has:page.getByText('完整工程 · JSON',{exact:true})}).click();const r=await response,d=await download;expect(r.headers()['content-disposition']).toContain('filename*=UTF-8');expect(d.suggestedFilename()).toContain(exportVersion);expect(d.suggestedFilename()).toContain('workspace');expect(d.suggestedFilename()).toContain('海缆');expect(d.suggestedFilename()).not.toContain('/');expect(JSON.parse(await readFile((await d.path())!,'utf8')).name).toBe(stored.name);await page.getByRole('button',{name:'关闭对话框',exact:true}).click();const empty=structuredClone(stored);empty.id+='-empty';empty.name+=' 空工作区';empty.paths=[];empty.active_path_id=null;empty.associations=[];delete empty.saved_revision;const saved=(await json(request,'/workspaces',empty)).workspace;await open(page,saved);await expect(page.locator('.project-title .version')).toHaveText(`v${productRelease}`);await expect(page.locator('.statusbar')).toContainText(`OceanRoute ${productRelease}`);await shot(page,'empty-current-product-version','.empty-workspace');
 });
