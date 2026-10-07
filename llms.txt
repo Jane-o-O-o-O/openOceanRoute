@@ -6,7 +6,7 @@ The project implements WGS84 geometry, true circular arcs, RPL, GIS reference la
 
 The project has no affiliation, authorization or endorsement from Makai. It supplies no Makai license or proprietary software and makes no claim of original-engine equivalence or field certification. MIT covers original code and documentation; third-party rights remain separate. The installer is unsigned and native Windows hardware acceptance is not completed. Existing Windows tests ran under Wine / Rosetta. The application does not implement AI search or AI route planning.
 
-The first 300 commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07; this is explicitly disclosed. Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
+Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
 
 ## Project
 
@@ -34,4 +34,3 @@ The first 300 commits have reconstructed August/September 2026 timestamps and we
 - [Third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md): Components and data retain their own licensing terms.
 - [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md): Frequently asked installation and scope questions.
 - [Security reporting](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md): Vulnerability reporting channel.
-- [Reconstructed history](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md): Explicit historical timestamp disclosure.

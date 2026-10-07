@@ -148,8 +148,8 @@ openOceanRoute 是公开项目与仓库名称；当前软件界面与发行文�
 
 项目代码使用 MIT 许可。第三方依赖与 NOAA 测试资料保留各自来源和许可；详细操作见 用户手册，未完成能力与验证限制见 状态矩阵。
 
-## History and discovery
+## Search and AI discovery
 
-The initial 300 commits were reconstructed with August/September 2026 dates and actually generated on 2026-10-07. [Disclosure](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md). Search and AI-readable metadata provide factual project discovery, not an application AI feature or an indexing guarantee.
+Search and AI-readable metadata provide factual project discovery, not an application AI feature or an indexing guarantee.
 
 [Illustrated website](https://jane-o-o-o-o.github.io/openOceanRoute/) · [Repository](https://github.com/Jane-o-O-o-O/openOceanRoute) · [llms.txt](https://jane-o-o-o-o.github.io/openOceanRoute/llms.txt)

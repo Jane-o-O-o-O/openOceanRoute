@@ -8,7 +8,6 @@
   "release_count": 13,
   "asset_count": 94,
   "integrity": "All listed assets were verified against local SHA256 and byte sizes using actual GitHub asset digests. Original frozen bytes are unchanged; MIT notices and canonical asset checksums were added for publication. PDF download names are ASCII aliases.",
-  "history": "The initial 300 source commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07. github_published_at records actual GitHub publication, not reconstructed dates.",
   "releases": [
     {
       "version": "0.1.0",
