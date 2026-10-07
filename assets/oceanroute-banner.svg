@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="480" viewBox="0 0 1600 480" role="img" aria-labelledby="title description">
+  <title id="title">OceanRoute — Independent subsea cable planning</title>
+  <desc id="description">An original vector illustration of a subsea cable route over stylized seabed contours. The illustration is decorative, not a project map or a simulation result.</desc>
+  <defs>
+    <linearGradient id="ocean" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#071b2d"/>
+      <stop offset="1" stop-color="#12384b"/>
+    </linearGradient>
+    <linearGradient id="cable" x1="0" y1="1" x2="1" y2="0">
+      <stop stop-color="#61d4c6"/>
+      <stop offset="1" stop-color="#b4f0dc"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#77a5b9" stroke-opacity=".11"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1600" height="480" rx="24"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1600" height="480" fill="url(#ocean)"/>
+    <rect x="780" width="820" height="480" fill="url(#grid)"/>
+    <g fill="none" stroke="#6a99ac" stroke-width="1.5" opacity=".32">
+      <path d="M770 374C880 321 1000 408 1127 357S1384 274 1655 320"/>
+      <path d="M763 394C885 338 1013 430 1142 377S1401 294 1660 344"/>
+      <path d="M756 416C892 357 1027 451 1158 399S1418 316 1665 370"/>
+      <path d="M747 438C900 377 1040 473 1174 421S1435 339 1670 398"/>
+      <path d="M810 228C938 174 1007 249 1152 213S1421 118 1650 180"/>
+      <path d="M822 247C950 194 1020 269 1165 232S1434 137 1650 204"/>
+      <path d="M835 266C962 213 1034 289 1178 252S1447 157 1650 228"/>
+    </g>
+    <path d="M905 380L1020 290C1060 258 1102 287 1146 261L1250 190C1294 159 1350 196 1402 148L1502 72" fill="none" stroke="#61d4c6" stroke-width="20" opacity=".08"/>
+    <path d="M905 380L1020 290C1060 258 1102 287 1146 261L1250 190C1294 159 1350 196 1402 148L1502 72" fill="none" stroke="url(#cable)" stroke-width="4" stroke-linecap="round"/>
+    <g fill="#102d40" stroke="#99e6d5" stroke-width="3">
+      <circle cx="905" cy="380" r="8"/>
+      <circle cx="1020" cy="290" r="8"/>
+      <circle cx="1146" cy="261" r="8"/>
+      <circle cx="1250" cy="190" r="8"/>
+      <circle cx="1402" cy="148" r="8"/>
+      <circle cx="1502" cy="72" r="8"/>
+    </g>
+    <circle cx="1250" cy="190" r="28" fill="none" stroke="#99e6d5" stroke-opacity=".24"/>
+    <rect x="96" y="81" width="62" height="62" rx="16" fill="#173b4a" stroke="#4e9a9b" stroke-opacity=".6"/>
+    <path d="M110 125L121 113Q127 106 134 111L145 99" fill="none" stroke="#80ddcf" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#173b4a" stroke="#80ddcf" stroke-width="2.5">
+      <circle cx="110" cy="125" r="4"/>
+      <circle cx="145" cy="99" r="4"/>
+    </g>
+    <g font-family="Arial, Helvetica, sans-serif">
+      <text x="96" y="234" fill="#f3fafc" font-size="76" font-weight="700" letter-spacing="-2">OceanRoute</text>
+      <text x="99" y="283" fill="#b8d6df" font-size="26">Independent subsea cable planning</text>
+      <path d="M99 325H152" stroke="#65d1c5" stroke-width="3" stroke-linecap="round"/>
+      <text x="99" y="369" fill="#7fa8ba" font-size="15" letter-spacing="3">ROUTES  /  GIS  /  ENGINEERING MODELS</text>
+    </g>
+  </g>
+</svg>

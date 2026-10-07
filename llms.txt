@@ -1,0 +1,37 @@
+# openOceanRoute
+
+> Independent MIT-licensed submarine cable route planning project. Application/distribution name: OceanRoute; frozen version: 0.12.1. 独立海底电缆路由规划项目。
+
+The project implements WGS84 geometry, true circular arcs, RPL, GIS reference layers, bathymetry, finite rule checks and bounded cable mechanics research models. It runs as a local browser workspace. The Windows x64 installer bundles Python and dependencies; the source ZIP needs Python and first-install internet access. Git checkouts additionally need an interface build.
+
+The project has no affiliation, authorization or endorsement from Makai. It supplies no Makai license or proprietary software and makes no claim of original-engine equivalence or field certification. MIT covers original code and documentation; third-party rights remain separate. The installer is unsigned and native Windows hardware acceptance is not completed. Existing Windows tests ran under Wine / Rosetta. The application does not implement AI search or AI route planning.
+
+The first 300 commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07; this is explicitly disclosed. Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
+
+## Project
+
+- [Project website](https://jane-o-o-o-o.github.io/openOceanRoute/): Public illustrated introduction, features, FAQ and verification boundaries.
+- [English README](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.en.md): Installation, scope, verification and community links.
+- [中文 README](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.md): 中文项目说明与下载入口。
+- [Full project text](https://jane-o-o-o-o.github.io/openOceanRoute/llms-full.txt): Expanded plain-text project reference.
+- [Structured metadata](https://jane-o-o-o-o.github.io/openOceanRoute/project.json): Version, license, repository and download facts.
+
+## Downloads and documentation
+
+- [Latest frozen delivery](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.12.1): Installer, portable ZIP, wheel, two PDFs and integrity files.
+- [Release asset catalog](https://jane-o-o-o-o.github.io/openOceanRoute/release-catalog.json): Published asset names, byte sizes and SHA256 digests.
+- [User manual](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/USER_MANUAL.md): Workflows and input/output requirements.
+- [Design](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/DESIGN.md): Architecture and implementation.
+- [Implementation status](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/IMPLEMENTATION_STATUS.md): Detailed limits and remaining gaps.
+- [Model notes](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/MODEL_NOTES.md): Assumptions and numerical boundaries.
+- [Stable delivery record](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/STABLE_0.12.1.md): Actual tests, retained failures and platform limitations.
+- [Windows installation](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md): Data, startup, shutdown and uninstall guidance.
+
+## Rights and community
+
+- [MIT license](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE): Original project license.
+- [Disclaimer](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md): Independence, commercial-vendor rights and engineering limitations.
+- [Third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md): Components and data retain their own licensing terms.
+- [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md): Frequently asked installation and scope questions.
+- [Security reporting](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md): Vulnerability reporting channel.
+- [Reconstructed history](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md): Explicit historical timestamp disclosure.

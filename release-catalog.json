@@ -1,0 +1,815 @@
+{
+  "schema_version": 1,
+  "project": "openOceanRoute",
+  "application": "OceanRoute",
+  "repository": "https://github.com/Jane-o-O-o-O/openOceanRoute",
+  "latest_frozen_version": "0.12.1",
+  "generated_at_utc": "2026-10-07T15:47:18.803172+00:00",
+  "release_count": 13,
+  "asset_count": 94,
+  "integrity": "All listed assets were verified against local SHA256 and byte sizes using actual GitHub asset digests. Original frozen bytes are unchanged; MIT notices and canonical asset checksums were added for publication. PDF download names are ASCII aliases.",
+  "history": "The initial 300 source commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07. github_published_at records actual GitHub publication, not reconstructed dates.",
+  "releases": [
+    {
+      "version": "0.1.0",
+      "tag": "v0.1.0",
+      "source_commit": "dd7c2d331910cbf865c554f43bbaf60324c68a60",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.1.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:38:57Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.1-portable.zip",
+          "bytes": 7802421,
+          "sha256": "904cae801549176358bb009af750eaba8385683a32ae642031f7de3db3af3129",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/OceanRoute-0.1-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.1.0-py3-none-any.whl",
+          "bytes": 524935,
+          "sha256": "d61b4a69daef54b4a1ae8bcbcacd38ad19de2f10ee93a490d0fbcd936b6e9030",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/oceanroute-0.1.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.1.0-User-Manual.pdf",
+          "bytes": 580069,
+          "sha256": "543c8876e619d853f27718d794e0a5a23bf67b513c4bf88c3953ab3f27b0cdef",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/OceanRoute-0.1.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.1.0-Design-Document.pdf",
+          "bytes": 277973,
+          "sha256": "c3190aa61281b8eed04c74365d475c64ea143a96810a13792a13a7d30520c304",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/OceanRoute-0.1.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.1.json",
+          "bytes": 423,
+          "sha256": "6e8ed41e95305f75323a54cf44af2b93881261b90935eac0a79878b3531c466c",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/manifest-0.1.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.1.0.txt",
+          "bytes": 562,
+          "sha256": "13c1884cf44931e2fd76add5036ac126ee9debf54b5e5f257cd67720e3a2ab96",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.1.0/SHA256SUMS-assets-v0.1.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "tag": "v0.2.0",
+      "source_commit": "19375c32c28fc429ea3aa0e4bbaba088aa4924ea",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.2.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:00Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.2-portable.zip",
+          "bytes": 9679108,
+          "sha256": "cd444e4e30f54d72ba1e2a8431e0bdaa10c7367843f09e36b8bbbfa936a1bda2",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/OceanRoute-0.2-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.2.0-py3-none-any.whl",
+          "bytes": 740311,
+          "sha256": "4b9fe873c50d8a7cd6f75362e627b47783dde2ef68e34e4566959e7e31517592",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/oceanroute-0.2.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.2.0-User-Manual.pdf",
+          "bytes": 630788,
+          "sha256": "9aec8e1ad5dd58c2b4d02f79c32c0d9709d39e6b1cef25ab572645d7442c6182",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/OceanRoute-0.2.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.2.0-Design-Document.pdf",
+          "bytes": 341579,
+          "sha256": "816370a15c697d259fb78ff2324f3b0fd07978624251a1c0c34d957176df5560",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/OceanRoute-0.2.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.2.json",
+          "bytes": 1065,
+          "sha256": "8fc879d7c9c0c2191d1916d515cd1d8d0709957d73ca53d7b2a07a94ce1cb3a8",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/manifest-0.2.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.2.0.txt",
+          "bytes": 562,
+          "sha256": "df14e1dbde8a6817209e190a42e24b919ac62a2755cef7e3727f2c595542760a",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.2.0/SHA256SUMS-assets-v0.2.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "tag": "v0.3.0",
+      "source_commit": "8852bfc4380e006dc22b9aa350ff3f25248fbd39",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.3.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:03Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.3-portable.zip",
+          "bytes": 11088568,
+          "sha256": "b0e48ddbd372fe50ca076654d20443825983afa2ef25893f263d9a6f5903b635",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/OceanRoute-0.3-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.3.0-py3-none-any.whl",
+          "bytes": 633354,
+          "sha256": "dccab79ea98d63e006a3735eed5ac206a346e92dc1a7dad6fb647b8f38520182",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/oceanroute-0.3.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.3.0-User-Manual.pdf",
+          "bytes": 654882,
+          "sha256": "bff19e152883c2d44e51550630b376c7a62dc718d85f887aff020aa3724d512b",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/OceanRoute-0.3.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.3.0-Design-Document.pdf",
+          "bytes": 363555,
+          "sha256": "eb5fcd5f61c556835200730873fd77d04accc99467e1cf82933314f7529f4ee4",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/OceanRoute-0.3.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.3.json",
+          "bytes": 1577,
+          "sha256": "00ad22a9caba0cc6380f7b1436d59b20524d7a7434a8921ca06af9a86b48efe3",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/manifest-0.3.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.3.0.txt",
+          "bytes": 562,
+          "sha256": "f779d788dceb0aedd108dd2537dae4088fbc462e121fabc09f9ab48045718579",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.3.0/SHA256SUMS-assets-v0.3.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "tag": "v0.4.0",
+      "source_commit": "a450202c9c9baac15de6d8478256caf374d12e8c",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.4.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:14Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.4-portable.zip",
+          "bytes": 21724661,
+          "sha256": "820b2dfaef70622f8507a3bff39438469649831c6d30ed20f39d7157ac673321",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/OceanRoute-0.4-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.4.0-py3-none-any.whl",
+          "bytes": 680432,
+          "sha256": "2ea63d9c63b9c1996c9adfb5b17ae494c67d7cb07d715508a9cf6b259c4c38cd",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/oceanroute-0.4.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.4.0-User-Manual.pdf",
+          "bytes": 663825,
+          "sha256": "2ddca5cea67591f3c1816a46e1f0150875f1fbba1058211ba994737dfe341818",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/OceanRoute-0.4.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.4.0-Design-Document.pdf",
+          "bytes": 378806,
+          "sha256": "db13f75626e003ee493a81e531d6aa7ba9a996396f13aed02c4f4631c65b9271",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/OceanRoute-0.4.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.4.json",
+          "bytes": 4014,
+          "sha256": "5b2caea2e7cdc2250449b97f855e29714999e915b532a83373342f8f3139db91",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/manifest-0.4.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.4.0.txt",
+          "bytes": 562,
+          "sha256": "1203090914b4bef662bcf0bf5ad8127396bdb88cfa097d66feaf49f1b2892b56",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.4.0/SHA256SUMS-assets-v0.4.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "tag": "v0.5.0",
+      "source_commit": "9687056d66c7c856d82564e4eb969d7a38bbb766",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.5.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:17Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.5-portable.zip",
+          "bytes": 46968423,
+          "sha256": "3b9616c1844f9d6faed81485fd6b9f89f1312c1553627696439eca31d9e984a7",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/OceanRoute-0.5-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.5.0-py3-none-any.whl",
+          "bytes": 747214,
+          "sha256": "e4edff56d5849e4b0614d74c53615f10f141dc41f5d523db3574b0255f837f2a",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/oceanroute-0.5.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.5.0-User-Manual.pdf",
+          "bytes": 692524,
+          "sha256": "80a2fb5a736ea6dc54930049bb0322ed363762a691074c029b48bf9b7b19e33d",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/OceanRoute-0.5.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.5.0-Design-Document.pdf",
+          "bytes": 401480,
+          "sha256": "7861c20f719e1ec290a7af3b3581c8a885152388c59c248d8d38f1fcfa707f71",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/OceanRoute-0.5.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.5.json",
+          "bytes": 5560,
+          "sha256": "03bfae8ba6d7bfe3b1180ea70e4acde908bc37bcaf0474b4416d4e323f0ed049",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/manifest-0.5.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.5.0.txt",
+          "bytes": 562,
+          "sha256": "32ae209d092134f6006143cb402ee847e5715cf41a6daa9043df4f03914dc98a",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.5.0/SHA256SUMS-assets-v0.5.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "tag": "v0.6.0",
+      "source_commit": "8b7503440838d9a86f24e68f3e87711cbce6be7e",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.6.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:20Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.6-portable.zip",
+          "bytes": 16643401,
+          "sha256": "509ad71e1eaee23e808a11e041dae43ae1287189bc4b7a9d2c5840e95506c6fc",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/OceanRoute-0.6-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.6.0-py3-none-any.whl",
+          "bytes": 775458,
+          "sha256": "bc8e20bdf26656e6c5453d25fe385cad61238b48e30b5159471d72c2b8c35141",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/oceanroute-0.6.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.6.0-User-Manual.pdf",
+          "bytes": 715882,
+          "sha256": "8502e0a18d87f021add7c40e38700900709e279b3dc2a4a00031e5e7206d10fc",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/OceanRoute-0.6.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.6.0-Design-Document.pdf",
+          "bytes": 433567,
+          "sha256": "9a2b090a6e21317963bb6b9bd47f5b284c2ad764b5cb7b104a64b99f04a934b7",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/OceanRoute-0.6.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.6.json",
+          "bytes": 6723,
+          "sha256": "4c956fdb8b26def990aefcad83d98c311c947fa5f2cf1d38df9298f2d386fc23",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/manifest-0.6.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.6.0.txt",
+          "bytes": 562,
+          "sha256": "f89e70a2e618e12ab773b9d55d425365740a151c4e362819c4a70dd5e808cd4a",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.6.0/SHA256SUMS-assets-v0.6.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "tag": "v0.7.0",
+      "source_commit": "135b788c0cbf1f5a21eb704b39adf15713842eb7",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.7.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:23Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.7-portable.zip",
+          "bytes": 19016393,
+          "sha256": "8115944c8b56d0371aa3e20a2b6403c6313c987adaa08457254042b015c82c51",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/OceanRoute-0.7-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.7.0-py3-none-any.whl",
+          "bytes": 805041,
+          "sha256": "366b25ac2817ed40c45f755f4f8e4b61c27e79edbb9ce7f7af2a735b2333e489",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/oceanroute-0.7.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.7.0-User-Manual.pdf",
+          "bytes": 833505,
+          "sha256": "1eedf13de7689062e1b748aeadd7912f6d827c58b5902266fc286a2a3c5dd337",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/OceanRoute-0.7.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.7.0-Design-Document.pdf",
+          "bytes": 454310,
+          "sha256": "7ad645ce32a2996aa412b195638837bfd5a88120142ad23b2dc00627f408d163",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/OceanRoute-0.7.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.7.json",
+          "bytes": 10971,
+          "sha256": "1b60571efef8e676b8f3c02bac53f1ea5c0b50c7fad2445d4d7df84cee405c9b",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/manifest-0.7.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.7.0.txt",
+          "bytes": 562,
+          "sha256": "0c1350b03f6f23bd2f22784aafd5029a08fa00451e764089290f8f04261a59c2",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.7.0/SHA256SUMS-assets-v0.7.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "tag": "v0.8.0",
+      "source_commit": "067ff84ea63acadb2222e92e07e8a7cb8f6dfbb2",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.8.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:25Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.8-portable.zip",
+          "bytes": 23025683,
+          "sha256": "c79a330f5ede81616c4ed27750884a534cc519ec9190f19c95cd536f0b540e1b",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/OceanRoute-0.8-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.8.0-py3-none-any.whl",
+          "bytes": 828387,
+          "sha256": "8909d48515359f04d805fa3ef594725c94540294d1ce1a55d57edb95f602267b",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/oceanroute-0.8.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.8.0-User-Manual.pdf",
+          "bytes": 745305,
+          "sha256": "570eac7bc07eb71a6d9eac68a512910536cc4b27edf595965dac5ba6237a2ab1",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/OceanRoute-0.8.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.8.0-Design-Document.pdf",
+          "bytes": 467014,
+          "sha256": "be6e7bc5c553cda6398dccd7aa0d59f2d2d47d7ca67e9c204acf9d6e1b505dea",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/OceanRoute-0.8.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.8.json",
+          "bytes": 12602,
+          "sha256": "d9e210a77400fafbe64e808a7a239a6fad416bb3934c7cba20120cb97226a34f",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/manifest-0.8.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.8.0.txt",
+          "bytes": 562,
+          "sha256": "cf3da1c5ce60a623cb0d6c0d10056f6926de81b791e52923246782311c55cf2f",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.8.0/SHA256SUMS-assets-v0.8.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "source_commit": "66cbf271a31eca1cb16bf0a530800fb46fd7bec8",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.9.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:28Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.9-portable.zip",
+          "bytes": 25238835,
+          "sha256": "2d24aedb149f0df1604b23423c62fa667fd10d585b02c46f0d0062c50e1bc952",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/OceanRoute-0.9-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.9.0-py3-none-any.whl",
+          "bytes": 858749,
+          "sha256": "ec17d22d818afa61c83d70eed7cc76fd2de8203466204f239692a61f1b43f1fb",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/oceanroute-0.9.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.9.0-User-Manual.pdf",
+          "bytes": 671077,
+          "sha256": "0ac8ff8db3f88165326e7fe84e229b5628ff2709288369462b3cc6e15924cf88",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/OceanRoute-0.9.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.9.0-Design-Document.pdf",
+          "bytes": 493875,
+          "sha256": "f46a685b292478b2a0f07bc5308b01a9172365f9f90f1ac8baa2d9f24b909447",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/OceanRoute-0.9.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.9.json",
+          "bytes": 14926,
+          "sha256": "fb8b1ae5b54e70fd640fad67e89d7ce9407a97f451721597ff9dc7bf0eae31d4",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/manifest-0.9.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.9.0.txt",
+          "bytes": 562,
+          "sha256": "41cce637eb67150b3c52aa251efe506acb456cfd220fd9b8cac8fbd5dc3c357c",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.9.0/SHA256SUMS-assets-v0.9.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "tag": "v0.10.0",
+      "source_commit": "afc0f8728608b01b501724fe96c80149f2d3b287",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.10.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:31Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.10-portable.zip",
+          "bytes": 29131064,
+          "sha256": "fdf10d66871b5dfa2b3f24b1a3e34f9cdf2b7d365db41adb11f8dac97e3613ce",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/OceanRoute-0.10-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.10.0-py3-none-any.whl",
+          "bytes": 906985,
+          "sha256": "93a6d2558d17eae8a2c2f090d76f7924e753caf58295d45017a38352f1c638b1",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/oceanroute-0.10.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.10.0-User-Manual.pdf",
+          "bytes": 796569,
+          "sha256": "fa3489e1b8f45c78cbb51e58a9303992b6954ffe2b54011fb90b8a33833c3a11",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/OceanRoute-0.10.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.10.0-Design-Document.pdf",
+          "bytes": 558768,
+          "sha256": "511f4484f6b3a54722faefdf88ab720fbdfd6ddccaf23dafd5117fb42e50f9be",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/OceanRoute-0.10.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.10.json",
+          "bytes": 12001,
+          "sha256": "344df6b6c8e84618cb60499ed665ae36417137876cb197bfa54cbe7897e7fa6f",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/manifest-0.10.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.10.0.txt",
+          "bytes": 567,
+          "sha256": "498b03eeb1520913e37df66e757591c62f9abc8a55a680331660a3b03dc06b9e",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.10.0/SHA256SUMS-assets-v0.10.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "tag": "v0.11.0",
+      "source_commit": "fb3f5c5b54a2ee84c06e9d8a9d6fe1316fae7e30",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.11.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:35Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.11-portable.zip",
+          "bytes": 57153852,
+          "sha256": "b2eadf8c8243f1834892fabecb5f450502abbde20e6dfa02ef37bdd995bc1307",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/OceanRoute-0.11-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.11.0-py3-none-any.whl",
+          "bytes": 943182,
+          "sha256": "794e49f20fffe35f075617c4b4735cea32b9e0122377d563d3bb66c3b5f94251",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/oceanroute-0.11.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.11.0-User-Manual.pdf",
+          "bytes": 795747,
+          "sha256": "20a130d3279fbbe4df365a672357f05f331681598b9ee6cf74420e7146582173",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/OceanRoute-0.11.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.11.0-Design-Document.pdf",
+          "bytes": 584848,
+          "sha256": "b0537519ee730cb2a6b4f8ec4f194424af55782173149a34c96984d9304de0d3",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/OceanRoute-0.11.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.11.json",
+          "bytes": 4985,
+          "sha256": "d4588bb9801c61dda4575743fad30c8b28553625da8b9f9edb8506fec366f00f",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/manifest-0.11.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.11.0.txt",
+          "bytes": 567,
+          "sha256": "5bd0a189f030f3de12f910555faddd9b6df101a23ef67758794e4ede11492abb",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.11.0/SHA256SUMS-assets-v0.11.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.12.0",
+      "tag": "v0.12.0",
+      "source_commit": "f3ce08b668b1fbb94d8183583cf956609f9c2094",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.12.0",
+      "prerelease": true,
+      "original_artifact_release_date": "2026-10-04",
+      "github_published_at": "2026-10-07T15:39:39Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.12-portable.zip",
+          "bytes": 38114384,
+          "sha256": "d20b5dd6d6918559c535102ea4214593453473ba2f05ac413dcc34a481874665",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/OceanRoute-0.12-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.12.0-py3-none-any.whl",
+          "bytes": 966307,
+          "sha256": "e4e42b7a1c204511d7eb1ea07c2f3fd5b74f9324c8c874d6ccea73c8aa8db639",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/oceanroute-0.12.0-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.0-User-Manual.pdf",
+          "bytes": 929675,
+          "sha256": "1aa62c72b96f9597fa22fe37cf5d3dc5a726e654490bc98233b8877af88fb4ea",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/OceanRoute-0.12.0-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.0-Design-Document.pdf",
+          "bytes": 598678,
+          "sha256": "b6f0ddf4031797b9fa79c9b5057304928ea7ff1bea440bdcc3515f030bd370bb",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/OceanRoute-0.12.0-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "development_0.12_pre_windows_compatibility_freeze.json",
+          "bytes": 19443,
+          "sha256": "07ecfa339bddc2906888350aeee6d53f5db819233adb7574dd67f61a9f2188b4",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/development_0.12_pre_windows_compatibility_freeze.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.0-Windows-x64-Setup.exe",
+          "bytes": 83783673,
+          "sha256": "b74ccd1a0ecfe451871a8b80f846e7a012e221d03adf852e8e87d8c63734f45e",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/OceanRoute-0.12.0-Windows-x64-Setup.exe",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.12.0.txt",
+          "bytes": 709,
+          "sha256": "3d8fe3ed758fd17d8ae339687d8c3691402aa96d1b02e76d1611b18f3b6c395f",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.0/SHA256SUMS-assets-v0.12.0.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    },
+    {
+      "version": "0.12.1",
+      "tag": "v0.12.1",
+      "source_commit": "1972ae9486f83c86f7f9b59ac0fc297cf3ad99bf",
+      "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.12.1",
+      "prerelease": false,
+      "original_artifact_release_date": "2026-10-05",
+      "github_published_at": "2026-10-07T15:39:42Z",
+      "assets": [
+        {
+          "name": "OceanRoute-0.12.1-portable.zip",
+          "bytes": 43262030,
+          "sha256": "48cd7aa8340baa1867c76e06842908f2a084a3640cb66856ef08abfec0f73ec8",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-portable.zip",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "oceanroute-0.12.1-py3-none-any.whl",
+          "bytes": 967718,
+          "sha256": "b78ccf8f9015bc98bec59353476891749c22805f4450334a0ccea0044a710897",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/oceanroute-0.12.1-py3-none-any.whl",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.1-User-Manual.pdf",
+          "bytes": 931343,
+          "sha256": "249ab190176b2884a87d6a937f3e16845bc8f2a10b6e210ed96d79941476b1d3",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-User-Manual.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.1-Design-Document.pdf",
+          "bytes": 600808,
+          "sha256": "6c0d19bed6213ef9d5b73c2d54ca1dabdba44f0e82cfb73ba32c04948f487a0e",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-Design-Document.pdf",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "manifest-0.12.1.json",
+          "bytes": 8668,
+          "sha256": "c77d43df7d4091bb2327621807031d97cdc49aa5d3d4959a2f73ab6a230832c9",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/manifest-0.12.1.json",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "OceanRoute-0.12.1-Windows-x64-Setup.exe",
+          "bytes": 83785882,
+          "sha256": "1062aed936c78e0230eff6514293e296adb4e1668b91efbd1df75d0a2d7f24a1",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-Windows-x64-Setup.exe",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "SHA256SUMS-0.12.1.txt",
+          "bytes": 683,
+          "sha256": "9ade14c61b9d1d4365911dc594dbc4192e291091335acd28820ae0efb84b10f7",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/SHA256SUMS-0.12.1.txt",
+          "kind": "unchanged_original"
+        },
+        {
+          "name": "LICENSE-MIT.txt",
+          "bytes": 1103,
+          "sha256": "4913454d0de1ab17969ff498caa094e96cc7ff55612ba99eea6d494ecbba9585",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/LICENSE-MIT.txt",
+          "kind": "new_2026_10_07_license_notice"
+        },
+        {
+          "name": "SHA256SUMS-assets-v0.12.1.txt",
+          "bytes": 765,
+          "sha256": "55f3ded776b7fd4c2c6fe302225a6016ac345970034b1c420014325b3ae90336",
+          "url": "https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/SHA256SUMS-assets-v0.12.1.txt",
+          "kind": "new_2026_10_07_asset_checksum_list"
+        }
+      ]
+    }
+  ]
+}
