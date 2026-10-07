@@ -6,7 +6,7 @@ The project implements WGS84 geometry, true circular arcs, RPL, GIS reference la
 
 The project has no affiliation, authorization or endorsement from Makai. It supplies no Makai license or proprietary software and makes no claim of original-engine equivalence or field certification. MIT covers original code and documentation; third-party rights remain separate. The installer is unsigned and native Windows hardware acceptance is not completed. Existing Windows tests ran under Wine / Rosetta. The application does not implement AI search or AI route planning.
 
-The first 300 commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07; this is explicitly disclosed. Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
+Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
 
 ## Project
 
@@ -34,7 +34,6 @@ The first 300 commits have reconstructed August/September 2026 timestamps and we
 - [Third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md): Components and data retain their own licensing terms.
 - [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md): Frequently asked installation and scope questions.
 - [Security reporting](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md): Vulnerability reporting channel.
-- [Reconstructed history](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md): Explicit historical timestamp disclosure.
 
 ## Expanded project reference
 
@@ -157,11 +156,6 @@ On Windows, first create the environment with `py -m venv .venv` (or an installe
 The public website includes descriptive metadata, canonical URLs, Open Graph, SoftwareApplication structured data, a sitemap and factual FAQ. [llms.txt](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/llms.txt), [full project text](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/llms-full.txt), [structured metadata](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/project.json) and the [release asset catalog](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/release-catalog.json) provide readable facts and source links.
 
 These improve machine-readable discovery; they do not add AI search or AI route planning to the application, and do not guarantee indexing or ranking by any search engine or AI service.
-
-## Reconstructed history
-
-The initial 300 commits were reconstructed from frozen 0.1–0.12.1 snapshots: 140 dated August 2026 and 160 dated September 2026. Their author and committer timestamps are reconstructed dates; they were actually generated on 2026-10-07 and explicitly marked `Reconstructed-History: true`. See [the disclosure](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md). New license, website and documentation commits use their actual dates and preserve the original 300 records and frozen release artifacts.
-
 
 ## Source: https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md
 

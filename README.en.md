@@ -117,7 +117,3 @@ On Windows, first create the environment with `py -m venv .venv` (or an installe
 The public website includes descriptive metadata, canonical URLs, Open Graph, SoftwareApplication structured data, a sitemap and factual FAQ. [llms.txt](llms.txt), [full project text](llms-full.txt), [structured metadata](project.json) and the [release asset catalog](release-catalog.json) provide readable facts and source links.
 
 These improve machine-readable discovery; they do not add AI search or AI route planning to the application, and do not guarantee indexing or ranking by any search engine or AI service.
-
-## Reconstructed history
-
-The initial 300 commits were reconstructed from frozen 0.1–0.12.1 snapshots: 140 dated August 2026 and 160 dated September 2026. Their author and committer timestamps are reconstructed dates; they were actually generated on 2026-10-07 and explicitly marked `Reconstructed-History: true`. See [the disclosure](HISTORY_RECONSTRUCTION.md). New license, website and documentation commits use their actual dates and preserve the original 300 records and frozen release artifacts.

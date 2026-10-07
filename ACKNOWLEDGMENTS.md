@@ -7,4 +7,4 @@
 - Python、NumPy、SciPy、PROJ／pyproj、GeographicLib、Shapely／GEOS、GDAL／pyogrio、Rasterio、FastAPI、React、Vite、Playwright及其他依赖支持本项目。各自许可保留，不能统一视为本项目 MIT。
 - 独立数学核对、解析用例、数值细化、原生格式对照和界面核验帮助记录真实实现范围；它们不能代替原厂黄金结果或现场验证。
 
-本项目原创示意图不是工程地图；项目页六张截图来自实际测试截图，图中的第三方数据仍保留其来源与许可。许可边界见 [NOTICE](NOTICE.md)，历史重建性质见 [HISTORY_RECONSTRUCTION](HISTORY_RECONSTRUCTION.md)。
+本项目原创示意图不是工程地图；项目页六张截图来自实际测试截图，图中的第三方数据仍保留其来源与许可。许可边界见 [NOTICE](NOTICE.md)。

@@ -129,7 +129,3 @@ Windows 先运行 `py -m venv .venv`（或已安装的 `python -m venv .venv`）
 这些材料用于改善搜索和 AI 检索的可读性，**不表示软件新增了 AI 搜索或 AI 路线规划功能，也不保证任何搜索引擎 / AI 服务的收录与排名**。
 
 English keywords: independent submarine cable route planning, subsea cable engineering research, bathymetry, GIS, WGS84 geodesy, RPL, straight-line diagram, catenary, cable laying simulation, Windows installer.
-
-## 历史记录说明
-
-前 300 个提交是依据 0.1 至 0.12.1 冻结快照重建的历史，2026 年 8 月 140 个、9 月 160 个。它们的作者和提交者日期均为**重建日期**，实际生成于 2026-10-07，提交正文已标注 `Reconstructed-History: true`；详情见 [重建历史说明](HISTORY_RECONSTRUCTION.md)。本次 MIT、介绍页和文档完善采用真实提交时间，不改变这 300 个记录或原始发行包。

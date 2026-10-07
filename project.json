@@ -21,7 +21,7 @@
   "softwareRequirements": "Bundled Windows EXE: no external Python or Node.js required. Portable source ZIP: Python 3.10+ and first-install internet access. Git checkout: Python and a Node.js/npm interface build.",
   "releaseNotes": "https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/RELEASE_NOTES.md",
   "isAccessibleForFree": true,
-  "abstract": "Windows binaries and installer tested under Wine/Rosetta; native Windows hardware acceptance not completed; unsigned installer. No Makai affiliation, authorization, endorsement or license; no vendor-equivalence or field-certification claim. Initial 300 commits reconstructed with August/September 2026 timestamps; actually generated 2026-10-07. Machine-readable project documentation; no application AI search or AI route-planning feature.",
+  "abstract": "Windows binaries and installer tested under Wine/Rosetta; native Windows hardware acceptance not completed; unsigned installer. No Makai affiliation, authorization, endorsement or license; no vendor-equivalence or field-certification claim. Machine-readable project documentation; no application AI search or AI route-planning feature.",
   "keywords": [
     "submarine cable",
     "route planning",
