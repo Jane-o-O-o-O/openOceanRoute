@@ -1,0 +1,255 @@
+# openOceanRoute
+
+> Independent MIT-licensed submarine cable route planning project. Application/distribution name: OceanRoute; frozen version: 0.12.1. 独立海底电缆路由规划项目。
+
+The project implements WGS84 geometry, true circular arcs, RPL, GIS reference layers, bathymetry, finite rule checks and bounded cable mechanics research models. It runs as a local browser workspace. The Windows x64 installer bundles Python and dependencies; the source ZIP needs Python and first-install internet access. Git checkouts additionally need an interface build.
+
+The project has no affiliation, authorization or endorsement from Makai. It supplies no Makai license or proprietary software and makes no claim of original-engine equivalence or field certification. MIT covers original code and documentation; third-party rights remain separate. The installer is unsigned and native Windows hardware acceptance is not completed. Existing Windows tests ran under Wine / Rosetta. The application does not implement AI search or AI route planning.
+
+The first 300 commits have reconstructed August/September 2026 timestamps and were actually generated on 2026-10-07; this is explicitly disclosed. Historical release artifacts remain unchanged. Prefer 0.12.1 over older snapshots, including the 0.12 candidate with known failures.
+
+## Project
+
+- [Project website](https://jane-o-o-o-o.github.io/openOceanRoute/): Public illustrated introduction, features, FAQ and verification boundaries.
+- [English README](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.en.md): Installation, scope, verification and community links.
+- [中文 README](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.md): 中文项目说明与下载入口。
+- [Full project text](https://jane-o-o-o-o.github.io/openOceanRoute/llms-full.txt): Expanded plain-text project reference.
+- [Structured metadata](https://jane-o-o-o-o.github.io/openOceanRoute/project.json): Version, license, repository and download facts.
+
+## Downloads and documentation
+
+- [Latest frozen delivery](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.12.1): Installer, portable ZIP, wheel, two PDFs and integrity files.
+- [Release asset catalog](https://jane-o-o-o-o.github.io/openOceanRoute/release-catalog.json): Published asset names, byte sizes and SHA256 digests.
+- [User manual](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/USER_MANUAL.md): Workflows and input/output requirements.
+- [Design](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/DESIGN.md): Architecture and implementation.
+- [Implementation status](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/IMPLEMENTATION_STATUS.md): Detailed limits and remaining gaps.
+- [Model notes](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/MODEL_NOTES.md): Assumptions and numerical boundaries.
+- [Stable delivery record](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/STABLE_0.12.1.md): Actual tests, retained failures and platform limitations.
+- [Windows installation](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md): Data, startup, shutdown and uninstall guidance.
+
+## Rights and community
+
+- [MIT license](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE): Original project license.
+- [Disclaimer](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md): Independence, commercial-vendor rights and engineering limitations.
+- [Third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md): Components and data retain their own licensing terms.
+- [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md): Frequently asked installation and scope questions.
+- [Security reporting](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md): Vulnerability reporting channel.
+- [Reconstructed history](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md): Explicit historical timestamp disclosure.
+
+## Expanded project reference
+
+# openOceanRoute · Independent submarine cable route planning
+
+![Original OceanRoute subsea cable illustration, not an engineering map](https://jane-o-o-o-o.github.io/openOceanRoute/assets/oceanroute-banner.svg)
+
+[![Version 0.12.1](https://img.shields.io/badge/version-0.12.1-087e8b)](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/tag/v0.12.1)
+[![MIT License](https://img.shields.io/badge/license-MIT-18794e)](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE)
+[![Windows x64](https://img.shields.io/badge/target-Windows%2010%2F11%20x64-0078d4)](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md)
+
+**[Project website](https://jane-o-o-o-o.github.io/openOceanRoute/) · [Downloads](https://github.com/Jane-o-O-o-O/openOceanRoute/releases) · [Manual](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/USER_MANUAL.md) · [Design](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/DESIGN.md) · [中文](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.md)**
+
+openOceanRoute is an independent MIT-licensed project for submarine cable route planning. Its application and distribution files are named **OceanRoute**, with frozen delivery version **0.12.1**. A local browser workspace connects WGS84 route geometry, true circular arcs, route position lists (RPL), bathymetry, GIS reference layers, rule checks and bounded cable mechanics research models.
+
+**MakaiPlan / MakaiPlan Pro are Makai commercial products. This project has no affiliation, authorization or endorsement from Makai and supplies no Makai license.** It makes no claim of original-engine equivalence, proprietary format compatibility or field accuracy. MIT covers original project code and documentation; third-party components and data retain their own licenses. Read the [disclaimer](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md) and [third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md).
+
+## Download 0.12.1
+
+| Distribution | Requirements |
+| --- | --- |
+| [Windows x64 installer](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-Windows-x64-Setup.exe) | About 80 MiB. Target: Windows 10 / 11 Intel / AMD 64-bit. Bundled Python and production dependencies; offline installation |
+| [Portable source ZIP](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-portable.zip) | Includes the compiled interface. Launcher requires Python 3.10+ and internet access for first dependency installation |
+| [Python wheel](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/oceanroute-0.12.1-py3-none-any.whl) | Python integration; install dependencies separately |
+| [User manual PDF](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-User-Manual.pdf) / [Design PDF](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/OceanRoute-0.12.1-Design-Document.pdf) | Frozen version documents: 26 and 30 pages respectively |
+| [SHA256 checksums](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/SHA256SUMS-assets-v0.12.1.txt) / [Original manifest](https://github.com/Jane-o-O-o-O/openOceanRoute/releases/download/v0.12.1/manifest-0.12.1.json) | Verify download integrity; original artifacts retain their frozen bytes |
+
+The installer is **unsigned, and native Windows hardware acceptance has not been completed**. Existing Windows binary and installer tests ran under Wine / Rosetta. Download from this repository's Releases and verify checksums; do not disable security software to bypass warnings.
+
+Windows data is stored in `%LOCALAPPDATA%\OceanRoute`. Closing the browser does not stop the backend; use the Start menu's OceanRoute stop entry. Uninstallation preserves user data. See [installation guidance](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md).
+
+[All 13 releases](https://github.com/Jane-o-O-o-O/openOceanRoute/releases) include the corresponding source ZIP, wheel, manual, design document and integrity files. Windows EXE distributions start at 0.12. Earlier versions are historical snapshots; **0.12 has retained known failures, so prefer 0.12.1**. GitHub-generated source archives are different from uploaded portable distributions.
+
+## Actual workspace
+
+The images below are unchanged copies from the 0.12.1 browser verification. They show synthetic examples and test cases, except for public NOAA chart reference data. They are not field survey results.
+
+![Route map, KP–depth profile and project overview](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/route-workspace.png)
+
+*Route workspace with model-based duration and cost estimates.*
+
+![WGS84 arc edit candidate with explicit missing-depth state](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/arc-edit-candidate.png)
+
+*Review the complete candidate before applying and saving. This screenshot shows an unapplied candidate; stale profiles are disabled and unknown depth is not replaced with zero.*
+
+<details>
+<summary>Projected geometry, S-57, automatic rules and three-dimensional model</summary>
+
+![True radius arc preview in projected metre coordinates](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/projected-radius-preview.png)
+
+*Synthetic geometry example with missing continuous depth still reported.*
+
+![Native NOAA S-57 reference chart layers](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/native-s57-chart.png)
+
+*S-57 object geometry and metadata are reference GIS data, not S52 / ECDIS navigation rendering or automatically validated engineering bathymetry.*
+
+![Automatic rule location in the map and depth profile](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/automatic-rule-location.png)
+
+*Read-only location of a synthetic rule error; finite sampling cannot prove continuous seabed safety.*
+
+![Three-dimensional steady-state cable research model](https://jane-o-o-o-o.github.io/openOceanRoute/assets/screenshots/steady-state-3d.png)
+
+*Independent synthetic research case, without original-vendor golden outputs or field accuracy certification.*
+
+</details>
+
+## Implemented scope
+
+| Area | Implementation |
+| --- | --- |
+| Projects | SQLite persistence, multiple paths and shared assemblies, manufacturing relationships, fixed / flexible cable lengths and revisions |
+| Route geometry | WGS84 geodesic and rhumb lines, Split AC shaping, Radius AC true arcs, geographic / projected edit candidates, explicit apply and undo |
+| Planning outputs | RPL templates and import / export, maps, KP–depth profiles, straight-line diagrams, slack and duration / cost estimates |
+| GIS and terrain | CRS transformations, open reference formats, native S-57 objects, XYZ / GeoTIFF, multiple sources, provenance and explicit NoData |
+| Rules and search | Crossing, proximity, longitudinal / lateral slope checks, condition combinations and KP locations; finite-budget avoidance with independent review |
+| Cable models | Analytical catenary, static and bounded three-dimensional steady / dynamic examples, heterogeneous segments, point loads, currents and limited seabed contact |
+| Operations research | ShipPlan, LookAhead, tension search, sea-state / RAO, current inversion and partial repair workflows |
+
+See the detailed [implementation status](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/IMPLEMENTATION_STATUS.md) and [model notes](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/MODEL_NOTES.md). Full vessel six-degree-of-freedom motion, lifetime fatigue, complete friction history, live vessel equipment integration and continuous seabed safety proof are outside the implemented scope.
+
+## Recorded verification
+
+These are **actual full-run results for the frozen 0.12.1 delivery**, not new tests performed by this documentation update. Specialized reruns are not added to the totals.
+
+| Verification | Result |
+| --- | --- |
+| macOS backend | 2,232 passed; no failures, errors or skips |
+| Chrome scenarios | 116 passed once each; no retries, failures or skips |
+| Windows PE binaries under Wine / Rosetta | 2,231 passed; one POSIX-specific test naturally skipped; no failures or errors |
+| Portable fresh installation | Full 2,232 passed; actual HTTP, analysis, persistence and reopening exercised |
+| Installer under Wine / Rosetta | Upgrade, single instance, save / reopen, uninstall retaining data and reinstall payload checked |
+| Visual review | 26 manual pages, 30 design pages and 117 browser screenshots reviewed |
+
+Historical failures and fixes remain documented. Read the [stable delivery record](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/STABLE_0.12.1.md), [release notes](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/RELEASE_NOTES.md) and [Windows build record](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_BUILD.md). Passing tests does not establish vendor equivalence, field accuracy, navigation approval or marine engineering safety certification.
+
+## Run a Git checkout
+
+The installer needs no separate Python or Node.js installation. The portable ZIP includes the built interface. A Git checkout requires Python 3.10+, Node.js / npm compatible with the checked-in lockfile, and an interface build:
+
+```bash
+git clone https://github.com/Jane-o-O-o-O/openOceanRoute.git
+cd openOceanRoute
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[terrain]'
+npm --prefix web ci
+npm --prefix web run build
+.venv/bin/python -m oceanroute --open
+```
+
+On Windows, first create the environment with `py -m venv .venv` (or an installed `python -m venv .venv`); then use `.venv\Scripts\python.exe` for subsequent Python commands. The source CLI defaults to local `127.0.0.1:8765`; use `--port` if that port is occupied. The installer launcher can select an available port. Source data defaults to `.oceanroute`; `OCEANROUTE_DATA_DIR` can select another directory. Do not expose this research workspace directly to the public internet.
+
+## Documentation and community
+
+- [User manual](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/USER_MANUAL.md), [design](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/DESIGN.md), [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md) and [support](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SUPPORT.md).
+- [Contributing](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/CONTRIBUTING.md), [code of conduct](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/CODE_OF_CONDUCT.md), [security reporting](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md), [Issues](https://github.com/Jane-o-O-o-O/openOceanRoute/issues) and [Discussions](https://github.com/Jane-o-O-o-O/openOceanRoute/discussions).
+- [MIT license](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE), [disclaimer](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md), [third-party notices](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md), [acknowledgments](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/ACKNOWLEDGMENTS.md) and [citation metadata](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/CITATION.cff).
+
+## Search and AI discovery
+
+The public website includes descriptive metadata, canonical URLs, Open Graph, SoftwareApplication structured data, a sitemap and factual FAQ. [llms.txt](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/llms.txt), [full project text](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/llms-full.txt), [structured metadata](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/project.json) and the [release asset catalog](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/release-catalog.json) provide readable facts and source links.
+
+These improve machine-readable discovery; they do not add AI search or AI route planning to the application, and do not guarantee indexing or ranking by any search engine or AI service.
+
+## Reconstructed history
+
+The initial 300 commits were reconstructed from frozen 0.1–0.12.1 snapshots: 140 dated August 2026 and 160 dated September 2026. Their author and committer timestamps are reconstructed dates; they were actually generated on 2026-10-07 and explicitly marked `Reconstructed-History: true`. See [the disclosure](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/HISTORY_RECONSTRUCTION.md). New license, website and documentation commits use their actual dates and preserve the original 300 records and frozen release artifacts.
+
+
+## Source: https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md
+
+# 常见问题
+
+## 1. openOceanRoute 与 OceanRoute 是什么关系？
+
+openOceanRoute 是项目和仓库名称；当前程序界面、接口及发行文件使用 OceanRoute，稳定版为 0.12.1。部分界面标签简写为 0.12。
+
+## 2. 代码许可是什么？可以商业使用吗？
+
+项目原创部分使用 [MIT License](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE)，可依其条件使用、修改和商业再分发。第三方组件与数据仍受各自许可约束。历史自有代码的许可补充与冻结原包的关系见 [NOTICE](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md)；这不意味着取得 Makai 软件使用权。
+
+## 3. 与 MakaiPlan／MakaiPlan Pro 有授权或关联吗？
+
+没有原厂授权、合作或背书关系。本项目依据参考资料独立实现，不包含原厂程序、源码、许可证、原始手册 PDF 或受限模型库，也不是获认证的兼容替代品。原厂产品和许可须另行取得，见[免责声明](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md)。
+
+## 4. 这是 AI 自动规划或 AI 助手吗？
+
+不是。当前功能由几何、工程规则与数值研究模型实现。项目页和机器可读说明便于搜索与 AI 检索理解，不代表程序具有大模型助手、AI 路线规划或自动决策功能，也不保证被搜索系统收录。
+
+## 5. Windows 安装包需要另装 Python 或 Node.js 吗？
+
+不需要。Windows x64 离线 EXE 内置 Python、编译界面和生产依赖，使用系统浏览器显示本地工作区。安装器未签名；Windows 实机尚未验收。下载与摘要见[Releases](https://github.com/Jane-o-O-o-O/openOceanRoute/releases)，安装步骤见[Windows说明](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md)。
+
+## 6. Git 克隆与源码便携包有什么不同？
+
+Git 克隆不带编译界面或发行附件，需要 Python 3.10+ 和与 `web/package-lock.json` 兼容的 Node.js／npm（如 Node.js 20 或 22 系列）；`launcher.py` 在缺少界面时会调用 npm 安装并构建。源码便携 ZIP 已带编译界面，无需 Node.js，但需要 Python 3.10+，首次安装依赖需要联网。两者与离线 EXE 是不同安装路径，见 [README](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/README.md)。
+
+`python -m oceanroute` 的默认端口固定为 8765；占用时需显式指定 `--port`。安装器启动器可选择空闲端口，不能把该行为套用于源码 CLI。
+
+## 7. 当前验证数字是什么？
+
+冻结 0.12.1 正式 macOS 后端 2232 项通过，Chrome 116 个场景各一次通过；Windows PE 在 Wine／Rosetta 中 2231 项通过、1 项 POSIX 专属测试自然跳过。源码便携包另有全新环境完整 2232 项通过记录。这些轮次不相加，Wine 也不是 Windows 实机验证。详见[稳定交付记录](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/STABLE_0.12.1.md)。
+
+## 8. 可以直接用于航海或海上施工决策吗？
+
+不能据此推定具备这类资格。海图为参考图层，模型未经现场校准；有限规则与采样不证明连续海底安全。工程使用仍需适当数据、专业审查、现场验证及适用要求，详见[模型限制](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/IMPLEMENTATION_STATUS.md)。
+
+## 9. 数据保存在哪里？关闭浏览器就退出了吗？
+
+Windows 安装版保存于 `%LOCALAPPDATA%\OceanRoute`；源码默认使用当前目录 `.oceanroute/projects.sqlite3`，可通过 `OCEANROUTE_DATA_DIR` 指定目录。关闭浏览器不会结束本地服务，应先保存：Windows 安装版使用开始菜单“关闭 OceanRoute”或 `OceanRoute.exe --stop`；源码 CLI 在运行终端按 Ctrl+C 停止。备份与卸载数据保留见[安装说明](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/WINDOWS_INSTALL.md)。
+
+## 10. 如何提问题，旧版本还能用吗？
+
+优先使用 0.12.1；0.12 已知 Windows 失败被保留，不推荐部署。普通问题见 [SUPPORT](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SUPPORT.md)与[Issues](https://github.com/Jane-o-O-o-O/openOceanRoute/issues)，安全漏洞按 [SECURITY](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md) 私密报告。当前冻结现有功能，支持不承诺 SLA 或新功能排期。
+
+
+## Source: https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md
+
+# 使用范围与免责声明
+
+openOceanRoute / OceanRoute 是独立实现，不是 Makai Ocean Engineering 的官方产品，不宣称获得 Makai 授权、合作、认可或兼容认证。MakaiPlan、MakaiPlan Pro、MakaiLay 等名称仅用于说明参考资料和功能背景，相关名称与标识归其权利人所有。
+
+本项目不提供或分发 Makai 程序、源码、许可证、授权密钥、原始手册 PDF 或受限模型库。使用本项目不授予任何 Makai 产品使用权；需要原厂产品时，应另向原厂取得适当许可。本项目不提供清洁室开发认证或不侵权结论。
+
+## 工程与数据边界
+
+- 缆形、张力、海流、海况、维修及工期／费用结果属于有明确假设和计算预算的独立研究或初步估算。尚无原厂黄金输出、海试校准或现场工程精度认证。
+- 几何规则、地形采样和数值收敛不证明连续海底安全、载荷极值或施工可行性。缺测、来源接缝、垂直基准、网格覆盖和模型限制必须按报告处理。
+- S-57 与其他 GIS 数据是参考图层，不是 S52／ECDIS 航海呈现或自动转换后的工程水深。测试海图不保证现势性，不得用于航海或法定配备要求。
+- 当前没有船载设备接入或实时施工控制；完整刚体、疲劳、摩擦加载历史和维修动力学等仍有未完成部分。详见[状态矩阵](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/IMPLEMENTATION_STATUS.md)与各模型说明。
+
+## 平台与许可
+
+0.12.1 的 Windows 二进制和安装流程在 macOS Wine／Rosetta 兼容层中实际验证；原生 Windows 实机／虚拟机验收尚未完成，安装器未签名。Windows 10／11 x64 是目标平台，不是已取得的实机认证。0.12 存在已记录的 Windows 失败，不建议作为当前部署版本。准确执行范围见[发行记录](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/docs/RELEASE_NOTES.md)。
+
+本项目原创部分按 [MIT License](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE) 提供，第三方组件和数据按各自许可处理，见 [NOTICE](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md)。本说明不替代许可文本、适用法律或项目所需的专业验证，也不排除适用法律不允许排除的权利或责任。
+
+
+## Source: https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/NOTICE.md
+
+# 许可与第三方说明
+
+## 原创部分
+
+[MIT License](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/LICENSE) 适用于维护者有权授权的项目原创代码、原创项目文档和原创示意图，包括历史版本中的自有代码。使用、修改或再分发时，应保留 MIT 要求的版权及许可说明。
+
+0.1–0.12.1 已冻结发行包保持原字节。本仓库新增的 LICENSE 与本说明是另行提供的许可补充；不声称原封存 ZIP、wheel、EXE 或 PDF 当时已经包含该 LICENSE 文件，也不据此改写原始摘要或验收记录。
+
+项目截图中的自有界面不改变其所显示的第三方数据许可。六张项目页截图保留原截图内容与来源，不能把其中 NOAA 海图或其他第三方材料整体重新标为 MIT。
+
+## 第三方组件与数据
+
+项目和 Windows 安装包使用 Python、NumPy、SciPy、PROJ／pyproj、GeographicLib、Shapely／GEOS、GDAL／pyogrio、Rasterio 及其他依赖。它们保留各自版权和许可，不统一改为本项目的 MIT。例如安装包 Shapely 分发保留 `LICENSE_GEOS` 中的 GEOS LGPL 文本；具体版本、条件和第三方声明以实际分发内的许可文件为准。
+
+Windows 包内相关文本通常位于 `runtime/Lib/site-packages/<distribution>.dist-info/licenses/`，另有运行时本身的许可文件。源码环境应查看实际安装的分发文件；不要只凭项目 LICENSE 推定依赖许可。
+
+NOAA S-57 测试交换集保留原始字节、协议与来源。其 CC0 数据记录和再分发说明见[测试资料说明](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/tests/fixtures/s57/README.md)及[原始来源记录](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/resources/research/s57_sources.json)。这些资料不是官方 NOAA 航海产品，不表示 NOAA 背书，不保证当前海图有效性。
+
+公开技术文档、学术资料和商标引用不因此取得新的再分发授权。本仓库不授予 Makai 软件、原始手册或受限资源使用权，亦不作第三方权利或不侵权保证。完整使用边界见 [DISCLAIMER](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/DISCLAIMER.md)。

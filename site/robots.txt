@@ -1,0 +1,5 @@
+# Informational project-scoped file. Robots rules are only effective at the host root.
+# This project does not control https://jane-o-o-o-o.github.io/robots.txt.
+User-agent: *
+Allow: /
+Sitemap: https://jane-o-o-o-o.github.io/openOceanRoute/sitemap.xml
