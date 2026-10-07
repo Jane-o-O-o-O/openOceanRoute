@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+type: software
+message: "If you reference this independent research software, cite this repository and its version; do not infer field certification or Makai equivalence."
+title: "openOceanRoute: independent submarine cable routing and research simulation"
+authors:
+  - name: "openOceanRoute contributors"
+version: "0.12.1"
+date-released: "2026-10-05"
+license: MIT
+url: "https://github.com/Jane-o-O-o-O/openOceanRoute"
+repository-code: "https://github.com/Jane-o-O-o-O/openOceanRoute"
+keywords:
+  - submarine cable
+  - route planning
+  - GIS
+  - bathymetry
+  - WGS84
+  - S-57
+  - numerical simulation

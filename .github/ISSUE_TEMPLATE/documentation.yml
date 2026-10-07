@@ -1,0 +1,28 @@
+name: "Documentation / 文档纠错"
+description: "报告文案、操作说明、来源或验证范围中的具体问题。"
+title: "[Docs]: "
+body:
+  - type: markdown
+    attributes:
+      value: "请指出具体位置和期望说明，不公开客户数据；安全问题使用 [SECURITY](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md)。"
+  - type: input
+    id: location
+    attributes:
+      label: "文档或页面位置 / Location"
+      placeholder: "文件路径／链接、章节、页面版本"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "当前问题 / Current problem"
+      description: "引用必要的短句并说明歧义、错误或无法复现的步骤。"
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: "建议说明与依据 / Proposed correction"
+      description: "提供可公开来源或实际行为；未验证的推测请明确标记。"
+    validations:
+      required: true

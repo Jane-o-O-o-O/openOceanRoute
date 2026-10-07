@@ -1,0 +1,54 @@
+name: "Bug report / 稳定性问题"
+description: "报告可复现的缺陷；当前优先文档、稳定性与安全收尾。"
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿公开客户工程、访问令牌或敏感路线。安全漏洞请按 [SECURITY](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/SECURITY.md) 使用私密渠道。
+        当前稳定版为 0.12.1；研究模型限制和已知未实现能力不等于缺陷，见 [FAQ](https://github.com/Jane-o-O-o-O/openOceanRoute/blob/main/FAQ.md)。
+  - type: input
+    id: version
+    attributes:
+      label: "程序版本 / Version"
+      placeholder: "OceanRoute 0.12.1；若已核对，可附发行文件 SHA256"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: "安装方式 / Installation"
+      options:
+        - "Windows x64 EXE"
+        - "源码便携 ZIP / Portable source ZIP"
+        - "Git 克隆 / Git clone"
+        - "wheel 或其他（在环境中说明）"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: "运行环境 / Environment"
+      description: "操作系统、架构、浏览器；源码环境可附 Python / Node / 依赖版本。Wine 请明确注明。"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "最小复现 / Steps to reproduce"
+      description: "用合成或可公开数据给出步骤；不要附原厂受限手册、客户项目或未脱敏日志。"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "期望结果 / Expected behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "实际结果 / Actual behavior"
+      description: "可附脱敏错误文本或截图；注明是否每次出现。"
+    validations:
+      required: true
